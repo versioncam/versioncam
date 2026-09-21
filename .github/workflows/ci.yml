@@ -48,7 +48,7 @@ jobs:
       # never changes what the recording shows — on a real app, not a fixture.
       - name: The gate changes nothing
         working-directory: examples/demo-app
-        run: npm run test:integration
+        run: npm run test:gate
 
       - name: Render the example's clips
         working-directory: examples/demo-app

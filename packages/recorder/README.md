@@ -203,6 +203,34 @@ If a byte-identity test fails, something outside the authored clock leaked
 into a frame — an unwarmed resource, a real timer, a font that had not
 finished loading. Fix the cause, not the assertion.
 
+### When a clip will not reproduce
+
+The recorder can only be as deterministic as the app it is filming, and an app
+that is *nearly* deterministic is the hard case: it reproduces most runs, so the
+first failure looks like a recorder bug.
+
+Before assuming it is one, record the clip twice the same way:
+
+```bash
+npx demos record 02-find-a-shipment && cp -r .demos/recordings/02-find-a-shipment /tmp/a
+npx demos record 02-find-a-shipment && diff -r /tmp/a .demos/recordings/02-find-a-shipment
+```
+
+If those two differ, nothing about the recorder is implicated yet — something
+in the app does not depend on authored time. What we have found doing this:
+
+- An **autosizing text field** that settles a frame later depending on how the
+  browser scheduled the layout. The clips that typed diverged; the clips that
+  did not, did not.
+- A **spinner**, via the recorder's own fault, since fixed: the screenshot was
+  cancelling the animation the driver had just scrubbed. Worth knowing because
+  the symptom was six pixels in one frame of three hundred, which reads as
+  noise rather than as a bug.
+
+If the two recordings match and something else does not, the next question is
+what changed between them — the gate (`capture: { gate: false }` turns it off)
+or the machine.
+
 ## While recording
 
 Do not edit files. A dev server pushes a full page reload to every connected
