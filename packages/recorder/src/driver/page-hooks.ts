@@ -11,15 +11,52 @@
  * needs no cooperation from the app.
  */
 export const MUTATION_COUNTER_SCRIPT = `(() => {
-  const state = { mutations: 0 };
+  const state = {
+    mutations: 0,
+    ids: new WeakMap(),
+    nextId: 1,
+    idOf(el) {
+      if (!el) return 0;
+      let id = state.ids.get(el);
+      if (!id) { id = state.nextId++; state.ids.set(el, id); }
+      return id;
+    },
+    probe(t, x, y) {
+      document.documentElement.style.setProperty("--recorder-t", t);
+      return {
+        mutations: state.mutations,
+        hovered: state.idOf(document.elementFromPoint(x, y)),
+        animations: document.getAnimations().length,
+      };
+    },
+  };
   window.__recorder = state;
+
+  // The driver writes --recorder-t to <html style> on every single frame. Left
+  // alone that write is a mutation like any other, so the counter would move
+  // every frame and anything built on it — a settle that waits for quiet, a
+  // gate that skips an unchanged frame — would be reading its own footprint.
+  // Anything else that touches <html style>, a scroll lock or a theme switch,
+  // still counts.
+  const withoutScrub = (value) =>
+    (value || "").replace(/--recorder-t\\s*:[^;]*;?/g, "").trim();
+
   const start = () => {
-    const target = document.documentElement || document;
+    const root = document.documentElement;
+    const isOurScrub = (record) =>
+      record.type === "attributes" &&
+      record.target === root &&
+      record.attributeName === "style" &&
+      withoutScrub(record.oldValue) === withoutScrub(root.getAttribute("style"));
+
     new MutationObserver((records) => {
-      state.mutations += records.length;
-    }).observe(target, {
+      for (const record of records) {
+        if (!isOurScrub(record)) state.mutations += 1;
+      }
+    }).observe(root || document, {
       childList: true,
       attributes: true,
+      attributeOldValue: true,
       characterData: true,
       subtree: true,
     });
@@ -74,15 +111,39 @@ export const FREEZE_CSS_SCRIPT = `(() => {
 })();`;
 
 /**
- * Advance the page's CSS animations to `seconds` of authored time. Called once
- * per captured frame; a plain custom-property write, so it costs one round
- * trip and no layout.
+ * What the driver learns from the page once per frame.
+ *
+ * One round trip does three jobs: it advances the page's CSS animations to
+ * this frame's authored time, and reports the two things that decide whether
+ * this frame needs a screenshot.
+ *
+ * `hovered` is the identity of the element under the cursor, as a number. The
+ * cursor glyph is drawn in post, so the pointer moving changes no pixel by
+ * itself — what changes pixels is the pointer moving *onto something else*.
+ * `elementFromPoint` runs the same hit test a real pointer event does, so when
+ * it returns the same element as last frame, the `:hover` chain is the same
+ * chain and no hover styling can have changed.
+ *
+ * `animations` is how many animations are running. A scrubbed animation
+ * repaints on every frame without touching the DOM, so while any is on screen
+ * — a spinner, a progress bar — every frame is genuinely different and none
+ * may be skipped.
  */
-export const SET_ANIMATION_TIME = (seconds: number): string =>
-  `document.documentElement.style.setProperty("--recorder-t", "${seconds.toFixed(4)}")`;
+export const FRAME_PROBE = (seconds: number, x: number, y: number): string =>
+  `window.__recorder.probe("${seconds.toFixed(4)}", ${x.toFixed(2)}, ${y.toFixed(2)})`;
+
+export type FrameProbe = {
+  mutations: number;
+  /** Identity of the element under the cursor; 0 when there is none. */
+  hovered: number;
+  animations: number;
+};
 
 declare global {
   interface Window {
-    __recorder?: { mutations: number };
+    __recorder?: {
+      mutations: number;
+      probe(t: string, x: number, y: number): FrameProbe;
+    };
   }
 }

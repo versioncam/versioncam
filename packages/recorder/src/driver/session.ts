@@ -24,7 +24,8 @@ import { emptyTiming } from "../core/timing.js";
 import type { RecordingTiming } from "../core/timing.js";
 import { settlePage } from "./settle.js";
 import type { SettleOptions } from "./settle.js";
-import { SET_ANIMATION_TIME } from "./page-hooks.js";
+import { FRAME_PROBE } from "./page-hooks.js";
+import type { FrameProbe } from "./page-hooks.js";
 import type { ResolvedConfig } from "../config.js";
 
 export type SessionOptions = {
@@ -89,6 +90,12 @@ export class RecordingSession {
   private inFlight = 0;
   private lastSettleFrame = -1;
   private readonly timing = emptyTiming();
+  /**
+   * Where the real mouse actually is. The planned cursor holds still for most
+   * of a clip, and telling Chromium to move a pointer to where it already is
+   * costs 8 ms and achieves nothing.
+   */
+  private lastMouse: Vec2 | null = null;
 
   constructor(page: Page, options: SessionOptions) {
     this.page = page;
@@ -241,7 +248,7 @@ export class RecordingSession {
     });
 
     const framesAt = performance.now();
-    await this.page.mouse.move(this.cursor[0], this.cursor[1]);
+    await this.moveMouse(this.cursor);
     await this.captureFrame(0);
     this.timing.framesMs += performance.now() - framesAt;
     this.frame = 0;
@@ -540,12 +547,15 @@ export class RecordingSession {
       const tf = timeAt(f, this.options.fps);
 
       const position = evalCursor(this.timeline.cursor, tf);
-      await this.page.mouse.move(position[0], position[1]);
+      await this.moveMouse(position);
 
-      // Scrub the page's own CSS animations to this frame's authored time, so
-      // a spinner spins at the rate the clip plays rather than at the rate the
-      // machine happened to run.
-      await this.page.evaluate(SET_ANIMATION_TIME(tf));
+      // One round trip: scrub the page's own CSS animations to this frame's
+      // authored time — so a spinner spins at the rate the clip plays rather
+      // than the rate the machine ran — and read back what decides whether
+      // this frame needs a screenshot.
+      await this.page.evaluate<FrameProbe>(
+        FRAME_PROBE(tf, position[0], position[1]),
+      );
 
       while (this.queue.length > 0 && this.queue[0].t <= tf) {
         const action = this.queue.shift();
@@ -560,6 +570,19 @@ export class RecordingSession {
     this.timing.framesMs += performance.now() - startedAt;
     this.t = t1;
     this.cursor = cursorEnd(this.timeline.cursor, this.cursor);
+  }
+
+  /** Move the real pointer, unless it is already there. */
+  private async moveMouse(to: Vec2): Promise<void> {
+    if (
+      this.lastMouse &&
+      this.lastMouse[0] === to[0] &&
+      this.lastMouse[1] === to[1]
+    ) {
+      return;
+    }
+    await this.page.mouse.move(to[0], to[1]);
+    this.lastMouse = to;
   }
 
   private async captureFrame(frame: number): Promise<void> {
