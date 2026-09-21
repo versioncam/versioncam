@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Record demo clips of a real web app: scripted, deterministic, regenerated on deploy.",
   "bin": {
-    "demos": "./dist/cli/main.js"
+    "demos": "./bin/demos.js"
   },
   "exports": {
     ".": {
@@ -18,7 +18,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "engines": {
     "node": ">=22"
