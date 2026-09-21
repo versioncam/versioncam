@@ -103,8 +103,12 @@ demos sheet <id>              an eight-frame contact sheet
 demos frame <id> <n>          one frame at output size, to a png
     --t <seconds>               pick the frame by time instead
 demos preview <id>            open the scrubber in a real browser
+demos review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
+    --beats <file>              [{ label, expect }] the clip promised
+    --min <s> --max <s>         duration bounds (default 9–11)
 demos inspect <path>          what a clip can click
 demos measure <path> <sel>    where the matches of a selector are
+demos dsl                     the clip DSL, every method, one line each
 demos login                   sign in once and save the session
 demos doctor                  check this machine can record, and the app is up
 ```
@@ -126,6 +130,14 @@ the first frame that shows what the wait was for. `demos sheet --at-marks`
 samples those frames instead of eight even ones, which is the difference
 between a sheet that shows what the clip is about and one that happens to miss
 it.
+
+`demos review <id> --beats beats.json` is the half of reviewing a clip that
+needs no eyes, and no browser: is it the right length, did a wait give up, does
+every beat in the sheet have a mark, did the screen actually change between one
+beat and the next, and did the clip end on a camera move with no frames left to
+show it. It prints a line per clause and exits 0 or 1. What needs eyes — is
+this legible, is the cursor in the way, does the frame show what the beat
+claimed — is what the contact sheet and `demos frame` are for.
 
 ## How it works
 

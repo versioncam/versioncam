@@ -143,8 +143,10 @@ test.describe("the demos CLI", () => {
       "sheet",
       "frame",
       "preview",
+      "review",
       "inspect",
       "measure",
+      "dsl",
       "login",
       "doctor",
     ]) {
@@ -261,5 +263,54 @@ test.describe("the demos CLI", () => {
     const beyond = run(["frame", "buttons", "999"], dir);
     expect(beyond.status).toBe(1);
     expect(beyond.stderr).toContain("0–114");
+  });
+
+  test("review reads the recording and its beat sheet, and sets the exit code", () => {
+    const dir = appDirWithRecording([
+      { frame: 0, label: "open /buttons.html" },
+      { frame: 79, label: "after click" },
+    ]);
+    const beats = join(dir, "beats.json");
+    writeFileSync(
+      beats,
+      `${JSON.stringify([{ label: "after click", expect: "the counter reads 1" }])}\n`,
+    );
+
+    // The fixture recording is 1.9s, so the bounds have to say so — which is
+    // what they are for.
+    const ok = run(
+      [
+        "review",
+        "buttons",
+        "--beats",
+        "beats.json",
+        "--min",
+        "1",
+        "--max",
+        "3",
+      ],
+      dir,
+    );
+    expect(ok.stdout).toContain("buttons: PASS");
+    expect(ok.stdout).toContain("✓ beats");
+    expect(ok.status).toBe(0);
+
+    // A beat nothing marked, at a length nothing asked for: two clauses, both
+    // named, and an exit code CI can read.
+    writeFileSync(beats, `${JSON.stringify([{ label: "filtered" }])}\n`);
+    const bad = run(["review", "buttons", "--beats", "beats.json"], dir);
+    expect(bad.stdout).toContain("buttons: FAIL");
+    expect(bad.stdout).toContain('"filtered"');
+    expect(bad.stdout).toContain("outside 9–11s");
+    expect(bad.status).toBe(1);
+  });
+
+  test("dsl prints the reference, and it says nothing about drag", () => {
+    const { status, stdout } = run(["dsl"], PACKAGE);
+    expect(status).toBe(0);
+    expect(stdout).toContain("byTestId");
+    expect(stdout).toContain("camera.zoom");
+    // The method the README promised for months and the session never had.
+    expect(stdout).not.toContain("drag(");
   });
 });

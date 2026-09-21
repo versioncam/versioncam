@@ -56,4 +56,16 @@ export {
 } from "./render/render.js";
 export type { RenderOutcome, RenderTarget } from "./render/render.js";
 export { markedFrames, uniformFrames, SHEET_TILES } from "./render/sampling.js";
+export {
+  formatReview,
+  reviewRecording,
+  DEFAULT_BOUNDS,
+} from "./review/review.js";
+export type {
+  Beat,
+  ReviewBounds,
+  ReviewInput,
+  ReviewItem,
+  ReviewResult,
+} from "./review/review.js";
 export { buildSequence } from "./render/sequence.js";

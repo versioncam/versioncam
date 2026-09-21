@@ -48,6 +48,41 @@ describe("zoomRect", () => {
     expect(rect.y + rect.h).toBeLessThanOrEqual(viewport.height + 1e-9);
   });
 
+  it("still contains a target pressed against any edge or corner", () => {
+    // A pilot reported that zooming on a control near the edge cropped it,
+    // which would be the worst kind of framing bug: the beat is on screen, the
+    // camera is on the beat, and the frame shows half of it. So sweep the
+    // whole boundary rather than spot-checking one corner — small targets and
+    // targets long in each axis, since the aspect fit grows whichever axis is
+    // deficient and that growth is what has to be clamped.
+    const sizes = [
+      { w: 40, h: 30 },
+      { w: 420, h: 40 },
+      { w: 40, h: 380 },
+    ];
+    for (const { w, h } of sizes) {
+      const right = viewport.width - w;
+      const bottom = viewport.height - h;
+      const places = [
+        [0, 0],
+        [right, 0],
+        [0, bottom],
+        [right, bottom],
+        [right / 2, 0],
+        [right / 2, bottom],
+        [0, bottom / 2],
+        [right, bottom / 2],
+      ];
+      for (const [x, y] of places) {
+        const rect = zoomRect({ x, y, w, h }, viewport);
+        expect(rect.x).toBeLessThanOrEqual(x + 1e-9);
+        expect(rect.y).toBeLessThanOrEqual(y + 1e-9);
+        expect(rect.x + rect.w).toBeGreaterThanOrEqual(x + w - 1e-9);
+        expect(rect.y + rect.h).toBeGreaterThanOrEqual(y + h - 1e-9);
+      }
+    }
+  });
+
   it("never exceeds the viewport for a huge target", () => {
     const rect = zoomRect({ x: -500, y: -500, w: 5000, h: 5000 }, viewport);
     expect(rect).toEqual({ x: 0, y: 0, w: 1440, h: 900 });

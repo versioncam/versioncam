@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { check } from "./commands/check.js";
 import { doctor } from "./commands/doctor.js";
+import { dsl } from "./commands/dsl.js";
 import { frame } from "./commands/frame.js";
 import { inspect } from "./commands/inspect.js";
 import { login } from "./commands/login.js";
@@ -11,6 +12,7 @@ import { measure } from "./commands/measure.js";
 import { preview } from "./commands/preview.js";
 import { record } from "./commands/record.js";
 import { render } from "./commands/render.js";
+import { review } from "./commands/review.js";
 import { sheet } from "./commands/sheet.js";
 
 const USAGE = `demos — record and render demo clips of a real app
@@ -28,9 +30,13 @@ const USAGE = `demos — record and render demo clips of a real app
   demos preview <id>            open the scrubber in a real browser
       --scene <id>                preview a scene instead
       --frame <n>                 start at this frame
+  demos review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
+      --beats <file>              [{ label, expect }] the clip promised
+      --min <s> --max <s>         duration bounds (default 9–11)
   demos inspect <path>          what is on a page, and what a clip can click
       --json                      machine-readable
   demos measure <path> <sel>    where the matches of a selector are
+  demos dsl                     the clip DSL, every method, one line each
   demos login                   sign in once and save the browser session
   demos doctor                  check this machine can record, and the app is up
 
@@ -46,8 +52,10 @@ const COMMANDS: Record<string, Command> = {
   sheet,
   frame,
   preview,
+  review,
   inspect,
   measure,
+  dsl,
   login,
   doctor,
 };

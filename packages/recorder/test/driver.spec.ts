@@ -9,7 +9,7 @@ import { clip, runClip } from "../src/driver/clip.js";
 import type { ClipDefinition } from "../src/driver/clip.js";
 import type { RecordingSession } from "../src/driver/session.js";
 import type { ResolvedConfig } from "../src/config.js";
-import type { Timeline } from "../src/core/timeline.js";
+import type { Rect, Timeline } from "../src/core/timeline.js";
 import { installFixtureRoutes, testConfig } from "./support.js";
 
 /**
@@ -194,6 +194,63 @@ test.describe("recording the fixture page", () => {
     const b = { ...second.timeline, clipId: "" };
     expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   });
+});
+
+/**
+ * Zooming on a control near the edge of the page.
+ *
+ * A pilot reported that this cropped the control, which would make the camera
+ * useless for exactly the beats it exists for. The claim is checked here
+ * end to end — a real locator, its real box, the camera key the driver wrote —
+ * because `zoomRect` being right about rectangles would not prove the driver
+ * passes it the right rectangle. `framing.test.ts` sweeps the whole boundary
+ * for the arithmetic itself.
+ */
+test("a zoom on the control nearest the corner still contains it", async () => {
+  const browser = await launchBrowser();
+  try {
+    let box: Rect | undefined;
+    const { timeline } = await runClip(
+      browser,
+      testConfig(),
+      clip(
+        "edge-zoom",
+        { title: "Edge zoom", viewport: { width: 1000, height: 700 } },
+        async (s: RecordingSession) => {
+          await s.offCamera(installFixtureRoutes);
+          await s.open("/crowded.html");
+          // The last cell of the lattice: the bottom-right-most control on
+          // the page, 140px from one edge and 180px from the other.
+          const target = s.byTestId("marker-71");
+          box = await s.offCamera(async () => {
+            const found = await target.boundingBox();
+            if (!found) throw new Error("the fixture's last marker has no box");
+            return {
+              x: found.x,
+              y: found.y,
+              w: found.width,
+              h: found.height,
+            };
+          });
+          await s.camera.zoom(target);
+          // A camera key is a track write and costs no time; without frames
+          // after it the zoom would never be rendered at all.
+          await s.hold(1200);
+        },
+      ),
+    );
+
+    const framing = timeline.camera[timeline.camera.length - 1].rect;
+    expect(box).toBeDefined();
+    expect(framing.x).toBeLessThanOrEqual(box!.x);
+    expect(framing.y).toBeLessThanOrEqual(box!.y);
+    expect(framing.x + framing.w).toBeGreaterThanOrEqual(box!.x + box!.w);
+    expect(framing.y + framing.h).toBeGreaterThanOrEqual(box!.y + box!.h);
+    // And the camera really moved, or the assertions above are about nothing.
+    expect(framing.w).toBeLessThan(1000);
+  } finally {
+    await browser.close();
+  }
 });
 
 /**
