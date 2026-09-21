@@ -3,9 +3,81 @@
   <head>
     <meta charset="utf-8" />
     <title>living-demos — render</title>
+    <style>
+      /* This page is a pure function of a frame number. No transitions, no
+         animations, no timers: anything time-based here would make the same
+         frame render differently depending on when it was asked for. */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        transition: none !important;
+        animation: none !important;
+      }
+      body {
+        background: #0b0614;
+        color: #e8e2f5;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+      body.headless {
+        background: transparent;
+        display: block;
+      }
+      #stage {
+        display: block;
+      }
+      body.headless #stage {
+        position: fixed;
+        inset: 0;
+      }
+      #controls {
+        width: min(100%, 1280px);
+        padding: 14px 18px 28px;
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        font-size: 13px;
+      }
+      body.headless #controls {
+        display: none;
+      }
+      #scrub {
+        flex: 1;
+      }
+      #status {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        opacity: 0.75;
+      }
+      button {
+        font: inherit;
+        background: #2f6fed;
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 14px;
+        cursor: pointer;
+      }
+      #error {
+        padding: 24px;
+        color: #ff9a9a;
+        font-family: ui-monospace, Menlo, monospace;
+        white-space: pre-wrap;
+      }
+    </style>
   </head>
   <body>
     <canvas id="stage"></canvas>
+    <div id="controls">
+      <button id="play" type="button">Play</button>
+      <input id="scrub" type="range" min="0" max="0" step="1" value="0" />
+      <span id="status">–</span>
+    </div>
+    <pre id="error"></pre>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

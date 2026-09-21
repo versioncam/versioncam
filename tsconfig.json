@@ -1,8 +1,11 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/recorder" },
-    { "path": "./packages/recorder/tsconfig.render.json" },
-    { "path": "./examples/demo-app" }
+    {
+      "path": "./packages/recorder"
+    },
+    {
+      "path": "./examples/demo-app"
+    }
   ]
 }

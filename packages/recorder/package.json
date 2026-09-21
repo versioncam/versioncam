@@ -24,8 +24,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b tsconfig.json && vite build -c vite.render.config.ts",
-    "test:integration": "env -u NODE_OPTIONS playwright test -c test/playwright.config.ts"
+    "build": "tsc -b --force tsconfig.json && vite build -c vite.render.config.ts",
+    "test:integration": "env -u NODE_OPTIONS playwright test -c test/playwright.config.ts",
+    "typecheck": "tsc -p tsconfig.render.json"
   },
   "dependencies": {
     "esbuild": "^0.25.0",

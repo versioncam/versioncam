@@ -12,7 +12,8 @@ export default defineConfig({
   root: fileURLToPath(new URL("./render-page", import.meta.url)),
   base: "./",
   build: {
-    outDir: fileURLToPath(new URL("./dist/render", import.meta.url)),
+    // Not dist/render: tsc emits src/render/* there, and Vite would empty it.
+    outDir: fileURLToPath(new URL("./dist/page", import.meta.url)),
     emptyOutDir: true,
     target: "es2023",
   },
