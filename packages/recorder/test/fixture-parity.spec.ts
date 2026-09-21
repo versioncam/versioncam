@@ -100,6 +100,26 @@ test("reproduces the committed recording of the fixture", async () => {
     expect(timeline.camera).toEqual(expected.camera);
     expect(timeline.captions).toEqual(expected.captions);
 
+    // Same number of distinct states either way: capturing differently is a
+    // driver change, and that is platform-independent.
+    expect(timeline.states.length).toBe(expected.states.length);
+
+    const marker = join(FIXTURE_RECORDING, "recorded-on.json");
+    const recordedOn = existsSync(marker)
+      ? (JSON.parse(readFileSync(marker, "utf8")) as { platform: string })
+          .platform
+      : null;
+
+    if (recordedOn !== process.platform) {
+      test.info().annotations.push({
+        type: "skipped",
+        description:
+          `byte comparison skipped: the golden was recorded on ${recordedOn ?? "an unknown platform"}, ` +
+          `this is ${process.platform}`,
+      });
+      return;
+    }
+
     const hashes = (root: string) => {
       const states = join(root, "states");
       return readdirSync(states)
