@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Canvas fixture</title>
+    <style>
+      body { margin: 0; background: #fff; font: 14px system-ui, sans-serif; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <!--
+      The gate's blind spot, on purpose.
+
+      This square moves on every animation frame and nothing else on the page
+      changes: no DOM mutation, no element under the cursor, no CSS animation.
+      A page built from elements cannot do that; a canvas, a WebGL view and a
+      video all can. `capture.forceCaptureEvery` is the floor under it, and
+      this fixture is what proves the floor is there.
+    -->
+    <canvas id="c" width="400" height="200"></canvas>
+    <script>
+      const ctx = document.getElementById("c").getContext("2d");
+      let frame = 0;
+      const draw = () => {
+        frame += 1;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, 400, 200);
+        ctx.fillStyle = "#2f6fed";
+        // A full sweep every 120 frames, so any two frames within one period
+        // are distinguishable.
+        ctx.fillRect((frame * 3) % 360, 80, 40, 40);
+        requestAnimationFrame(draw);
+      };
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>

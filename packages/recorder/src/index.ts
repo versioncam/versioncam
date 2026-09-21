@@ -1,6 +1,7 @@
 export { defineRecorder, outputSize, resolveConfig } from "./config.js";
 export type {
   AuthConfig,
+  CaptureConfig,
   Motion,
   Presentation,
   RecorderConfig,

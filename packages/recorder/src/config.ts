@@ -53,6 +53,26 @@ export type SettleConfig = {
   ready?: (page: Page) => Promise<boolean>;
 };
 
+export type CaptureConfig = {
+  /**
+   * Skip the screenshot when nothing observable changed since the last one.
+   * On by default: a clip is mostly frames where nothing moved, and the
+   * screenshot is by far the most expensive thing a frame does.
+   */
+  gate?: boolean;
+  /**
+   * Capture regardless every N frames, however still the page looks.
+   *
+   * The gate watches the DOM, the element under the cursor and the running
+   * animations, which covers everything a page built from elements can do. It
+   * does not cover a canvas, a WebGL view or a video, which redraw themselves
+   * without any of those changing. This is the floor under that blind spot:
+   * at 60 fps the default catches such a change within half a second. A clip
+   * whose subject *is* a canvas should set it to 1 and pay full price.
+   */
+  forceCaptureEvery?: number;
+};
+
 export type RecorderConfig = {
   /** Where the app is served. */
   baseUrl: string;
@@ -69,6 +89,7 @@ export type RecorderConfig = {
   outDir?: string;
   auth?: AuthConfig;
   settle?: SettleConfig;
+  capture?: CaptureConfig;
   clock?: {
     /** The instant the app's fake clock starts at. */
     time?: string | Date;
@@ -105,6 +126,7 @@ export type ResolvedConfig = {
   settle: Required<Omit<SettleConfig, "ready">> & {
     ready: ((page: Page) => Promise<boolean>) | null;
   };
+  capture: Required<CaptureConfig>;
   clock: { time: Date; timezoneId: string; locale: string };
   theme: {
     accent: string;
@@ -169,6 +191,14 @@ export function resolveConfig(
     fail("fps", `must be an integer between 10 and 120, got ${fps}`);
   }
 
+  const forceCaptureEvery = config.capture?.forceCaptureEvery ?? 30;
+  if (!Number.isInteger(forceCaptureEvery) || forceCaptureEvery < 1) {
+    fail(
+      "capture.forceCaptureEvery",
+      `must be an integer of 1 or more, got ${forceCaptureEvery}`,
+    );
+  }
+
   if (config.auth) {
     const hasState = typeof config.auth.storageState === "string";
     const hasLogin = typeof config.auth.login === "function";
@@ -212,6 +242,10 @@ export function resolveConfig(
       timeoutMs: config.settle?.timeoutMs ?? 15_000,
       yieldMs: config.settle?.yieldMs ?? 20,
       ready: config.settle?.ready ?? null,
+    },
+    capture: {
+      gate: config.capture?.gate ?? true,
+      forceCaptureEvery: forceCaptureEvery,
     },
     clock: {
       time: new Date(config.clock?.time ?? "2026-09-01T09:00:00Z"),

@@ -26,7 +26,7 @@ import { settlePage } from "./settle.js";
 import type { SettleOptions } from "./settle.js";
 import { FRAME_PROBE } from "./page-hooks.js";
 import type { FrameProbe } from "./page-hooks.js";
-import type { ResolvedConfig } from "../config.js";
+import type { CaptureConfig, ResolvedConfig } from "../config.js";
 
 export type SessionOptions = {
   clipId: string;
@@ -38,6 +38,7 @@ export type SessionOptions = {
   seed: number;
   outputDir: string;
   appCommit: string;
+  capture: Required<CaptureConfig>;
   config: ResolvedConfig;
 };
 
@@ -96,6 +97,20 @@ export class RecordingSession {
    * costs 8 ms and achieves nothing.
    */
   private lastMouse: Vec2 | null = null;
+  /** What the page looked like to the probe when it was last photographed. */
+  private lastCaptured: FrameProbe | null = null;
+  private lastCapturedFrame = -1;
+  /**
+   * Set whenever the driver sends the page real input, and cleared by the next
+   * frame's capture decision.
+   *
+   * Input can change what the page looks like without changing anything the
+   * probe watches: `:active` while a button is held is pure CSS, driven by a
+   * pointer event, touching neither the DOM nor the element under the cursor.
+   * The gate would skip those frames and the clip would show a button that is
+   * never pressed.
+   */
+  private inputPending = false;
 
   constructor(page: Page, options: SessionOptions) {
     this.page = page;
@@ -249,7 +264,12 @@ export class RecordingSession {
 
     const framesAt = performance.now();
     await this.moveMouse(this.cursor);
-    await this.captureFrame(0);
+    await this.captureFrame(
+      0,
+      await this.page.evaluate<FrameProbe>(
+        FRAME_PROBE(0, this.cursor[0], this.cursor[1]),
+      ),
+    );
     this.timing.framesMs += performance.now() - framesAt;
     this.frame = 0;
   }
@@ -301,13 +321,7 @@ export class RecordingSession {
     this.pushHold(this.t + dwell / 1000);
     await this.advanceTo(this.t + dwell / 1000);
 
-    await this.page.mouse.down();
-    this.timeline.pointer.push({
-      t: this.t,
-      kind: "down",
-      at: this.cursor,
-      button: "left",
-    });
+    await this.pressMouse("down");
 
     const pressMs =
       this.motion.pressMinMs +
@@ -315,13 +329,7 @@ export class RecordingSession {
     this.pushHold(this.t + pressMs / 1000);
     await this.advanceTo(this.t + pressMs / 1000);
 
-    await this.page.mouse.up();
-    this.timeline.pointer.push({
-      t: this.t,
-      kind: "up",
-      at: this.cursor,
-      button: "left",
-    });
+    await this.pressMouse("up");
   }
 
   /**
@@ -350,13 +358,7 @@ export class RecordingSession {
       await this.page.keyboard.down(modifier);
     }
 
-    await this.page.mouse.down();
-    this.timeline.pointer.push({
-      t: this.t,
-      kind: "down",
-      at: this.cursor,
-      button: "left",
-    });
+    await this.pressMouse("down");
 
     // One authored point per frame: the stroke advances exactly as fast as the
     // video does, so it can never outrun what the map has drawn.
@@ -376,13 +378,7 @@ export class RecordingSession {
       await this.advanceTo(this.t + frameSeconds);
     }
 
-    await this.page.mouse.up();
-    this.timeline.pointer.push({
-      t: this.t,
-      kind: "up",
-      at: this.cursor,
-      button: "left",
-    });
+    await this.pressMouse("up");
 
     for (const modifier of options.modifiers ?? []) {
       await this.page.keyboard.up(modifier);
@@ -411,6 +407,7 @@ export class RecordingSession {
         t: start + schedule[index] / 1000,
         run: async () => {
           await this.page.keyboard.type(char);
+          this.inputPending = true;
         },
       });
     }
@@ -421,6 +418,7 @@ export class RecordingSession {
 
   async press(key: string): Promise<void> {
     await this.page.keyboard.press(key);
+    this.inputPending = true;
   }
 
   // ── camera, highlight, caption ────────────────────────────────────────────
@@ -549,27 +547,77 @@ export class RecordingSession {
       const position = evalCursor(this.timeline.cursor, tf);
       await this.moveMouse(position);
 
-      // One round trip: scrub the page's own CSS animations to this frame's
-      // authored time — so a spinner spins at the rate the clip plays rather
-      // than the rate the machine ran — and read back what decides whether
-      // this frame needs a screenshot.
-      await this.page.evaluate<FrameProbe>(
-        FRAME_PROBE(tf, position[0], position[1]),
-      );
-
       while (this.queue.length > 0 && this.queue[0].t <= tf) {
         const action = this.queue.shift();
         if (action) await action.run();
       }
 
       await this.page.clock.runFor(frameMs);
-      await this.captureFrame(f);
+
+      // One round trip, after the input and the tick, because that is the
+      // state this frame will be photographed in. It scrubs the page's own CSS
+      // animations to this frame's authored time — so a spinner spins at the
+      // rate the clip plays rather than the rate the machine ran — and reads
+      // back what decides whether this frame needs a screenshot.
+      const probe = await this.page.evaluate<FrameProbe>(
+        FRAME_PROBE(tf, position[0], position[1]),
+      );
+
+      if (this.shouldCapture(f, probe)) {
+        await this.captureFrame(f, probe);
+      } else {
+        this.timeline.frames[f] = this.timeline.frames[f - 1];
+        this.timing.skipped += 1;
+      }
       this.frame = f;
     }
 
     this.timing.framesMs += performance.now() - startedAt;
     this.t = t1;
     this.cursor = cursorEnd(this.timeline.cursor, this.cursor);
+  }
+
+  /**
+   * Does this frame need its own screenshot?
+   *
+   * Every clause errs towards capturing, because the two mistakes are not
+   * equal: capturing a frame that did not change wastes 25 ms, and skipping
+   * one that did puts a wrong picture in the video.
+   */
+  private shouldCapture(frame: number, probe: FrameProbe): boolean {
+    if (!this.options.capture.gate) return true;
+    const last = this.lastCaptured;
+    if (!last) return true;
+    // Input landed since the last frame. Its effect may never reach the DOM —
+    // a press that only changes `:active` styling never does — so do not ask
+    // the probe, just capture.
+    if (this.inputPending) {
+      this.inputPending = false;
+      return true;
+    }
+    if (probe.mutations !== last.mutations) return true;
+    // A scrubbed animation repaints every frame while it runs, touching
+    // nothing the other clauses watch.
+    if (probe.animations > 0 || last.animations > 0) return true;
+    // The pointer glyph is drawn in post, so the cursor moving is not a
+    // change — the cursor moving onto something else is.
+    if (probe.hovered !== last.hovered) return true;
+    return (
+      frame - this.lastCapturedFrame >= this.options.capture.forceCaptureEvery
+    );
+  }
+
+  /** Press or release, recording it and flagging the frame as changed. */
+  private async pressMouse(kind: "down" | "up"): Promise<void> {
+    if (kind === "down") await this.page.mouse.down();
+    else await this.page.mouse.up();
+    this.timeline.pointer.push({
+      t: this.t,
+      kind,
+      at: this.cursor,
+      button: "left",
+    });
+    this.inputPending = true;
   }
 
   /** Move the real pointer, unless it is already there. */
@@ -585,12 +633,26 @@ export class RecordingSession {
     this.lastMouse = to;
   }
 
-  private async captureFrame(frame: number): Promise<void> {
+  private async captureFrame(
+    frame: number,
+    probe: FrameProbe | null = null,
+  ): Promise<void> {
     this.timing.captured += 1;
     const buffer = await this.page.screenshot({
       type: "png",
       scale: "device",
-      caret: "hide",
+      // Not "hide", although the caret must indeed be hidden.
+      //
+      // Playwright hides it by injecting a style element before the shot and
+      // removing it after — two DOM mutations per screenshot. The capture gate
+      // decides whether to take a screenshot by asking whether the DOM changed,
+      // so with "hide" every capture guarantees the next frame captures too,
+      // and the gate can never skip anything. It reads its own footprint.
+      //
+      // `FREEZE_CSS` already sets `caret-color: transparent` on everything, as
+      // part of putting the page's rendering under the recorder's control, so
+      // there is nothing left for this option to do.
+      caret: "initial",
       // "allow", emphatically, although this is a recorder of still frames.
       //
       // Playwright's "disabled" is built for a screenshot taken at an
@@ -620,6 +682,8 @@ export class RecordingSession {
     }
 
     this.timeline.frames[frame] = index;
+    this.lastCaptured = probe;
+    this.lastCapturedFrame = frame;
   }
 
   /** What this recording cost in real time. Diagnostics, never content. */

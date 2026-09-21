@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import type { Browser } from "playwright";
-import type { ResolvedConfig } from "../config.js";
+import type { CaptureConfig, ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
 import type { RecordingTiming } from "../core/timing.js";
 import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks.js";
@@ -16,6 +16,11 @@ export type ClipOptions = {
   fps?: number;
   /** Seeds the jitter in cursor paths, dwells and typing. */
   seed?: number;
+  /**
+   * Per-clip capture overrides. A clip that films a canvas sets
+   * `forceCaptureEvery: 1` here rather than making every other clip pay.
+   */
+  capture?: CaptureConfig;
 };
 
 export type ClipBody = (session: RecordingSession) => Promise<void>;
@@ -76,6 +81,7 @@ export async function runClip(
   const viewport = options.viewport ?? config.viewport;
   const dpr = options.dpr ?? config.dpr;
   const fps = options.fps ?? config.fps;
+  const capture = { ...config.capture, ...options.capture };
 
   const context = await browser.newContext({
     viewport,
@@ -118,6 +124,7 @@ export async function runClip(
     seed: options.seed ?? 1,
     outputDir: dir,
     appCommit: appCommit(config.root),
+    capture,
     config,
   });
 
