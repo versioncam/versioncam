@@ -1,0 +1,197 @@
+import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { chromium } from "playwright";
+import type { Browser } from "playwright";
+import { PNG } from "pngjs";
+import { clip, runClip } from "../src/driver/clip";
+import type { ClipDefinition } from "../src/driver/clip";
+import type { RecordingSession } from "../src/driver/session";
+import type { ResolvedConfig } from "../src/config";
+import type { Timeline } from "../src/core/timeline";
+import { installFixtureRoutes, testConfig } from "./support";
+
+/**
+ * Proves the three claims the whole recorder rests on, against a static
+ * fixture page served from a route table — so it needs no app, no backend and
+ * no credentials:
+ *
+ *  1. one captured image per output frame, at the authored frame count;
+ *  2. the real page really is in the state the timeline says (hover and press
+ *     are CSS states no synthetic overlay could fake);
+ *  3. a second run produces the same bytes.
+ */
+
+// 2s at 60fps: long enough for an approach, a hover, a press and a release.
+async function fixtureBody(s: RecordingSession): Promise<void> {
+  // The same seam an app uses to mock its own API: routes go on the page the
+  // driver made, before anything navigates.
+  await s.offCamera(installFixtureRoutes);
+  await s.open("/buttons.html");
+  s.caption("Recorder fixture");
+  await s.hold(300);
+  await s.hover(s.byTestId("target"), { dwell: 300 });
+  await s.click();
+  await s.settle({ label: "after click" });
+  await s.hold(600);
+}
+
+function fixtureClip(id: string): ClipDefinition {
+  return clip(
+    id,
+    {
+      title: "Recorder fixture",
+      viewport: { width: 1000, height: 700 },
+      seed: 3,
+    },
+    fixtureBody,
+  );
+}
+
+async function record(
+  browser: Browser,
+  config: ResolvedConfig,
+  id: string,
+): Promise<{ timeline: Timeline; dir: string }> {
+  return runClip(browser, config, fixtureClip(id));
+}
+
+function statePixel(
+  dir: string,
+  timeline: Timeline,
+  frame: number,
+  x: number,
+  y: number,
+): [number, number, number] {
+  const file = timeline.states[timeline.frames[frame]];
+  const png = PNG.sync.read(readFileSync(join(dir, "states", file)));
+  const dpr = timeline.viewport.dpr;
+  const index = (png.width * Math.round(y * dpr) + Math.round(x * dpr)) << 2;
+  return [png.data[index], png.data[index + 1], png.data[index + 2]];
+}
+
+function stateHashes(dir: string): string[] {
+  const states = join(dir, "states");
+  return readdirSync(states)
+    .sort()
+    .map((name) =>
+      createHash("sha1")
+        .update(readFileSync(join(states, name)))
+        .digest("hex"),
+    );
+}
+
+test.describe("recording the fixture page", () => {
+  let browser: Browser;
+  let config: ResolvedConfig;
+  let first: { timeline: Timeline; dir: string };
+
+  test.beforeAll(async () => {
+    browser = await chromium.launch();
+    config = testConfig();
+    first = await record(browser, config, "fixture-buttons");
+  });
+
+  test.afterAll(async () => {
+    await browser.close();
+  });
+
+  test("captures one state per authored frame", () => {
+    const { timeline } = first;
+    expect(timeline.durationFrames).toBe(timeline.frames.length);
+    expect(timeline.durationFrames).toBeGreaterThan(90);
+    expect(timeline.fps).toBe(60);
+    for (const state of timeline.frames) {
+      expect(state).toBeGreaterThanOrEqual(0);
+      expect(state).toBeLessThan(timeline.states.length);
+    }
+    // Deduplication has to be doing something: a page that is still for 300ms
+    // must not produce 18 identical files.
+    expect(timeline.states.length).toBeGreaterThan(2);
+    expect(timeline.states.length).toBeLessThan(timeline.durationFrames);
+  });
+
+  test("records the click it performed", () => {
+    const { timeline } = first;
+    expect(timeline.pointer.map((p) => p.kind)).toEqual(["down", "up"]);
+
+    const [down, up] = timeline.pointer;
+    expect(up.t).toBeGreaterThan(down.t);
+    // The button sits at 400,300 and is 240x80.
+    expect(down.at[0]).toBeGreaterThan(400);
+    expect(down.at[0]).toBeLessThan(640);
+    expect(down.at[1]).toBeGreaterThan(300);
+    expect(down.at[1]).toBeLessThan(380);
+  });
+
+  test("the captured frames really passed through hover and press", () => {
+    const { timeline, dir } = first;
+    const [down, up] = timeline.pointer;
+    const downFrame = Math.round(down.t * timeline.fps);
+    const upFrame = Math.round(up.t * timeline.fps);
+
+    // Sampled 20px inside the button's left edge: its label is centred and
+    // white, so the centre pixel reads as text rather than as button colour.
+    const [px, py] = [420, 340];
+
+    // Idle: blue. The frame before the cursor has arrived.
+    expect(statePixel(dir, timeline, 0, px, py)).toEqual([0, 0, 255]);
+
+    // Hovered but not yet pressed: red. Playwright moved a real mouse, so the
+    // page's own :hover rule fired — a cursor drawn in post could never do
+    // this, which is why the cursor is synthetic but the input is not.
+    expect(statePixel(dir, timeline, downFrame, px, py)).toEqual([255, 0, 0]);
+
+    // Pressed: green, from :active.
+    expect(statePixel(dir, timeline, downFrame + 1, px, py)).toEqual([
+      0, 170, 0,
+    ]);
+
+    // Released, still hovered: red again.
+    expect(statePixel(dir, timeline, upFrame + 1, px, py)).toEqual([255, 0, 0]);
+  });
+
+  test("marks the settle as a cut", () => {
+    const { timeline } = first;
+    expect(timeline.cuts.length).toBeGreaterThan(0);
+    for (const cut of timeline.cuts) {
+      expect(cut).toBeGreaterThanOrEqual(0);
+      expect(cut).toBeLessThan(timeline.durationFrames);
+    }
+  });
+
+  test("opens on a full-viewport camera and a cursor clear of the controls", () => {
+    const { timeline } = first;
+    expect(timeline.camera[0]).toEqual({
+      t: 0,
+      rect: { x: 0, y: 0, w: 1000, h: 700 },
+      ease: "hold",
+    });
+    expect(timeline.cursor.length).toBeGreaterThan(0);
+  });
+
+  test("two independent runs produce byte-identical frames", async () => {
+    // This is the property the whole design exists for, and the one assertion
+    // that must never be loosened. If it fails, something outside the authored
+    // clock leaked into a frame — an unwarmed resource, a real timer, a font
+    // that had not finished loading — and the fix belongs there, not here.
+    const second = await record(
+      browser,
+      testConfig(),
+      "fixture-buttons-repeat",
+    );
+
+    expect(second.timeline.durationFrames).toBe(first.timeline.durationFrames);
+    expect(second.timeline.frames).toEqual(first.timeline.frames);
+    expect(second.timeline.cuts).toEqual(first.timeline.cuts);
+    expect(second.timeline.cursor).toEqual(first.timeline.cursor);
+    expect(second.timeline.pointer).toEqual(first.timeline.pointer);
+    expect(stateHashes(second.dir)).toEqual(stateHashes(first.dir));
+
+    // And the timelines differ in nothing but the id.
+    const a = { ...first.timeline, clipId: "" };
+    const b = { ...second.timeline, clipId: "" };
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+  });
+});

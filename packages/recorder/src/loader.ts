@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveConfig } from "./config";
 import type { RecorderConfig, ResolvedConfig } from "./config";
+import type { ClipDefinition } from "./driver/clip";
 
 /**
  * Loads the TypeScript an app writes: its config, its clips, its scenes.
@@ -94,6 +95,59 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
     );
   }
   return resolveConfig(module.default, dirname(file));
+}
+
+/**
+ * Every clip the config points at, in file order.
+ *
+ * `only` filters by substring against the clip id, which is how `demos record
+ * 05` works: an id is long and nobody wants to type one in full.
+ */
+export async function loadClips(
+  config: ResolvedConfig,
+  only: string[] = [],
+): Promise<ClipDefinition[]> {
+  const { glob } = await import("node:fs/promises");
+  const files: string[] = [];
+  for (const pattern of config.clips) {
+    for await (const match of glob(pattern, { cwd: config.root })) {
+      files.push(resolve(config.root, match));
+    }
+  }
+  files.sort();
+
+  const clips: ClipDefinition[] = [];
+  for (const file of files) {
+    const bundle = await bundleModule(file, "node", config.cacheDir);
+    const module = await importFresh<{
+      default?: ClipDefinition | ClipDefinition[];
+    }>(bundle);
+    if (!module.default) {
+      throw new Error(
+        `${file} must default-export a clip (or an array of them).`,
+      );
+    }
+    for (const clip of [module.default].flat()) {
+      if (typeof clip?.id !== "string" || typeof clip?.body !== "function") {
+        throw new Error(
+          `${file} default-exports something that is not a clip.`,
+        );
+      }
+      clips.push(clip);
+    }
+  }
+
+  const seen = new Set<string>();
+  for (const clip of clips) {
+    if (seen.has(clip.id)) {
+      throw new Error(`Two clips share the id "${clip.id}".`);
+    }
+    seen.add(clip.id);
+  }
+
+  return only.length === 0
+    ? clips
+    : clips.filter((clip) => only.some((needle) => clip.id.includes(needle)));
 }
 
 /** The app's scenes, bundled for the browser. Null when it has none. */

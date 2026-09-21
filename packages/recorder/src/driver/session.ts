@@ -1,0 +1,593 @@
+import type { Locator, Page } from "playwright";
+import { createHash } from "node:crypto";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { cursorEnd, evalCursor, planMove, targetPoint } from "../core/cursor";
+import { zoomRect } from "../core/camera";
+import { loop as planLoop, resampleByArcLength } from "../core/loop";
+import type { LoopPlanner } from "../core/loop";
+import { seeded } from "../core/rng";
+import { typingSchedule } from "../core/typing";
+import {
+  emptyTimeline,
+  frameAt,
+  timeAt,
+  validateTimeline,
+} from "../core/timeline";
+import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline";
+import { settlePage } from "./settle";
+import type { SettleOptions } from "./settle";
+import { SET_ANIMATION_TIME } from "./page-hooks";
+import type { ResolvedConfig } from "../config";
+
+export type SessionOptions = {
+  clipId: string;
+  title: string;
+  /** Resolved for this clip: the config's values with the clip's overrides. */
+  fps: number;
+  viewport: { width: number; height: number };
+  dpr: number;
+  seed: number;
+  outputDir: string;
+  appCommit: string;
+  config: ResolvedConfig;
+};
+
+type ScheduledAction = { t: number; run: () => Promise<void> };
+
+/**
+ * `Array.isArray` does not narrow a readonly tuple union, and a Locator is an
+ * object like any other, so both targets need real guards.
+ */
+function isPoint(target: Locator | Vec2): target is Vec2 {
+  return Array.isArray(target);
+}
+
+function isRect(target: Locator | Rect): target is Rect {
+  return (
+    typeof target === "object" &&
+    target !== null &&
+    "x" in target &&
+    "w" in target
+  );
+}
+
+/**
+ * Drives the app through an authored timeline and captures one image per
+ * output frame.
+ *
+ * The central idea: the clip's time is declared by the script, not measured
+ * from the wall clock. Each frame we apply that frame's input, advance the
+ * page's fake clock by exactly 1/fps, and capture. Real latency — a DuckDB
+ * query, a tile fetch, WebGL under software rendering — is absorbed by
+ * `settle()`, which advances the clock without capturing. Two runs of the
+ * same script therefore produce the same frames on any machine.
+ */
+export class RecordingSession {
+  readonly page: Page;
+
+  private readonly options: SessionOptions;
+  private readonly timeline: Timeline;
+  private readonly rng: () => number;
+  private readonly motion: ResolvedConfig["motion"];
+  private readonly statesDir: string;
+  private readonly stateIndexByHash = new Map<string, number>();
+  private readonly queue: ScheduledAction[] = [];
+
+  /** Authored time, in seconds. */
+  private t = 0;
+  /** Index of the last captured frame; -1 before frame 0 exists. */
+  private frame = -1;
+  private cursor: Vec2;
+  private inFlight = 0;
+  private lastSettleFrame = -1;
+
+  constructor(page: Page, options: SessionOptions) {
+    this.page = page;
+    this.options = options;
+    this.rng = seeded(options.seed);
+    this.motion = options.config.motion;
+    this.statesDir = join(options.outputDir, "states");
+    // Over open map, clear of the toolbar and the side panels. Parking it on
+    // a control means frame 0 opens with that control's tooltip already up.
+    this.cursor = [
+      options.viewport.width * 0.72,
+      options.viewport.height * 0.28,
+    ];
+
+    this.timeline = emptyTimeline({
+      clipId: options.clipId,
+      fps: options.fps,
+      viewport: { ...options.viewport, dpr: options.dpr },
+      title: options.title,
+      appCommit: options.appCommit,
+      baseUrl: options.config.baseUrl,
+      // Fixed, so two recordings of the same script differ in no byte at all.
+      recordedAt: "1970-01-01T00:00:00.000Z",
+    });
+
+    page.on("request", () => {
+      this.inFlight += 1;
+    });
+    page.on("requestfinished", () => {
+      this.inFlight = Math.max(0, this.inFlight - 1);
+    });
+    page.on("requestfailed", () => {
+      this.inFlight = Math.max(0, this.inFlight - 1);
+    });
+
+    rmSync(options.outputDir, { recursive: true, force: true });
+    mkdirSync(this.statesDir, { recursive: true });
+  }
+
+  // ── locators ──────────────────────────────────────────────────────────────
+
+  byTestId(testId: string): Locator {
+    return this.page.getByTestId(testId);
+  }
+
+  byRole(
+    role: Parameters<Page["getByRole"]>[0],
+    options?: Parameters<Page["getByRole"]>[1],
+  ): Locator {
+    return this.page.getByRole(role, options);
+  }
+
+  byLabel(text: string): Locator {
+    return this.page.getByLabel(text);
+  }
+
+  byPlaceholder(text: string): Locator {
+    return this.page.getByPlaceholder(text);
+  }
+
+  byText(text: string | RegExp): Locator {
+    return this.page.getByText(text);
+  }
+
+  css(selector: string): Locator {
+    return this.page.locator(selector);
+  }
+
+  // ── time ──────────────────────────────────────────────────────────────────
+
+  /** Hold still for `ms`, capturing frames. */
+  async hold(ms: number): Promise<void> {
+    const until = this.t + ms / 1000;
+    this.pushHold(until);
+    await this.advanceTo(until);
+  }
+
+  /**
+   * Run raw Playwright without capturing or advancing authored time. For
+   * setup that should not appear in the clip: seeding cohorts, warming tiles,
+   * priming a chat conversation.
+   */
+  async offCamera<T>(fn: (page: Page) => Promise<T>): Promise<T> {
+    return fn(this.page);
+  }
+
+  /**
+   * Wait for the page to stop working. Advances the page's clock but captures
+   * nothing, so the wait never reaches the timeline.
+   */
+  async settle(options: SettleOptions = {}): Promise<void> {
+    const defaults = this.options.config.settle;
+    const report = await settlePage(this.page, () => this.inFlight, {
+      quietMs: defaults.quietMs,
+      timeoutMs: defaults.timeoutMs,
+      yieldMs: defaults.yieldMs,
+      ...options,
+      hook: options.hook ?? this.defaultHook(),
+    });
+    if (report.elapsedMs > 1000) {
+      console.log(
+        `[recorder] ${report.label} took ${report.elapsedMs}ms (last blocker: ${report.lastBlocker})`,
+      );
+    }
+    // The next captured frame may differ wholesale from the last one; tell the
+    // renderer it may crossfade here instead of cutting hard.
+    if (this.frame >= 0 && this.frame !== this.lastSettleFrame) {
+      this.timeline.cuts.push(this.frame);
+      this.lastSettleFrame = this.frame;
+    }
+  }
+
+  private defaultHook(): (() => Promise<boolean>) | undefined {
+    const ready = this.options.config.settle.ready;
+    if (!ready) return undefined;
+    return () => ready(this.page);
+  }
+
+  // ── navigation ────────────────────────────────────────────────────────────
+
+  /**
+   * Open a path, sign in if the app needs it, wait for the page to be
+   * genuinely finished, and capture frame 0.
+   *
+   * Signing in is the app's own business: how it knows it is signed out, which
+   * fields, which button, what counts as done. The config supplies either a
+   * saved browser session — in which case there is nothing to do here — or a
+   * hook, which is called unconditionally after the navigation and decides for
+   * itself whether anything is needed.
+   */
+  async open(
+    path: string,
+    options: { settleTimeoutMs?: number } = {},
+  ): Promise<void> {
+    const url = path.startsWith("http")
+      ? path
+      : `${this.options.config.baseUrl}${path}`;
+    await this.page.goto(url, { waitUntil: "domcontentloaded" });
+
+    const auth = this.options.config.auth;
+    if (auth?.login) await auth.login(this.page);
+
+    await this.settle({
+      label: `open ${path}`,
+      timeoutMs: options.settleTimeoutMs ?? 90_000,
+    });
+    await this.page.mouse.move(this.cursor[0], this.cursor[1]);
+    await this.captureFrame(0);
+    this.frame = 0;
+  }
+
+  // ── pointer ───────────────────────────────────────────────────────────────
+
+  /** Glide to a target without pressing anything. */
+  async moveTo(
+    target: Locator | Vec2,
+    options: { duration?: number } = {},
+  ): Promise<void> {
+    const point = await this.resolvePoint(target);
+    const size = await this.resolveSize(target);
+    const segment = planMove(this.cursor, point, this.t, this.rng, {
+      targetSize: size,
+      duration: options.duration,
+    });
+    this.timeline.cursor.push(segment);
+    await this.advanceTo(segment.t1);
+    this.cursor = point;
+  }
+
+  /** Move to a target and pause on it, the way a person does before clicking. */
+  async hover(
+    target: Locator | Vec2,
+    options: { dwell?: number; duration?: number } = {},
+  ): Promise<void> {
+    await this.moveTo(target, { duration: options.duration });
+    await this.hold(options.dwell ?? this.motion.hoverDwellMs);
+  }
+
+  /**
+   * A full click: approach, a short dwell on the target, press, release.
+   *
+   * Implemented on `page.mouse` rather than `locator.click()`, which would
+   * teleport the pointer to the element — the approach *is* the thing being
+   * recorded.
+   */
+  async click(
+    target?: Locator | Vec2,
+    options: { dwell?: number } = {},
+  ): Promise<void> {
+    if (target) await this.moveTo(target);
+    const dwell =
+      options.dwell ??
+      this.motion.clickDwellMinMs +
+        this.rng() *
+          (this.motion.clickDwellMaxMs - this.motion.clickDwellMinMs);
+    this.pushHold(this.t + dwell / 1000);
+    await this.advanceTo(this.t + dwell / 1000);
+
+    await this.page.mouse.down();
+    this.timeline.pointer.push({
+      t: this.t,
+      kind: "down",
+      at: this.cursor,
+      button: "left",
+    });
+
+    const pressMs =
+      this.motion.pressMinMs +
+      this.rng() * (this.motion.pressMaxMs - this.motion.pressMinMs);
+    this.pushHold(this.t + pressMs / 1000);
+    await this.advanceTo(this.t + pressMs / 1000);
+
+    await this.page.mouse.up();
+    this.timeline.pointer.push({
+      t: this.t,
+      kind: "up",
+      at: this.cursor,
+      button: "left",
+    });
+  }
+
+  /**
+   * Draw a lasso: press, follow a smoothed closed loop at constant speed,
+   * release. `planner` comes from `loop([...])` and is expressed in fractions
+   * of the target's box, so the stroke survives a layout change.
+   */
+  async lasso(
+    target: Locator,
+    planner: LoopPlanner,
+    options: { duration?: number; modifiers?: ("Shift" | "Alt")[] } = {},
+  ): Promise<void> {
+    const box = await this.boxOf(target);
+    const path = planner(box, this.rng);
+    const durationMs = options.duration ?? this.motion.lassoDurationMs;
+    const frames = Math.max(
+      2,
+      Math.round((durationMs / 1000) * this.options.fps),
+    );
+    const points = resampleByArcLength(path, frames);
+
+    await this.moveTo(points[0]);
+    await this.hold(this.motion.hoverDwellMs);
+
+    for (const modifier of options.modifiers ?? []) {
+      await this.page.keyboard.down(modifier);
+    }
+
+    await this.page.mouse.down();
+    this.timeline.pointer.push({
+      t: this.t,
+      kind: "down",
+      at: this.cursor,
+      button: "left",
+    });
+
+    // One authored point per frame: the stroke advances exactly as fast as the
+    // video does, so it can never outrun what the map has drawn.
+    const frameSeconds = 1 / this.options.fps;
+    for (const point of points.slice(1)) {
+      const from = this.cursor;
+      this.timeline.cursor.push({
+        kind: "move",
+        t0: this.t,
+        t1: this.t + frameSeconds,
+        from,
+        to: point,
+        ctrl: [(from[0] + point[0]) / 2, (from[1] + point[1]) / 2],
+        ease: "minjerk",
+      });
+      this.cursor = point;
+      await this.advanceTo(this.t + frameSeconds);
+    }
+
+    await this.page.mouse.up();
+    this.timeline.pointer.push({
+      t: this.t,
+      kind: "up",
+      at: this.cursor,
+      button: "left",
+    });
+
+    for (const modifier of options.modifiers ?? []) {
+      await this.page.keyboard.up(modifier);
+    }
+  }
+
+  // ── keyboard ──────────────────────────────────────────────────────────────
+
+  /**
+   * Type at a human cadence into `target`, clicking it first so the keystrokes
+   * have somewhere to land. Without the click the text goes to whatever had
+   * focus — usually nothing — and the clip shows an empty field being
+   * "typed" into.
+   */
+  async typeInto(target: Locator, text: string): Promise<void> {
+    await this.click(target);
+    await this.type(text);
+  }
+
+  /** Type at a human cadence. The cursor stays where it is. */
+  async type(text: string): Promise<void> {
+    const schedule = typingSchedule(text, this.rng);
+    const start = this.t;
+    for (const [index, char] of [...text].entries()) {
+      this.queue.push({
+        t: start + schedule[index] / 1000,
+        run: async () => {
+          await this.page.keyboard.type(char);
+        },
+      });
+    }
+    const until = start + schedule[schedule.length - 1] / 1000;
+    this.pushHold(until);
+    await this.advanceTo(until);
+  }
+
+  async press(key: string): Promise<void> {
+    await this.page.keyboard.press(key);
+  }
+
+  // ── camera, highlight, caption ────────────────────────────────────────────
+
+  readonly camera = {
+    zoom: async (
+      target: Locator | Rect,
+      scale?: number,
+      options: { duration?: number } = {},
+    ): Promise<void> => {
+      const box = isRect(target) ? target : await this.boxOf(target);
+      const rect = zoomRect(box, this.options.viewport, {
+        maxScale: scale ?? this.motion.defaultZoom,
+        pad: this.motion.zoomPad,
+      });
+      this.pushCameraKey(rect, options.duration ?? this.motion.zoomDurationMs);
+    },
+    to: (rect: Rect, options: { duration?: number } = {}): void => {
+      this.pushCameraKey(rect, options.duration ?? this.motion.zoomDurationMs);
+    },
+    reset: (options: { duration?: number } = {}): void => {
+      this.pushCameraKey(
+        {
+          x: 0,
+          y: 0,
+          w: this.options.viewport.width,
+          h: this.options.viewport.height,
+        },
+        options.duration ?? this.motion.zoomDurationMs,
+      );
+    },
+  };
+
+  private pushCameraKey(rect: Rect, durationMs: number): void {
+    const keys = this.timeline.camera;
+    const last = keys[keys.length - 1];
+    // Hold the current framing until "now", then glide to the new one.
+    if (last.t < this.t) {
+      keys.push({ t: this.t, rect: last.rect, ease: "hold" });
+    }
+    keys.push({ t: this.t + durationMs / 1000, rect, ease: "minjerk" });
+  }
+
+  async highlight(
+    target: Locator | Rect,
+    style: HighlightStyle,
+    options: { for?: number } = {},
+  ): Promise<void> {
+    const rect = isRect(target) ? target : await this.boxOf(target);
+    this.timeline.highlights.push({
+      t0: this.t,
+      t1: this.t + (options.for ?? this.motion.highlightMs) / 1000,
+      rect,
+      style,
+    });
+  }
+
+  caption(text: string, options: { from?: number; to?: number } = {}): void {
+    this.timeline.captions.push({
+      t0: options.from ?? 0,
+      t1: options.to ?? Number.POSITIVE_INFINITY,
+      text,
+    });
+  }
+
+  // ── internals ─────────────────────────────────────────────────────────────
+
+  private pushHold(until: number): void {
+    if (until <= this.t) return;
+    this.timeline.cursor.push({
+      kind: "hold",
+      t0: this.t,
+      t1: until,
+      at: this.cursor,
+    });
+  }
+
+  /**
+   * Bounded on purpose. `boundingBox()` waits indefinitely by default, so a
+   * clip that reaches for a control the app did not render — a button that
+   * only appears once something is selected, say — hangs forever with no clue
+   * as to which step it was on. Fifteen seconds and a named failure instead.
+   */
+  private async boxOf(locator: Locator, timeoutMs = 15_000): Promise<Rect> {
+    try {
+      await locator.waitFor({ state: "visible", timeout: timeoutMs });
+    } catch {
+      throw new Error(
+        `Nothing matched ${locator.toString()} within ${timeoutMs}ms at ` +
+          `t=${this.t.toFixed(2)}s (frame ${this.frame}). The clip expected it ` +
+          `to be on screen by this point.`,
+      );
+    }
+    const box = await locator.boundingBox();
+    if (!box) {
+      throw new Error(
+        `Matched ${locator.toString()} but it has no box (zero-sized or detached).`,
+      );
+    }
+    return { x: box.x, y: box.y, w: box.width, h: box.height };
+  }
+
+  private async resolvePoint(target: Locator | Vec2): Promise<Vec2> {
+    if (isPoint(target)) return target;
+    const box = await this.boxOf(target);
+    return targetPoint(box, this.rng);
+  }
+
+  private async resolveSize(target: Locator | Vec2): Promise<number> {
+    if (isPoint(target)) return 24;
+    const box = await this.boxOf(target);
+    return Math.min(box.w, box.h);
+  }
+
+  /**
+   * The frame loop. Everything that advances authored time comes through here.
+   */
+  private async advanceTo(t1: number): Promise<void> {
+    const endFrame = frameAt(t1, this.options.fps);
+    const frameMs = 1000 / this.options.fps;
+
+    for (let f = this.frame + 1; f <= endFrame; f += 1) {
+      const tf = timeAt(f, this.options.fps);
+
+      const position = evalCursor(this.timeline.cursor, tf);
+      await this.page.mouse.move(position[0], position[1]);
+
+      // Scrub the page's own CSS animations to this frame's authored time, so
+      // a spinner spins at the rate the clip plays rather than at the rate the
+      // machine happened to run.
+      await this.page.evaluate(SET_ANIMATION_TIME(tf));
+
+      while (this.queue.length > 0 && this.queue[0].t <= tf) {
+        const action = this.queue.shift();
+        if (action) await action.run();
+      }
+
+      await this.page.clock.runFor(frameMs);
+      await this.captureFrame(f);
+      this.frame = f;
+    }
+
+    this.t = t1;
+    this.cursor = cursorEnd(this.timeline.cursor, this.cursor);
+  }
+
+  private async captureFrame(frame: number): Promise<void> {
+    const buffer = await this.page.screenshot({
+      type: "png",
+      scale: "device",
+      caret: "hide",
+      animations: "disabled",
+    });
+    const hash = createHash("sha1").update(buffer).digest("hex");
+
+    let index = this.stateIndexByHash.get(hash);
+    if (index === undefined) {
+      index = this.timeline.states.length;
+      const name = `${String(index).padStart(4, "0")}.png`;
+      writeFileSync(join(this.statesDir, name), buffer);
+      this.timeline.states.push(name);
+      this.stateIndexByHash.set(hash, index);
+    }
+
+    this.timeline.frames[frame] = index;
+  }
+
+  /** Write the timeline out. Called by `clip()` once the script has run. */
+  finish(): Timeline {
+    this.timeline.durationFrames = this.timeline.frames.length;
+
+    const finite = this.timeline.durationFrames / this.options.fps;
+    for (const caption of this.timeline.captions) {
+      if (!Number.isFinite(caption.t1)) caption.t1 = finite;
+    }
+
+    const problems = validateTimeline(this.timeline);
+    if (problems.length > 0) {
+      throw new Error(
+        `Recorded an invalid timeline for ${this.options.clipId}:\n  ${problems.join("\n  ")}`,
+      );
+    }
+
+    writeFileSync(
+      join(this.options.outputDir, "timeline.json"),
+      `${JSON.stringify(this.timeline, null, 2)}\n`,
+    );
+    return this.timeline;
+  }
+}
+
+export { planLoop as loop };
