@@ -62,16 +62,59 @@ reach for things that are conditional, renamed, or not rendered at all;
   result. So anything you write needs frames after it or it never renders. The
   usual victim is a `s.camera.reset()` on the last line: the reset is in the
   timeline, no frame follows it, and the video ends zoomed in. Give it a hold.
+- **A canvas, a WebGL map or a video needs `forceCaptureEvery: 1`.** The
+  recorder skips the screenshot when nothing observable changed, and what it
+  watches is the DOM, the element under the cursor and the running animations
+  — none of which a surface that redraws itself ever touches. The symptom is
+  what you will see on the contact sheet: the map, the chart or the video is
+  *identical* in every tile while the cursor and the caption move normally,
+  and nothing in the `record` or `review` output mentions it, because as far
+  as either is concerned nothing changed. If the subject of the clip is such a
+  surface, say so in the clip's options and pay full price:
+  `clip("<id>", { title: "…", capture: { forceCaptureEvery: 1 } }, …)`.
 - **End with nothing open.** No dialog, no menu, no tooltip, no focused
   dropdown, and the cursor clear of whatever the last frame is about.
 - **Start the cursor clear of the controls.** The default start position is
   tuned for one app and can land on a row or a button in another. If the first
   frame shows a hover state, move the cursor somewhere neutral first.
+- **If `open()` lands on a sign-in screen, stop.** Say so in your return and go
+  no further. Signing the recorder in is the repository owner's job, through
+  `auth` in `recorder.config.ts`, and `demos login` is interactive so you
+  cannot run it. Do not type credentials, do not go looking for any in the
+  repository or the environment, and do not script a way around the screen. A
+  clip that signs itself in is a clip nobody can run.
 - **Do not run `git`.** You have no git and you do not need one. Someone else
   reads your work and commits it.
 - **Do not edit the app, and do not edit `recorder.config.ts`.** Saving a file
   the dev server watches pushes a reload into the page being recorded and the
   run is lost.
+
+## The shape of a clip
+
+Whenever the clips directory has clips in it, they are better models than this
+— they are the ones that already work against this app. This is the minimum,
+for a repository whose first clip you are writing:
+
+```ts
+import { clip } from "@living-demos/recorder";
+
+export default clip(
+  "<id>",
+  { title: "<a short title>", seed: 11 },
+  async (s) => {
+    await s.open("/");
+    s.caption("<what this clip shows>");
+    await s.hold(400);
+
+    await s.click(s.byTestId("<control>"));
+    await s.settle({ label: "<beat label>" });
+    await s.hold(700);
+  },
+);
+```
+
+`seed` fixes the motion, so two runs of the clip produce the same frames. Pick
+one and leave it alone.
 
 ## Write the beat sheet before you record
 
