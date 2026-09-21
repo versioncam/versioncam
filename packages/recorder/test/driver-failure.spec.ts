@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chromium } from "playwright";
+import { launchBrowser } from "../src/driver/launch.js";
 import { clip, runClip } from "../src/driver/clip.js";
 import type { RecordingSession } from "../src/driver/session.js";
 import { installFixtureRoutes, testConfig } from "./support.js";
@@ -16,7 +16,7 @@ import { installFixtureRoutes, testConfig } from "./support.js";
  */
 test("a missing locator fails by name, with the step and the moment", async () => {
   test.setTimeout(90_000);
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   try {
     const failing = clip(
       "missing-control",

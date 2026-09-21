@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadConfig } from "../../loader.js";
@@ -24,7 +24,7 @@ export async function login(): Promise<number> {
     return 1;
   }
 
-  const browser = await chromium.launch({ headless: false });
+  const browser = await launchBrowser({ headless: false });
   const context = await browser.newContext({ viewport: config.viewport });
   const page = await context.newPage();
   await page.goto(config.baseUrl);

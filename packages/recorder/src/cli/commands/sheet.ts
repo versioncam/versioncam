@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { contactSheet } from "../../render/render.js";
 
@@ -24,7 +24,7 @@ export async function sheet(argv: string[]): Promise<number> {
     return 1;
   }
 
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   try {
     const file = await contactSheet(browser, config, {
       kind: "recording",

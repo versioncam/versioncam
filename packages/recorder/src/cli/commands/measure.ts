@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { formatMeasurement, measureSelector } from "../../inspect/measure.js";
 import { openAppPage } from "./open-app.js";
@@ -19,7 +19,7 @@ export async function measure(argv: string[]): Promise<number> {
   }
 
   const config = await loadConfig(process.cwd());
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   try {
     const { page, context } = await openAppPage(browser, config, path);
     const measurement = await measureSelector(page, selector);

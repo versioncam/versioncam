@@ -88,6 +88,13 @@ export type Timeline = {
     recordedAt: string;
     appCommit: string;
     baseUrl: string;
+    /**
+     * How many frames were screenshotted, as opposed to reusing the previous
+     * frame's state. A property of the recording, not of the machine — the
+     * same script against the same app skips the same frames — so it belongs
+     * here, where wall-clock timings deliberately do not.
+     */
+    captured?: number;
   };
 };
 

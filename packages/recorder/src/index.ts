@@ -20,6 +20,9 @@ export type { RecordingSession, SessionOptions } from "./driver/session.js";
 export { createGate } from "./driver/gate.js";
 export type { Gate } from "./driver/gate.js";
 export type { SettleOptions, SettleReport } from "./driver/settle.js";
+export { launchBrowser, DETERMINISTIC_ARGS } from "./driver/launch.js";
+export { formatTiming } from "./core/timing.js";
+export type { RecordingTiming } from "./core/timing.js";
 
 export { loop, catmullRomClosed, resampleByArcLength } from "./core/loop.js";
 export type { LoopPlanner, LoopOptions } from "./core/loop.js";

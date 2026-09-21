@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig, loadSceneIds } from "../../loader.js";
 import { renderRecording, renderScene } from "../../render/render.js";
 import { buildSequence } from "../../render/sequence.js";
@@ -45,7 +45,7 @@ export async function render(argv: string[]): Promise<number> {
     return 1;
   }
 
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   const rendered: string[] = [];
   const failures: { id: string; error: Error }[] = [];
 

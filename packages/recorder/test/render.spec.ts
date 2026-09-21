@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { launchBrowser } from "../src/driver/launch.js";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
 import { PNG } from "pngjs";
 import { fitFrameArea, sourceToOutput } from "../src/core/compose.js";
 import { ffprobeSync } from "../src/render/ffmpeg.js";
@@ -44,7 +44,7 @@ function pixel(png: PNG, x: number, y: number): [number, number, number] {
 test.describe("rendering a recording", () => {
   test("encodes exactly the authored frames at the viewport's aspect", async () => {
     const config = configWith(null);
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const result = await renderRecording(browser, config, CLIP);
 
@@ -89,7 +89,7 @@ test.describe("rendering a recording", () => {
 
   test("is a pure function of the frame number", async () => {
     const config = configWith(null);
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
 
     const shoot = async (frames: number[]) => {
       const { page } = await openRenderPage(browser, config, {
@@ -129,7 +129,7 @@ test.describe("rendering a recording", () => {
 
   test("with no presentation, the app fills the canvas", async () => {
     const config = configWith(null);
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const { page } = await openRenderPage(browser, config, {
         kind: "recording",
@@ -163,7 +163,7 @@ test.describe("rendering a recording", () => {
       padding: 0.045,
       caption: "below",
     });
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const { page } = await openRenderPage(browser, config, {
         kind: "recording",
@@ -197,7 +197,7 @@ test.describe("rendering a recording", () => {
 
   test("draws the caption, and only once it has faded in", async () => {
     const config = configWith(null);
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const { page } = await openRenderPage(browser, config, {
         kind: "recording",
@@ -241,7 +241,7 @@ test.describe("rendering a recording", () => {
 
   test("writes a contact sheet for review", async () => {
     const config = configWith(null);
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const sheet = await contactSheet(browser, config, {
         kind: "recording",

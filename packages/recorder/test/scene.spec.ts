@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { launchBrowser } from "../src/driver/launch.js";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
 import { ffprobeSync } from "../src/render/ffmpeg.js";
 import { renderScene } from "../src/render/render.js";
 import { loadSceneIds } from "../src/loader.js";
@@ -25,7 +25,7 @@ test.describe("rendering a scene", () => {
 
   test("encodes the scene's own frame count", async () => {
     const c = config();
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const result = await renderScene(browser, c, "ramp");
 
@@ -54,7 +54,7 @@ test.describe("rendering a scene", () => {
 
   test("draws a different frame for a different frame number", async () => {
     const c = config();
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const { openRenderPage } = await import("../src/render/render.js");
       const { page } = await openRenderPage(browser, c, {
@@ -83,7 +83,7 @@ test.describe("rendering a scene", () => {
 
   test("names the scenes it has when asked for one it does not", async () => {
     const c = config();
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       await expect(renderScene(browser, c, "nope")).rejects.toThrow(/ramp/);
     } finally {

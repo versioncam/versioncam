@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { runClip } from "../../driver/clip.js";
+import { formatTiming } from "../../core/timing.js";
 import { loadClips, loadConfig } from "../../loader.js";
 
 /**
@@ -31,19 +32,20 @@ export async function record(argv: string[]): Promise<number> {
     return 1;
   }
 
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   const failures: { id: string; error: Error }[] = [];
 
   try {
     for (const clip of clips) {
       const started = Date.now();
       try {
-        const { timeline } = await runClip(browser, config, clip);
+        const { timeline, cost } = await runClip(browser, config, clip);
         const seconds = (timeline.durationFrames / timeline.fps).toFixed(1);
         process.stdout.write(
           `  ${clip.id}: ${timeline.durationFrames} frames (${seconds}s), ` +
             `${timeline.states.length} states, ${timeline.cuts.length} cuts ` +
-            `— ${((Date.now() - started) / 1000).toFixed(0)}s\n`,
+            `— ${((Date.now() - started) / 1000).toFixed(1)}s\n` +
+            `    ${formatTiming(cost)}\n`,
         );
       } catch (error) {
         failures.push({ id: clip.id, error: error as Error });

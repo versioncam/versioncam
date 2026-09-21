@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { runClip } from "../../driver/clip.js";
 import { loadClips, loadConfig } from "../../loader.js";
 
@@ -25,7 +25,7 @@ export async function check(argv: string[]): Promise<number> {
     return 1;
   }
 
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   const failures: { id: string; error: Error }[] = [];
 
   try {

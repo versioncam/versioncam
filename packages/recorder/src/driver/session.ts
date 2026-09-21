@@ -20,6 +20,8 @@ import {
   validateTimeline,
 } from "../core/timeline.js";
 import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline.js";
+import { emptyTiming } from "../core/timing.js";
+import type { RecordingTiming } from "../core/timing.js";
 import { settlePage } from "./settle.js";
 import type { SettleOptions } from "./settle.js";
 import { SET_ANIMATION_TIME } from "./page-hooks.js";
@@ -86,6 +88,7 @@ export class RecordingSession {
   private cursor: Vec2;
   private inFlight = 0;
   private lastSettleFrame = -1;
+  private readonly timing = emptyTiming();
 
   constructor(page: Page, options: SessionOptions) {
     this.page = page;
@@ -178,6 +181,7 @@ export class RecordingSession {
    */
   async settle(options: SettleOptions = {}): Promise<void> {
     const defaults = this.options.config.settle;
+    const startedAt = performance.now();
     const report = await settlePage(this.page, () => this.inFlight, {
       quietMs: defaults.quietMs,
       timeoutMs: defaults.timeoutMs,
@@ -185,6 +189,7 @@ export class RecordingSession {
       ...options,
       hook: options.hook ?? this.defaultHook(),
     });
+    this.timing.settleMs += performance.now() - startedAt;
     if (report.elapsedMs > 1000) {
       console.log(
         `[recorder] ${report.label} took ${report.elapsedMs}ms (last blocker: ${report.lastBlocker})`,
@@ -223,17 +228,22 @@ export class RecordingSession {
     const url = path.startsWith("http")
       ? path
       : `${this.options.config.baseUrl}${path}`;
+    const startedAt = performance.now();
     await this.page.goto(url, { waitUntil: "domcontentloaded" });
 
     const auth = this.options.config.auth;
     if (auth?.login) await auth.login(this.page);
+    this.timing.openMs += performance.now() - startedAt;
 
     await this.settle({
       label: `open ${path}`,
       timeoutMs: options.settleTimeoutMs ?? 90_000,
     });
+
+    const framesAt = performance.now();
     await this.page.mouse.move(this.cursor[0], this.cursor[1]);
     await this.captureFrame(0);
+    this.timing.framesMs += performance.now() - framesAt;
     this.frame = 0;
   }
 
@@ -524,6 +534,7 @@ export class RecordingSession {
   private async advanceTo(t1: number): Promise<void> {
     const endFrame = frameAt(t1, this.options.fps);
     const frameMs = 1000 / this.options.fps;
+    const startedAt = performance.now();
 
     for (let f = this.frame + 1; f <= endFrame; f += 1) {
       const tf = timeAt(f, this.options.fps);
@@ -546,16 +557,33 @@ export class RecordingSession {
       this.frame = f;
     }
 
+    this.timing.framesMs += performance.now() - startedAt;
     this.t = t1;
     this.cursor = cursorEnd(this.timeline.cursor, this.cursor);
   }
 
   private async captureFrame(frame: number): Promise<void> {
+    this.timing.captured += 1;
     const buffer = await this.page.screenshot({
       type: "png",
       scale: "device",
       caret: "hide",
-      animations: "disabled",
+      // "allow", emphatically, although this is a recorder of still frames.
+      //
+      // Playwright's "disabled" is built for a screenshot taken at an
+      // arbitrary moment: it cancels an infinite animation to its initial
+      // state, shoots, and plays it again. That is the right answer when you
+      // have no control over animation time — and the wrong one here, because
+      // the recorder does have control. `FREEZE_CSS` has already paused every
+      // animation and the driver has already scrubbed it to this frame's
+      // authored time, so "disabled" throws that away and photographs a
+      // spinner at rotation zero on every frame.
+      //
+      // It cost more than a dead spinner. Cancelling and replaying around each
+      // shot raced the scrub, so the same frame of the same clip came out a
+      // few pixels different about one run in three — which is what sent us
+      // looking here.
+      animations: "allow",
     });
     const hash = createHash("sha1").update(buffer).digest("hex");
 
@@ -571,9 +599,16 @@ export class RecordingSession {
     this.timeline.frames[frame] = index;
   }
 
+  /** What this recording cost in real time. Diagnostics, never content. */
+  get cost(): RecordingTiming {
+    return { ...this.timing };
+  }
+
   /** Write the timeline out. Called by `clip()` once the script has run. */
   finish(): Timeline {
+    const startedAt = performance.now();
     this.timeline.durationFrames = this.timeline.frames.length;
+    this.timeline.meta.captured = this.timing.captured;
 
     const finite = this.timeline.durationFrames / this.options.fps;
     for (const caption of this.timeline.captions) {
@@ -591,6 +626,7 @@ export class RecordingSession {
       join(this.options.outputDir, "timeline.json"),
       `${JSON.stringify(this.timeline, null, 2)}\n`,
     );
+    this.timing.writeMs += performance.now() - startedAt;
     return this.timeline;
   }
 }

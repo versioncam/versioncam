@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { launchBrowser } from "../src/driver/launch.js";
 import { createHash } from "node:crypto";
 import {
   cpSync,
@@ -9,7 +10,6 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
 import { clip, runClip } from "../src/driver/clip.js";
 import type { RecordingSession } from "../src/driver/session.js";
 import type { Timeline } from "../src/core/timeline.js";
@@ -47,7 +47,7 @@ import {
  * the pixels are what the app drew.
  */
 test("reproduces the committed recording of the fixture", async () => {
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   try {
     const config = testConfig();
     const { timeline, dir } = await runClip(

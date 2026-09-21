@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chromium } from "playwright";
+import { launchBrowser } from "../src/driver/launch.js";
 import { formatInventory, inspectPage } from "../src/inspect/inspect.js";
 import { formatMeasurement, measureSelector } from "../src/inspect/measure.js";
 import { FIXTURE_ORIGIN, installFixtureRoutes } from "./support.js";
@@ -14,7 +14,7 @@ import { FIXTURE_ORIGIN, installFixtureRoutes } from "./support.js";
  */
 test.describe("looking at a page", () => {
   test("inventories what a clip can click", async () => {
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const page = await browser.newPage({
         viewport: { width: 1000, height: 700 },
@@ -45,7 +45,7 @@ test.describe("looking at a page", () => {
   });
 
   test("measures where the matches of a selector are", async () => {
-    const browser = await chromium.launch();
+    const browser = await launchBrowser();
     try {
       const page = await browser.newPage({
         viewport: { width: 1000, height: 700 },

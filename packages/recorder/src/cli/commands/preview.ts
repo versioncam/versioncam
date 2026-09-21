@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { renderConfigOf } from "../../config.js";
 import { bundleScenes } from "../../loader.js";
@@ -40,7 +40,7 @@ export async function preview(argv: string[]): Promise<number> {
     return 1;
   }
 
-  const browser = await chromium.launch({ headless: false });
+  const browser = await launchBrowser({ headless: false });
   const context = await browser.newContext({
     viewport: { width: 1400, height: 1000 },
     deviceScaleFactor: 1,

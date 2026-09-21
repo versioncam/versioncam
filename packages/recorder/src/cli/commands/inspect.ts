@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { chromium } from "playwright";
+import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { formatInventory, inspectPage } from "../../inspect/inspect.js";
 import { openAppPage } from "./open-app.js";
@@ -15,7 +15,7 @@ export async function inspect(argv: string[]): Promise<number> {
   const config = await loadConfig(process.cwd());
   const path = (positionals[0] as string | undefined) ?? "/";
 
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   try {
     const { page, context } = await openAppPage(browser, config, path);
     const inventory = await inspectPage(page);

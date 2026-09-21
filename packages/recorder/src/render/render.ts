@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { chromium } from "playwright";
+import { launchBrowser } from "../driver/launch.js";
 import type { Browser, Page } from "playwright";
 import { renderConfigOf } from "../config.js";
 import type { ResolvedConfig } from "../config.js";
@@ -179,7 +179,7 @@ export async function readTimeline(
 export async function withBrowser<T>(
   fn: (browser: Browser) => Promise<T>,
 ): Promise<T> {
-  const browser = await chromium.launch();
+  const browser = await launchBrowser();
   try {
     return await fn(browser);
   } finally {

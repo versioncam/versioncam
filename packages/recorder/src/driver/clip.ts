@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Browser } from "playwright";
 import type { ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
+import type { RecordingTiming } from "../core/timing.js";
 import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks.js";
 import { RecordingSession } from "./session.js";
 
@@ -53,7 +54,12 @@ function appCommit(cwd: string): string {
   }
 }
 
-export type RunClipResult = { timeline: Timeline; dir: string };
+export type RunClipResult = {
+  timeline: Timeline;
+  dir: string;
+  /** What it cost in real time. Diagnostics; never part of the recording. */
+  cost: RecordingTiming;
+};
 
 /**
  * Record one clip.
@@ -125,7 +131,8 @@ export async function runClip(
           "touching the working tree.",
       );
     }
-    return { timeline: session.finish(), dir };
+    const timeline = session.finish();
+    return { timeline, dir, cost: session.cost };
   } finally {
     await context.close();
   }

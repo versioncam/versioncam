@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { launchBrowser } from "../src/driver/launch.js";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { chromium } from "playwright";
 import type { Browser } from "playwright";
 import { PNG } from "pngjs";
 import { clip, runClip } from "../src/driver/clip.js";
@@ -88,7 +88,7 @@ test.describe("recording the fixture page", () => {
   let first: { timeline: Timeline; dir: string };
 
   test.beforeAll(async () => {
-    browser = await chromium.launch();
+    browser = await launchBrowser();
     config = testConfig();
     first = await record(browser, config, "fixture-buttons");
   });
