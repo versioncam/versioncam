@@ -173,7 +173,14 @@ export async function runClip(
     // Here rather than in the caller, because the context closes below and the
     // page is the one piece of evidence that cannot be recovered afterwards:
     // by the time an error reaches `record`, the app it failed on is gone.
-    writeSettles(dir, session.settles);
+    //
+    // Nothing in this block may throw, or it would replace the failure it
+    // exists to report — a disk error standing in for the locator that broke.
+    try {
+      writeSettles(dir, session.settles);
+    } catch {
+      // Said by the error on its way up, which is the more useful of the two.
+    }
     await writeFailure(
       page,
       dir,
