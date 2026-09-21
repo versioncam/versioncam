@@ -72,15 +72,35 @@ export type RunClipResult = {
  * A fresh context each time, with the fake clock installed before any
  * navigation so the app's own boot timers are fake from the first tick.
  */
+export type RunClipOptions = {
+  /**
+   * Record cheaply, for looking at while writing the clip.
+   *
+   * Fifteen frames a second instead of sixty, captured at CSS scale instead of
+   * device scale — at 1440×900 on a retina context that is 25 ms a frame
+   * rather than 67 ms, for a quarter as many frames.
+   *
+   * What it deliberately does *not* change is the page. The context keeps its
+   * device pixel ratio and its viewport, so the app lays out identically and
+   * runs the same code; a draft that reduced the DPR could pass while the full
+   * capture it stands in for fails on a media query.
+   */
+  draft?: boolean;
+};
+
 export async function runClip(
   browser: Browser,
   config: ResolvedConfig,
   definition: ClipDefinition,
+  runOptions: RunClipOptions = {},
 ): Promise<RunClipResult> {
   const { id, options, body } = definition;
+  const draft = runOptions.draft ?? false;
   const viewport = options.viewport ?? config.viewport;
   const dpr = options.dpr ?? config.dpr;
-  const fps = options.fps ?? config.fps;
+  // A draft ignores a clip's own frame rate: the point is to be cheap, and a
+  // clip asking for 60 would quietly cost four times what the flag promises.
+  const fps = draft ? 15 : (options.fps ?? config.fps);
   const capture = { ...config.capture, ...options.capture };
 
   const context = await browser.newContext({
@@ -125,6 +145,7 @@ export async function runClip(
     outputDir: dir,
     appCommit: appCommit(config.root),
     capture,
+    draft,
     config,
   });
 

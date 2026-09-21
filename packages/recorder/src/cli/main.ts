@@ -15,6 +15,7 @@ import { sheet } from "./commands/sheet.js";
 const USAGE = `demos — record and render demo clips of a real app
 
   demos record [id…]            drive the app and capture frames
+      --draft                     15fps at CSS scale: cheap, for writing clips
   demos render [id…]            composite and encode what has been recorded
       --scene <id>                render a designed scene (repeatable)
       --sequence                  stitch the results into one piece

@@ -95,6 +95,11 @@ export type Timeline = {
      * here, where wall-clock timings deliberately do not.
      */
     captured?: number;
+    /**
+     * Recorded in draft: fewer frames, captured at CSS scale. A draft is for
+     * looking at while writing a clip, never for publishing.
+     */
+    draft?: boolean;
   };
 };
 

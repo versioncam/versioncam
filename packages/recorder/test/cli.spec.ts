@@ -113,4 +113,14 @@ test.describe("the demos CLI", () => {
     expect(status).toBe(1);
     expect(stderr).toContain("demos record");
   });
+
+  test("offers a draft, and says so where the commands are listed", () => {
+    expect(run(["--help"], appDir()).stdout).toContain("--draft");
+    // The flag is not mistaken for a clip id, which is what `strict: false`
+    // parsing gets wrong if the option is not declared.
+    const { status, stderr } = run(["record", "--draft"], appDir());
+    expect(status).toBe(1);
+    expect(stderr).toContain("No clips found");
+    expect(stderr).not.toContain("--draft");
+  });
 });

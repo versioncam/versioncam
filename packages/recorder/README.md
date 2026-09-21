@@ -89,6 +89,7 @@ npx demos measure / '.marker'         # where the matches are, as fractions
 
 ```
 demos record [id…]            drive the app and capture frames
+    --draft                     15fps at CSS scale: cheap, for writing clips
 demos render [id…]            composite and encode
     --scene <id>                render a designed scene
     --sequence                  stitch the results into one piece
@@ -131,6 +132,52 @@ from a recording on disk and a browser.
 want 16:9, record at 1600×900. Nothing is letterboxed or cropped. A backdrop,
 device frame and padding are available via `theme.presentation`, off by
 default.
+
+## Speed
+
+Writing a clip means running it, looking at it, and changing a line — so what
+matters is how long that loop takes.
+
+**Most frames are not photographed.** A clip is mostly frames in which nothing
+moved, and the screenshot is by far the most expensive thing a frame does: 25 ms
+against half a millisecond for everything else. So the driver takes one only
+when the page can have changed — the DOM mutated, the element under the cursor
+changed, an animation is running, input was just sent, or `forceCaptureEvery`
+frames have gone by. On the example app that skips 81% to 95% of frames, and
+the recording is identical either way. A test records every clip both ways on
+every push and compares the bytes, because the failure mode is not a crash but
+a video that is quietly wrong.
+
+The one thing it cannot see is a surface that redraws itself: a canvas, a WebGL
+view, a video. None of them touches the DOM. `capture.forceCaptureEvery`
+(default 30) is the floor under that; a clip whose subject *is* a canvas should
+set it to 1 and pay full price:
+
+```ts
+export default clip("03-the-map", { title: "The map", capture: { forceCaptureEvery: 1 } }, …);
+```
+
+**`--draft` for the loop.** Fifteen frames a second, captured at CSS scale
+instead of device scale, into the same place a real recording goes.
+
+```bash
+npx demos record --draft 02-find-a-shipment   # then render and look
+```
+
+It deliberately does not change the page: same viewport, same device pixel
+ratio, same layout, same code. A draft that reduced the DPR could pass while
+the capture it stands in for fails on a media query. It does ignore a clip's
+own `fps`, because the point is to be cheap. Its duration can land up to 1/15 s
+from the full capture's, so a draft is for looking at, not for comparing
+against.
+
+`demos record` prints where the time went, which is how you tell whether the
+next second would come from the frames or from somewhere else:
+
+```
+  01-create-a-shipment: 425 frames (7.1s), 63 states, 1 cuts — 6.3s
+    open 0.0s · settles 0.5s · frames 5.7s (79 captured, 346 skipped) · write 0.0s
+```
 
 ## Determinism
 

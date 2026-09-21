@@ -39,6 +39,12 @@ export type SessionOptions = {
   outputDir: string;
   appCommit: string;
   capture: Required<CaptureConfig>;
+  /**
+   * Capture at CSS scale rather than device scale, for a cheap look at a clip
+   * while writing it. The page is not told: same viewport, same device pixel
+   * ratio, same layout, same code paths — only the screenshot is smaller.
+   */
+  draft: boolean;
   config: ResolvedConfig;
 };
 
@@ -128,7 +134,9 @@ export class RecordingSession {
     this.timeline = emptyTimeline({
       clipId: options.clipId,
       fps: options.fps,
-      viewport: { ...options.viewport, dpr: options.dpr },
+      // A draft's state images are CSS-sized, and `dpr` is how the renderer
+      // maps viewport coordinates onto pixels inside them.
+      viewport: { ...options.viewport, dpr: options.draft ? 1 : options.dpr },
       title: options.title,
       appCommit: options.appCommit,
       baseUrl: options.config.baseUrl,
@@ -640,7 +648,7 @@ export class RecordingSession {
     this.timing.captured += 1;
     const buffer = await this.page.screenshot({
       type: "png",
-      scale: "device",
+      scale: this.options.draft ? "css" : "device",
       // Not "hide", although the caret must indeed be hidden.
       //
       // Playwright hides it by injecting a style element before the shot and
@@ -696,6 +704,7 @@ export class RecordingSession {
     const startedAt = performance.now();
     this.timeline.durationFrames = this.timeline.frames.length;
     this.timeline.meta.captured = this.timing.captured;
+    if (this.options.draft) this.timeline.meta.draft = true;
 
     const finite = this.timeline.durationFrames / this.options.fps;
     for (const caption of this.timeline.captions) {

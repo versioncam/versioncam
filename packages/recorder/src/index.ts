@@ -11,6 +11,7 @@ export type {
 } from "./config.js";
 
 export { clip, runClip } from "./driver/clip.js";
+export type { RunClipOptions } from "./driver/clip.js";
 export type {
   ClipBody,
   ClipDefinition,

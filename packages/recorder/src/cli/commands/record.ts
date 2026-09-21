@@ -14,11 +14,13 @@ import { loadClips, loadConfig } from "../../loader.js";
  * error alone.
  */
 export async function record(argv: string[]): Promise<number> {
-  const { positionals } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: argv,
+    options: { draft: { type: "boolean", default: false } },
     strict: false,
     allowPositionals: true,
   });
+  const draft = values.draft === true;
 
   const config = await loadConfig(process.cwd());
   const clips = await loadClips(config, positionals as string[]);
@@ -39,10 +41,12 @@ export async function record(argv: string[]): Promise<number> {
     for (const clip of clips) {
       const started = Date.now();
       try {
-        const { timeline, cost } = await runClip(browser, config, clip);
+        const { timeline, cost } = await runClip(browser, config, clip, {
+          draft,
+        });
         const seconds = (timeline.durationFrames / timeline.fps).toFixed(1);
         process.stdout.write(
-          `  ${clip.id}: ${timeline.durationFrames} frames (${seconds}s), ` +
+          `  ${clip.id}${draft ? " (draft)" : ""}: ${timeline.durationFrames} frames (${seconds}s), ` +
             `${timeline.states.length} states, ${timeline.cuts.length} cuts ` +
             `— ${((Date.now() - started) / 1000).toFixed(1)}s\n` +
             `    ${formatTiming(cost)}\n`,
