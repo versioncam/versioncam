@@ -2,23 +2,28 @@ import type { Locator, Page } from "playwright";
 import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cursorEnd, evalCursor, planMove, targetPoint } from "../core/cursor";
-import { zoomRect } from "../core/camera";
-import { loop as planLoop, resampleByArcLength } from "../core/loop";
-import type { LoopPlanner } from "../core/loop";
-import { seeded } from "../core/rng";
-import { typingSchedule } from "../core/typing";
+import {
+  cursorEnd,
+  evalCursor,
+  planMove,
+  targetPoint,
+} from "../core/cursor.js";
+import { zoomRect } from "../core/camera.js";
+import { loop as planLoop, resampleByArcLength } from "../core/loop.js";
+import type { LoopPlanner } from "../core/loop.js";
+import { seeded } from "../core/rng.js";
+import { typingSchedule } from "../core/typing.js";
 import {
   emptyTimeline,
   frameAt,
   timeAt,
   validateTimeline,
-} from "../core/timeline";
-import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline";
-import { settlePage } from "./settle";
-import type { SettleOptions } from "./settle";
-import { SET_ANIMATION_TIME } from "./page-hooks";
-import type { ResolvedConfig } from "../config";
+} from "../core/timeline.js";
+import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline.js";
+import { settlePage } from "./settle.js";
+import type { SettleOptions } from "./settle.js";
+import { SET_ANIMATION_TIME } from "./page-hooks.js";
+import type { ResolvedConfig } from "../config.js";
 
 export type SessionOptions = {
   clipId: string;

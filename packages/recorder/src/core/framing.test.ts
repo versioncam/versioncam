@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampRect, evalCamera, scaleOf, zoomRect } from "./camera";
+import { clampRect, evalCamera, scaleOf, zoomRect } from "./camera.js";
 import {
   cameraToStatePixels,
   crossfadeAlpha,
@@ -7,11 +7,16 @@ import {
   fitFrameArea,
   rectToOutput,
   sourceToOutput,
-} from "./compose";
-import { catmullRomClosed, loop, resampleByArcLength } from "./loop";
-import { seeded } from "./rng";
-import { emptyTimeline, frameAt, timeAt, validateTimeline } from "./timeline";
-import type { CameraKey, Vec2 } from "./timeline";
+} from "./compose.js";
+import { catmullRomClosed, loop, resampleByArcLength } from "./loop.js";
+import { seeded } from "./rng.js";
+import {
+  emptyTimeline,
+  frameAt,
+  timeAt,
+  validateTimeline,
+} from "./timeline.js";
+import type { CameraKey, Vec2 } from "./timeline.js";
 
 const viewport = { width: 1440, height: 900 };
 

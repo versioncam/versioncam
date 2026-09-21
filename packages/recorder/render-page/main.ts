@@ -1,8 +1,8 @@
-import { drawRecordingFrame } from "./draw";
-import type { Frames } from "./draw";
-import type { RenderConfig } from "../src/config";
-import type { Scene } from "../src/scene";
-import type { Timeline } from "../src/core/timeline";
+import { drawRecordingFrame } from "./draw.js";
+import type { Frames } from "./draw.js";
+import type { RenderConfig } from "../src/config.js";
+import type { Scene } from "../src/scene.js";
+import type { Timeline } from "../src/core/timeline.js";
 
 /**
  * The render page.

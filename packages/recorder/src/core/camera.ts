@@ -1,5 +1,5 @@
-import { clamp, lerp, minjerk } from "./easing";
-import type { CameraKey, Rect } from "./timeline";
+import { clamp, lerp, minjerk } from "./easing.js";
+import type { CameraKey, Rect } from "./timeline.js";
 
 export type Viewport = { width: number; height: number };
 

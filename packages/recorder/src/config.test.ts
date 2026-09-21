@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { outputSize, resolveConfig } from "./config";
+import { outputSize, resolveConfig } from "./config.js";
 
 const ROOT = "/tmp/app";
 

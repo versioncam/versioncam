@@ -1,4 +1,4 @@
-export { defineRecorder, outputSize, resolveConfig } from "./config";
+export { defineRecorder, outputSize, resolveConfig } from "./config.js";
 export type {
   AuthConfig,
   Motion,
@@ -7,25 +7,25 @@ export type {
   RenderConfig,
   ResolvedConfig,
   SettleConfig,
-} from "./config";
+} from "./config.js";
 
-export { clip, runClip } from "./driver/clip";
+export { clip, runClip } from "./driver/clip.js";
 export type {
   ClipBody,
   ClipDefinition,
   ClipOptions,
   RunClipResult,
-} from "./driver/clip";
-export type { RecordingSession, SessionOptions } from "./driver/session";
-export { createGate } from "./driver/gate";
-export type { Gate } from "./driver/gate";
-export type { SettleOptions, SettleReport } from "./driver/settle";
+} from "./driver/clip.js";
+export type { RecordingSession, SessionOptions } from "./driver/session.js";
+export { createGate } from "./driver/gate.js";
+export type { Gate } from "./driver/gate.js";
+export type { SettleOptions, SettleReport } from "./driver/settle.js";
 
-export { loop, catmullRomClosed, resampleByArcLength } from "./core/loop";
-export type { LoopPlanner, LoopOptions } from "./core/loop";
-export { sseBody } from "./core/sse";
-export type { SseFixtureEvent } from "./core/sse";
-export { MOTION } from "./core/motion-defaults";
+export { loop, catmullRomClosed, resampleByArcLength } from "./core/loop.js";
+export type { LoopPlanner, LoopOptions } from "./core/loop.js";
+export { sseBody } from "./core/sse.js";
+export type { SseFixtureEvent } from "./core/sse.js";
+export { MOTION } from "./core/motion-defaults.js";
 export type {
   Caption,
   CameraKey,
@@ -35,17 +35,17 @@ export type {
   Rect,
   Timeline,
   Vec2,
-} from "./core/timeline";
+} from "./core/timeline.js";
 
-export type { Scene, Size } from "./scene";
+export type { Scene, Size } from "./scene.js";
 
-export { loadClips, loadConfig, loadSceneIds, bundleScenes } from "./loader";
+export { loadClips, loadConfig, loadSceneIds, bundleScenes } from "./loader.js";
 export {
   contactSheet,
   renderRecording,
   renderScene,
   withBrowser,
   readTimeline,
-} from "./render/render";
-export type { RenderOutcome, RenderTarget } from "./render/render";
-export { buildSequence } from "./render/sequence";
+} from "./render/render.js";
+export type { RenderOutcome, RenderTarget } from "./render/render.js";
+export { buildSequence } from "./render/sequence.js";

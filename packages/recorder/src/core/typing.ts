@@ -1,4 +1,4 @@
-import { jitter } from "./rng";
+import { jitter } from "./rng.js";
 
 const BASE_MS = 55;
 const SPREAD_MS = 25;

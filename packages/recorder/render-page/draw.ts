@@ -1,17 +1,17 @@
-import { evalCamera } from "../src/core/camera";
-import { evalCursor } from "../src/core/cursor";
+import { evalCamera } from "../src/core/camera.js";
+import { evalCursor } from "../src/core/cursor.js";
 import {
   cameraToStatePixels,
   crossfadeAlpha,
   fadeEnvelope,
   rectToOutput,
   sourceToOutput,
-} from "../src/core/compose";
-import { timeAt } from "../src/core/timeline";
-import type { Rect, Timeline, Vec2 } from "../src/core/timeline";
-import { captionPlacement, frameAreaFor } from "../src/render/presentation";
-import type { RenderConfig } from "../src/config";
-import { CHROME, withAlpha } from "./theme";
+} from "../src/core/compose.js";
+import { timeAt } from "../src/core/timeline.js";
+import type { Rect, Timeline, Vec2 } from "../src/core/timeline.js";
+import { captionPlacement, frameAreaFor } from "../src/render/presentation.js";
+import type { RenderConfig } from "../src/config.js";
+import { CHROME, withAlpha } from "./theme.js";
 
 export type Canvas2D = CanvasRenderingContext2D;
 

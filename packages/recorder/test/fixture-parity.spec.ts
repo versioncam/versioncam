@@ -3,10 +3,14 @@ import { createHash } from "node:crypto";
 import { cpSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { clip, runClip } from "../src/driver/clip";
-import type { RecordingSession } from "../src/driver/session";
-import type { Timeline } from "../src/core/timeline";
-import { FIXTURE_RECORDING, installFixtureRoutes, testConfig } from "./support";
+import { clip, runClip } from "../src/driver/clip.js";
+import type { RecordingSession } from "../src/driver/session.js";
+import type { Timeline } from "../src/core/timeline.js";
+import {
+  FIXTURE_RECORDING,
+  installFixtureRoutes,
+  testConfig,
+} from "./support.js";
 
 /**
  * A golden-file check on the capture path: the same script, recorded again,

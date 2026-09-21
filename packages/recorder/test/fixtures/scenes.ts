@@ -1,4 +1,4 @@
-import type { Scene } from "../../src/scene";
+import type { Scene } from "../../src/scene.js";
 
 /**
  * A scene that exists only to prove the path works: the app's own module,

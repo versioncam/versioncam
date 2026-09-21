@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { captionPlacement, frameAreaFor } from "./presentation";
+import { captionPlacement, frameAreaFor } from "./presentation.js";
 
 const CANVAS = { width: 1920, height: 1200 };
 const VIEWPORT = { width: 1440, height: 900 };

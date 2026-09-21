@@ -3,13 +3,16 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import type { Browser, Page } from "playwright";
-import { renderConfigOf } from "../config";
-import type { ResolvedConfig } from "../config";
-import { bundleScenes } from "../loader";
-import type { Timeline } from "../core/timeline";
-import { contactSheet as encodeContactSheet, encodeFromPage } from "./encode";
-import type { EncodeResult } from "./encode";
-import { distPageDir, installRenderRoutes, RENDER_ORIGIN } from "./serve";
+import { renderConfigOf } from "../config.js";
+import type { ResolvedConfig } from "../config.js";
+import { bundleScenes } from "../loader.js";
+import type { Timeline } from "../core/timeline.js";
+import {
+  contactSheet as encodeContactSheet,
+  encodeFromPage,
+} from "./encode.js";
+import type { EncodeResult } from "./encode.js";
+import { distPageDir, installRenderRoutes, RENDER_ORIGIN } from "./serve.js";
 
 export type RenderTarget =
   | { kind: "recording"; id: string; dir: string }

@@ -4,9 +4,9 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { resolveConfig } from "./config";
-import type { RecorderConfig, ResolvedConfig } from "./config";
-import type { ClipDefinition } from "./driver/clip";
+import { resolveConfig } from "./config.js";
+import type { RecorderConfig, ResolvedConfig } from "./config.js";
+import type { ClipDefinition } from "./driver/clip.js";
 
 /**
  * Loads the TypeScript an app writes: its config, its clips, its scenes.

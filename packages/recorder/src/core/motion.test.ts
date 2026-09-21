@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clamp, clamp01, lerp, minjerk } from "./easing";
-import { between, jitter, seeded } from "./rng";
+import { clamp, clamp01, lerp, minjerk } from "./easing.js";
+import { between, jitter, seeded } from "./rng.js";
 import {
   cursorEnd,
   distance,
@@ -8,9 +8,9 @@ import {
   moveDuration,
   planMove,
   targetPoint,
-} from "./cursor";
-import { typingDuration, typingSchedule } from "./typing";
-import type { CursorTrack, Vec2 } from "./timeline";
+} from "./cursor.js";
+import { typingDuration, typingSchedule } from "./typing.js";
+import type { CursorTrack, Vec2 } from "./timeline.js";
 
 describe("minjerk", () => {
   it("spans the unit interval and never goes backwards", () => {

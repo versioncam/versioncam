@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import type { Page } from "playwright";
-import type { RenderConfig } from "../config";
+import type { RenderConfig } from "../config.js";
 
 /**
  * Serves the render page, the recording and the app's scenes from memory.

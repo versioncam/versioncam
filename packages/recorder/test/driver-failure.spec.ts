@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { chromium } from "playwright";
-import { clip, runClip } from "../src/driver/clip";
-import type { RecordingSession } from "../src/driver/session";
-import { installFixtureRoutes, testConfig } from "./support";
+import { clip, runClip } from "../src/driver/clip.js";
+import type { RecordingSession } from "../src/driver/session.js";
+import { installFixtureRoutes, testConfig } from "./support.js";
 
 /**
  * A clip that reaches for something the app does not have must fail by saying

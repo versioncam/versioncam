@@ -3,10 +3,10 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { ffprobeSync } from "../src/render/ffmpeg";
-import { renderScene } from "../src/render/render";
-import { loadSceneIds } from "../src/loader";
-import { FIXTURES, testConfig } from "./support";
+import { ffprobeSync } from "../src/render/ffmpeg.js";
+import { renderScene } from "../src/render/render.js";
+import { loadSceneIds } from "../src/loader.js";
+import { FIXTURES, testConfig } from "./support.js";
 
 /**
  * A designed scene, all the way through: the app's TypeScript module bundled
@@ -56,7 +56,7 @@ test.describe("rendering a scene", () => {
     const c = config();
     const browser = await chromium.launch();
     try {
-      const { openRenderPage } = await import("../src/render/render");
+      const { openRenderPage } = await import("../src/render/render.js");
       const { page } = await openRenderPage(browser, c, {
         kind: "scene",
         id: "ramp",

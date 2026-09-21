@@ -1,5 +1,5 @@
-import { jitter } from "./rng";
-import type { Rect, Vec2 } from "./timeline";
+import { jitter } from "./rng.js";
+import type { Rect, Vec2 } from "./timeline.js";
 
 /**
  * A lasso stroke. Authored as a handful of points and smoothed into a closed

@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "playwright";
-import { resolveConfig } from "../src/config";
-import type { RecorderConfig, ResolvedConfig } from "../src/config";
+import { resolveConfig } from "../src/config.js";
+import type { RecorderConfig, ResolvedConfig } from "../src/config.js";
 
 export const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 export const FIXTURES = join(TEST_DIR, "fixtures");

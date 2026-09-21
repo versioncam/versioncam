@@ -4,15 +4,15 @@ import { cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import { PNG } from "pngjs";
-import { fitFrameArea, sourceToOutput } from "../src/core/compose";
-import { ffprobeSync } from "../src/render/ffmpeg";
+import { fitFrameArea, sourceToOutput } from "../src/core/compose.js";
+import { ffprobeSync } from "../src/render/ffmpeg.js";
 import {
   contactSheet,
   openRenderPage,
   renderRecording,
-} from "../src/render/render";
-import type { ResolvedConfig, Presentation } from "../src/config";
-import { FIXTURE_RECORDING, testConfig } from "./support";
+} from "../src/render/render.js";
+import type { ResolvedConfig, Presentation } from "../src/config.js";
+import { FIXTURE_RECORDING, testConfig } from "./support.js";
 
 /**
  * Renders the checked-in fixture recording end to end: canvas, camera, cursor,

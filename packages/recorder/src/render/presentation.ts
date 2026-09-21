@@ -1,6 +1,6 @@
-import { fitFrameArea } from "../core/compose";
-import type { Presentation } from "../config";
-import type { Rect } from "../core/timeline";
+import { fitFrameArea } from "../core/compose.js";
+import type { Presentation } from "../config.js";
+import type { Rect } from "../core/timeline.js";
 
 /**
  * Where the captured app is drawn inside the output canvas.

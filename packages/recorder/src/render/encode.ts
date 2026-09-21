@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright";
-import { ffmpegPath } from "./ffmpeg";
+import { ffmpegPath } from "./ffmpeg.js";
 
 export type EncodeResult = {
   frames: number;

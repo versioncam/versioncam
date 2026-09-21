@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import type { Browser } from "playwright";
-import type { ResolvedConfig } from "../config";
-import type { Timeline } from "../core/timeline";
-import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks";
-import { RecordingSession } from "./session";
+import type { ResolvedConfig } from "../config.js";
+import type { Timeline } from "../core/timeline.js";
+import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks.js";
+import { RecordingSession } from "./session.js";
 
 export type ClipOptions = {
   /** Shown as the clip's caption, unless the body sets its own. */

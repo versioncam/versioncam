@@ -1,5 +1,5 @@
-import { clamp01 } from "./easing";
-import type { Rect, Vec2 } from "./timeline";
+import { clamp01 } from "./easing.js";
+import type { Rect, Vec2 } from "./timeline.js";
 
 /**
  * Mapping from the captured page into the output frame.

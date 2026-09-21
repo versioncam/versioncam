@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { ffmpegPath, ffprobeSync } from "./ffmpeg";
+import { ffmpegPath, ffprobeSync } from "./ffmpeg.js";
 
 /**
  * Stitches finished clips into one continuous piece.

@@ -1,6 +1,6 @@
 import { isAbsolute, resolve } from "node:path";
 import type { Page } from "playwright";
-import { MOTION } from "./core/motion-defaults";
+import { MOTION } from "./core/motion-defaults.js";
 
 /**
  * The one place an app describes itself to the recorder.

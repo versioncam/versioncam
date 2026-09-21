@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sseBody } from "./sse";
+import { sseBody } from "./sse.js";
 
 /**
  * A minimal SSE reader, written here rather than imported.

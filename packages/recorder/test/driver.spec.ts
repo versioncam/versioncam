@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 import { PNG } from "pngjs";
-import { clip, runClip } from "../src/driver/clip";
-import type { ClipDefinition } from "../src/driver/clip";
-import type { RecordingSession } from "../src/driver/session";
-import type { ResolvedConfig } from "../src/config";
-import type { Timeline } from "../src/core/timeline";
-import { installFixtureRoutes, testConfig } from "./support";
+import { clip, runClip } from "../src/driver/clip.js";
+import type { ClipDefinition } from "../src/driver/clip.js";
+import type { RecordingSession } from "../src/driver/session.js";
+import type { ResolvedConfig } from "../src/config.js";
+import type { Timeline } from "../src/core/timeline.js";
+import { installFixtureRoutes, testConfig } from "./support.js";
 
 /**
  * Proves the three claims the whole recorder rests on, against a static

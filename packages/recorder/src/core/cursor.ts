@@ -1,7 +1,7 @@
-import { clamp, minjerk } from "./easing";
-import { jitter } from "./rng";
-import type { CursorTrack, Rect, Vec2 } from "./timeline";
-import type { CursorSegment } from "./timeline";
+import { clamp, minjerk } from "./easing.js";
+import { jitter } from "./rng.js";
+import type { CursorTrack, Rect, Vec2 } from "./timeline.js";
+import type { CursorSegment } from "./timeline.js";
 
 /** Straight-line distance between two points. */
 export function distance(a: Vec2, b: Vec2): number {
