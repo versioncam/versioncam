@@ -55,6 +55,24 @@ test("the gate changes nothing, on every clip this app has", async () => {
       const ungated = await run(false);
       const gated = await run(true);
 
+      // Before blaming the gate, check the app. This compares two separate
+      // recordings, so it can only mean anything if the app reproduces at all
+      // — and an app that does not is a different problem with a different
+      // fix. Only worth the third recording when something has gone wrong.
+      if (
+        JSON.stringify(gated.timeline.frames) !==
+        JSON.stringify(ungated.timeline.frames)
+      ) {
+        const control = await run(false);
+        expect(
+          framePixels(control),
+          `${clip.id}: recorded twice the same way and got two different ` +
+            `recordings, so this machine cannot reproduce this clip at all. ` +
+            `That is not the gate; look for something in the app that does ` +
+            `not depend on authored time.`,
+        ).toEqual(framePixels(ungated));
+      }
+
       const saved = Math.round(
         (gated.cost.skipped / gated.timeline.durationFrames) * 100,
       );
