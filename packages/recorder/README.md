@@ -73,9 +73,13 @@ Every `await` advances the clip's time and captures as it goes. `s.camera.*`,
 no time. `s.offCamera(page => …)` runs raw Playwright with nothing captured —
 for setup that should not appear, such as mocking an API.
 
-Target elements by role or test id, never by coordinates. Strokes (`s.lasso`,
-`s.drag`) are authored in fractions of a target's box for the same reason: a
+Target elements by role or test id, never by coordinates. A stroke
+(`s.lasso`) is authored in fractions of a target's box for the same reason: a
 clip built from locators survives a layout change.
+
+`npx demos dsl` prints the whole surface, generated from the code — which is
+the only list worth trusting. This one was wrong for months: it promised a
+`drag` that has never existed.
 
 **Look before you write.** Clips written from an app's source reach for
 controls that are conditional, renamed, or not rendered at all:
