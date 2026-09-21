@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright";
 import { ffmpegPath } from "./ffmpeg.js";
+import { uniformFrames } from "./sampling.js";
 
 export type EncodeResult = {
   frames: number;
@@ -168,28 +169,30 @@ export async function encodeFromPage(
   return { frames: options.durationFrames, mp4, webm, poster };
 }
 
-/** A strip of evenly spaced frames, for reviewing a clip in a pull request. */
+/** A strip of frames, for reviewing a clip in a pull request. */
 export async function contactSheet(
   page: Page,
   options: {
     id: string;
     durationFrames: number;
     count?: number;
+    /** Exactly which frames to show. Evenly spaced when absent. */
+    frames?: number[];
     outDir: string;
   },
 ): Promise<string> {
   const outDir = options.outDir;
   mkdirSync(outDir, { recursive: true });
-  const count = options.count ?? 8;
+  const frames =
+    options.frames ?? uniformFrames(options.durationFrames, options.count);
   const tileDir = join(outDir, `${options.id}-sheet`);
   mkdirSync(tileDir, { recursive: true });
 
   const stage = page.locator("#stage");
   const tiles: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const frame = Math.round((i / (count - 1)) * (options.durationFrames - 1));
+  for (const [index, frame] of frames.entries()) {
     await page.evaluate((n) => window.__render?.setFrame(n), frame);
-    const file = join(tileDir, `${String(i).padStart(2, "0")}.png`);
+    const file = join(tileDir, `${String(index).padStart(2, "0")}.png`);
     writeFileSync(file, await stage.screenshot({ type: "png" }));
     tiles.push(file);
   }
@@ -198,7 +201,7 @@ export async function contactSheet(
   await new Promise<void>((resolveSheet, rejectSheet) => {
     // `tile` composites frames of ONE stream, so the tiles are fed in as a
     // numbered image sequence rather than as N separate inputs.
-    const columns = Math.ceil(count / 2);
+    const columns = Math.ceil(frames.length / 2);
     const child = spawn(
       ffmpegPath(),
       [

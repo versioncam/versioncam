@@ -62,6 +62,18 @@ export type Highlight = {
 
 export type Caption = { t0: number; t1: number; text: string };
 
+/**
+ * A beat, as a frame number: where a labelled `settle()` left the page.
+ *
+ * The frame recorded is the first one *after* the settle, because a settle
+ * captures nothing — so the earliest picture of what a beat produced is the
+ * next frame, and that is the frame a reviewer should be shown. `demos review`
+ * checks a clip's beats against these and `demos sheet --at-marks` samples
+ * them, which is how the moments a clip was written around reach a reader
+ * instead of eight frames spread evenly through it.
+ */
+export type Mark = { frame: number; label: string };
+
 export type Timeline = {
   version: 1;
   clipId: string;
@@ -78,6 +90,8 @@ export type Timeline = {
    * change is a real one-frame change and should stay crisp.
    */
   cuts: number[];
+  /** Labelled settles, in the order they happened. */
+  marks: Mark[];
   cursor: CursorTrack;
   pointer: PointerAction[];
   camera: CameraKey[];
@@ -123,6 +137,7 @@ export function emptyTimeline(init: TimelineInit): Timeline {
     states: [],
     frames: [],
     cuts: [],
+    marks: [],
     cursor: [],
     pointer: [],
     camera: [

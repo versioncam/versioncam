@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { PNG } from "pngjs";
 import { launchBrowser } from "../src/driver/launch.js";
 import { clip, runClip } from "../src/driver/clip.js";
 import type { RecordingSession } from "../src/driver/session.js";
@@ -18,6 +21,7 @@ test("a missing locator fails by name, with the step and the moment", async () =
   test.setTimeout(90_000);
   const browser = await launchBrowser();
   try {
+    const config = testConfig();
     const failing = clip(
       "missing-control",
       { title: "Missing", viewport: { width: 1000, height: 700 }, seed: 1 },
@@ -29,7 +33,7 @@ test("a missing locator fails by name, with the step and the moment", async () =
       },
     );
 
-    const error = await runClip(browser, testConfig(), failing).then(
+    const error = await runClip(browser, config, failing).then(
       () => null,
       (e: Error) => e,
     );
@@ -39,6 +43,26 @@ test("a missing locator fails by name, with the step and the moment", async () =
     expect(error?.message).toContain("no-such-control");
     // And where it gave up, so a repair knows which beat to look at.
     expect(error?.message).toMatch(/frame \d+/);
+
+    // The evidence outlives the browser. The context closes as this returns,
+    // and a message alone cannot say whether the control was absent, covered,
+    // scrolled away or never reached — so the page as it stood is written out
+    // before anything is torn down.
+    const dir = join(config.recordingsDir, "missing-control");
+    const failure = JSON.parse(
+      readFileSync(join(dir, "failure.json"), "utf8"),
+    ) as { message: string; frame: number; t: number };
+    expect(failure.message).toBe(error?.message);
+    expect(failure.frame).toBeGreaterThanOrEqual(0);
+    expect(failure.t).toBeGreaterThan(0);
+
+    // A real picture of the page, at the scale this recording captures in.
+    const shot = PNG.sync.read(readFileSync(join(dir, "failure.png")));
+    expect(shot.width).toBe(config.viewport.width * config.dpr);
+    expect(shot.height).toBe(config.viewport.height * config.dpr);
+
+    // And the waits that did work, which is how a timeout gets diagnosed.
+    expect(existsSync(join(dir, "settles.json"))).toBe(true);
   } finally {
     await browser.close();
   }

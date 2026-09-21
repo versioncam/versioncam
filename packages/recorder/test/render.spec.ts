@@ -9,6 +9,8 @@ import { ffprobeSync } from "../src/render/ffmpeg.js";
 import {
   contactSheet,
   openRenderPage,
+  readTimeline,
+  renderFrame,
   renderRecording,
 } from "../src/render/render.js";
 import type { ResolvedConfig, Presentation } from "../src/config.js";
@@ -234,6 +236,52 @@ test.describe("rendering a recording", () => {
       ).toBeGreaterThan(2000);
 
       await page.context().close();
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("renders a single frame at output size", async () => {
+    const config = configWith(null);
+    const browser = await launchBrowser();
+    try {
+      const target = {
+        kind: "recording",
+        id: CLIP,
+        dir: join(config.recordingsDir, CLIP),
+      } as const;
+      const timeline = await readTimeline(config, CLIP);
+      const last = timeline.durationFrames - 1;
+
+      const opening = PNG.sync.read(
+        await renderFrame(browser, config, target, 0),
+      );
+      const closing = PNG.sync.read(
+        await renderFrame(browser, config, target, last),
+      );
+
+      // The frame that would be in the video, not a thumbnail of it: this is
+      // what a reviewer looks at when a contact sheet tile is too small to
+      // settle whether a caption is legible.
+      expect(opening.width).toBe(config.output.width);
+      expect(opening.height).toBe(config.output.height);
+      expect(closing.width).toBe(config.output.width);
+
+      // Different frames, and not by accident: at frame 0 the caption has not
+      // faded in and the button has not been pressed.
+      expect(Buffer.compare(opening.data, closing.data)).not.toBe(0);
+
+      // A frame the clip does not have is refused by saying what it does have.
+      const beyond = await renderFrame(
+        browser,
+        config,
+        target,
+        timeline.durationFrames,
+      ).then(
+        () => null,
+        (e: Error) => e,
+      );
+      expect(beyond?.message).toContain(`0–${last}`);
     } finally {
       await browser.close();
     }

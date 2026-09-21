@@ -36,6 +36,7 @@ export type {
   CameraKey,
   Highlight,
   HighlightStyle,
+  Mark,
   PointerAction,
   Rect,
   Timeline,
@@ -47,10 +48,12 @@ export type { Scene, Size } from "./scene.js";
 export { loadClips, loadConfig, loadSceneIds, bundleScenes } from "./loader.js";
 export {
   contactSheet,
+  renderFrame,
   renderRecording,
   renderScene,
   withBrowser,
   readTimeline,
 } from "./render/render.js";
 export type { RenderOutcome, RenderTarget } from "./render/render.js";
+export { markedFrames, uniformFrames, SHEET_TILES } from "./render/sampling.js";
 export { buildSequence } from "./render/sequence.js";

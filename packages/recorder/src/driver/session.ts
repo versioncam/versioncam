@@ -23,7 +23,7 @@ import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline.js";
 import { emptyTiming } from "../core/timing.js";
 import type { RecordingTiming } from "../core/timing.js";
 import { settlePage } from "./settle.js";
-import type { SettleOptions } from "./settle.js";
+import type { SettleOptions, SettleReport } from "./settle.js";
 import { FRAME_PROBE } from "./page-hooks.js";
 import type { FrameProbe } from "./page-hooks.js";
 import type { CaptureConfig, ResolvedConfig } from "../config.js";
@@ -88,6 +88,7 @@ export class RecordingSession {
   private readonly statesDir: string;
   private readonly stateIndexByHash = new Map<string, number>();
   private readonly queue: ScheduledAction[] = [];
+  private readonly settleReports: SettleReport[] = [];
 
   /** Authored time, in seconds. */
   private t = 0;
@@ -220,10 +221,19 @@ export class RecordingSession {
       hook: options.hook ?? this.defaultHook(),
     });
     this.timing.settleMs += performance.now() - startedAt;
+    this.settleReports.push(report);
     if (report.elapsedMs > 1000) {
       console.log(
         `[recorder] ${report.label} took ${report.elapsedMs}ms (last blocker: ${report.lastBlocker})`,
       );
+    }
+    // A labelled settle is a beat, and the beat is worth finding again: by
+    // frame, for the sheet and for review. The frame after this one, because
+    // a settle captures nothing and the first picture of what it waited for is
+    // the next frame — which for `open()`, settling before any frame exists,
+    // is frame 0.
+    if (options.label) {
+      this.timeline.marks.push({ frame: this.frame + 1, label: options.label });
     }
     // The next captured frame may differ wholesale from the last one; tell the
     // renderer it may crossfade here instead of cutting hard.
@@ -743,6 +753,20 @@ export class RecordingSession {
     return { ...this.timing };
   }
 
+  /** Every settle that happened, in order: what each waited for, and for how long. */
+  get settles(): SettleReport[] {
+    return [...this.settleReports];
+  }
+
+  /**
+   * How far the clip had got. Meaningless as content — it is where a failure
+   * happened, which is the first thing a repair needs and the one thing the
+   * script cannot be read to find out.
+   */
+  get at(): { frame: number; t: number } {
+    return { frame: this.frame, t: this.t };
+  }
+
   /** Write the timeline out. Called by `clip()` once the script has run. */
   finish(): Timeline {
     const startedAt = performance.now();
@@ -753,6 +777,15 @@ export class RecordingSession {
     const finite = this.timeline.durationFrames / this.options.fps;
     for (const caption of this.timeline.captions) {
       if (!Number.isFinite(caption.t1)) caption.t1 = finite;
+    }
+
+    // A settle at the very end of a clip has no frame after it. Its mark
+    // points at the last frame there is, which is the closest true picture of
+    // what it produced — and leaves `review` to notice that the beat ended
+    // where the one before it did.
+    const lastFrame = Math.max(0, this.timeline.durationFrames - 1);
+    for (const mark of this.timeline.marks) {
+      if (mark.frame > lastFrame) mark.frame = lastFrame;
     }
 
     const problems = validateTimeline(this.timeline);

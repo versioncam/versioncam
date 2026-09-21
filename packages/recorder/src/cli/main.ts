@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { check } from "./commands/check.js";
 import { doctor } from "./commands/doctor.js";
+import { frame } from "./commands/frame.js";
 import { inspect } from "./commands/inspect.js";
 import { login } from "./commands/login.js";
 import { measure } from "./commands/measure.js";
@@ -21,6 +22,9 @@ const USAGE = `demos — record and render demo clips of a real app
       --sequence                  stitch the results into one piece
   demos check [id…]             record everything; non-zero if any clip breaks
   demos sheet <id>              an eight-frame contact sheet
+      --at-marks                  sample the beats instead of even spacing
+  demos frame <id> <n>          one frame at output size, to a png
+      --t <seconds>               pick the frame by time instead
   demos preview <id>            open the scrubber in a real browser
       --scene <id>                preview a scene instead
       --frame <n>                 start at this frame
@@ -40,6 +44,7 @@ const COMMANDS: Record<string, Command> = {
   render,
   check,
   sheet,
+  frame,
   preview,
   inspect,
   measure,

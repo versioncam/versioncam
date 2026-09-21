@@ -5,6 +5,8 @@ import type { CaptureConfig, ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
 import type { RecordingTiming } from "../core/timing.js";
 import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks.js";
+import { writeFailure, writeSettles } from "./reports.js";
+import type { SettleReport } from "./settle.js";
 import { RecordingSession } from "./session.js";
 
 export type ClipOptions = {
@@ -64,6 +66,11 @@ export type RunClipResult = {
   dir: string;
   /** What it cost in real time. Diagnostics; never part of the recording. */
   cost: RecordingTiming;
+  /**
+   * Every settle, in order. The same list `settles.json` holds, for a caller
+   * that would otherwise read back the file it just caused to be written.
+   */
+  settles: SettleReport[];
 };
 
 /**
@@ -160,7 +167,20 @@ export async function runClip(
       );
     }
     const timeline = session.finish();
-    return { timeline, dir, cost: session.cost };
+    writeSettles(dir, session.settles);
+    return { timeline, dir, cost: session.cost, settles: session.settles };
+  } catch (error) {
+    // Here rather than in the caller, because the context closes below and the
+    // page is the one piece of evidence that cannot be recovered afterwards:
+    // by the time an error reaches `record`, the app it failed on is gone.
+    writeSettles(dir, session.settles);
+    await writeFailure(
+      page,
+      dir,
+      { message: (error as Error).message, ...session.at },
+      { draft },
+    );
+    throw error;
   } finally {
     await context.close();
   }

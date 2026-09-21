@@ -99,6 +99,9 @@ demos render [id…]            composite and encode
     --sequence                  stitch the results into one piece
 demos check [id…]             record everything; non-zero if any clip breaks
 demos sheet <id>              an eight-frame contact sheet
+    --at-marks                  sample the beats instead of even spacing
+demos frame <id> <n>          one frame at output size, to a png
+    --t <seconds>               pick the frame by time instead
 demos preview <id>            open the scrubber in a real browser
 demos inspect <path>          what a clip can click
 demos measure <path> <sel>    where the matches of a selector are
@@ -109,6 +112,20 @@ demos doctor                  check this machine can record, and the app is up
 `demos check` is the CI command. It does not render: a demo that no longer
 matches the app fails while being recorded, at the step that no longer exists,
 and encoding a video of the wreckage helps nobody.
+
+## What a recording leaves behind
+
+In `.demos/recordings/<id>/`: `timeline.json`, the `states/` it indexes, and
+`settles.json` — every wait, what it was still blocked on, and how long it
+really took. A clip that fails also leaves `failure.png`, the page at the
+moment it gave up, and `failure.json` with the message, the frame and the
+authored second.
+
+The timeline's `marks` are the clip's beats: one per labelled `settle()`, at
+the first frame that shows what the wait was for. `demos sheet --at-marks`
+samples those frames instead of eight even ones, which is the difference
+between a sheet that shows what the clip is about and one that happens to miss
+it.
 
 ## How it works
 

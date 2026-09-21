@@ -1,12 +1,21 @@
 import { expect, test } from "@playwright/test";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { FIXTURE_RECORDING } from "./support.js";
 
 /**
  * The CLI as a consumer meets it: the built `dist/cli/main.js`, run as a
@@ -86,6 +95,27 @@ function appDir(baseUrl = "http://example.test"): string {
   return dir;
 }
 
+/**
+ * The same, with one recording already in it, and the beats it claims.
+ *
+ * The committed fixture recording predates `marks`, which is exactly the shape
+ * of every recording made before this feature existed — so the beats are
+ * written into the copy rather than re-recorded, and the CLI has to read them
+ * from the file the way it will in a consumer's repository.
+ */
+function appDirWithRecording(
+  marks: { frame: number; label: string }[],
+): string {
+  const dir = appDir();
+  const recording = join(dir, ".demos", "recordings", "buttons");
+  mkdirSync(dirname(recording), { recursive: true });
+  cpSync(FIXTURE_RECORDING, recording, { recursive: true });
+  const file = join(recording, "timeline.json");
+  const timeline = JSON.parse(readFileSync(file, "utf8")) as object;
+  writeFileSync(file, `${JSON.stringify({ ...timeline, marks }, null, 2)}\n`);
+  return dir;
+}
+
 /** A server that answers, so `doctor` has an app to find. */
 async function servedDir(
   status = 200,
@@ -111,6 +141,7 @@ test.describe("the demos CLI", () => {
       "render",
       "check",
       "sheet",
+      "frame",
       "preview",
       "inspect",
       "measure",
@@ -196,5 +227,39 @@ test.describe("the demos CLI", () => {
     expect(status).toBe(1);
     expect(stderr).toContain("No clips found");
     expect(stderr).not.toContain("--draft");
+  });
+
+  test("sheet --at-marks samples the beats, and says which frames", () => {
+    const dir = appDirWithRecording([{ frame: 40, label: "after click" }]);
+    const { status, stdout } = run(["sheet", "buttons", "--at-marks"], dir);
+    expect(status).toBe(0);
+
+    const [sheet, frames] = stdout.trim().split("\n");
+    // The path stays on the first line: everything that calls this reads it.
+    expect(sheet.endsWith("buttons-sheet.png")).toBe(true);
+    expect(existsSync(sheet)).toBe(true);
+    // The opening frame, the beat, and the last frame — 115 of them, so 114.
+    expect(frames).toBe("frames 0 · 40 · 114");
+  });
+
+  test("frame writes one png, by number and by time", () => {
+    const dir = appDirWithRecording([]);
+
+    const byNumber = run(["frame", "buttons", "10"], dir);
+    expect(byNumber.status).toBe(0);
+    const file = byNumber.stdout.trim();
+    expect(file.endsWith("buttons-frame-10.png")).toBe(true);
+    expect(existsSync(file)).toBe(true);
+
+    // The recording is 60fps, so one second in is frame 60 — and the name says
+    // which frame the time turned out to mean.
+    const byTime = run(["frame", "buttons", "--t", "1"], dir);
+    expect(byTime.status).toBe(0);
+    expect(byTime.stdout.trim().endsWith("buttons-frame-60.png")).toBe(true);
+
+    // And a frame the clip does not have is refused by saying what it has.
+    const beyond = run(["frame", "buttons", "999"], dir);
+    expect(beyond.status).toBe(1);
+    expect(beyond.stderr).toContain("0–114");
   });
 });

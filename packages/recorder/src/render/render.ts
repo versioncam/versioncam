@@ -150,6 +150,7 @@ export async function contactSheet(
   browser: Browser,
   config: ResolvedConfig,
   target: RenderTarget,
+  options: { frames?: number[] } = {},
 ): Promise<string> {
   const { page, durationFrames } = await openRenderPage(
     browser,
@@ -160,8 +161,42 @@ export async function contactSheet(
     return await encodeContactSheet(page, {
       id: target.id,
       durationFrames,
+      frames: options.frames,
       outDir: config.outputDir,
     });
+  } finally {
+    await page.context().close();
+  }
+}
+
+/**
+ * One frame, rendered at output size.
+ *
+ * The same page and the same `setFrame` the encoder drives, so this is the
+ * frame that would be in the video rather than an approximation of it. A
+ * contact sheet's tile is a quarter the width and settles nothing about a
+ * caption's legibility or whether a control is cropped; this is the look
+ * that does.
+ */
+export async function renderFrame(
+  browser: Browser,
+  config: ResolvedConfig,
+  target: RenderTarget,
+  frame: number,
+): Promise<Buffer> {
+  const { page, durationFrames } = await openRenderPage(
+    browser,
+    config,
+    target,
+  );
+  try {
+    if (!Number.isInteger(frame) || frame < 0 || frame >= durationFrames) {
+      throw new Error(
+        `Frame ${frame} is not in "${target.id}": it runs 0–${durationFrames - 1}.`,
+      );
+    }
+    await page.evaluate((n) => window.__render?.setFrame(n), frame);
+    return await page.locator("#stage").screenshot({ type: "png" });
   } finally {
     await page.context().close();
   }
