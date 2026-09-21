@@ -56,7 +56,23 @@ export function markedFrames(
     durationFrames - 1,
   ].filter(inRange);
   const unique = [...new Set(wanted)].sort((a, b) => a - b);
-  if (unique.length <= count) return unique;
+
+  // Fill the rest of the grid with an even spread.
+  //
+  // A clip with one beat gave a sheet of three tiles, and everything between
+  // the beat and the end — a ring highlight, a camera move, whatever the clip
+  // spent six of its ten seconds on — appeared in none of them. The beats are
+  // what a sheet must not miss, not all it may show, so the spare tiles go to
+  // the shape of the clip around them.
+  if (unique.length < count) {
+    const filled = new Set(unique);
+    for (const frame of uniformFrames(durationFrames, count)) {
+      if (filled.size >= count) break;
+      filled.add(frame);
+    }
+    return [...filled].sort((a, b) => a - b);
+  }
+  if (unique.length === count) return unique;
 
   const kept = [unique[0]];
   for (let i = 1; i <= count - 2; i += 1) {
