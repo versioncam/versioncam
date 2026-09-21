@@ -37,6 +37,7 @@ export async function sheet(argv: string[]): Promise<number> {
       timeline.marks ?? [],
       undefined,
       config.motion.crossfadeFrames,
+      timeline.cuts,
     );
   }
 

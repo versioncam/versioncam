@@ -110,3 +110,18 @@ describe("filling the grid", () => {
     expect(markedFrames(201, many, 8, 0).length).toBeLessThanOrEqual(8);
   });
 });
+
+describe("no tile is two pages at once", () => {
+  it("moves an evenly spread tile that lands inside a dissolve", () => {
+    // Not only the beats: a reviewer flagged a filled tile as a
+    // "mid-transition double-exposure" on a clip whose mark was already clear.
+    const frames = markedFrames(149, marksAt(0), 8, 6, [20]);
+    for (const f of frames) {
+      expect(f > 20 && f <= 26).toBe(false);
+    }
+  });
+
+  it("leaves tiles alone that are nowhere near a cut", () => {
+    expect(markedFrames(149, marksAt(0), 8, 6, [140])).toContain(21);
+  });
+});

@@ -35,24 +35,34 @@ export function markedFrames(
   marks: Mark[],
   count = SHEET_TILES,
   crossfadeFrames = 0,
+  cuts: readonly number[] = [],
 ): number[] {
   const inRange = (frame: number) =>
     Number.isInteger(frame) && frame >= 0 && frame < durationFrames;
-  // Past the crossfade, not at the mark itself.
+  // Past the crossfade, wherever a frame would land inside one.
   //
-  // A mark sits at the first frame whose state is the settled one, which is
-  // also the first frame of the renderer's crossfade — where the blend has
-  // barely started and the tile still shows what was on screen *before* the
-  // wait. Sampling there gave a reviewer the old page with the new one
-  // ghosting through it: the beat looked like it had not happened.
+  // The renderer dissolves between states for `crossfadeFrames` after every
+  // cut, and a tile taken inside that window is two pages at once. A reviewer
+  // shown one said so and declined to judge the beat from it, which is the
+  // right answer to a question that should not have been asked.
   //
-  // The mark stays where it is, because `review` wants the state boundary.
-  // Only the picture needs to wait for the dissolve to finish.
-  const settled = (frame: number) =>
-    Math.min(frame + crossfadeFrames, durationFrames - 1);
+  // A mark is the worst case — it sits on the cut's first frame, where the
+  // blend has barely begun and the tile still shows what was on screen
+  // *before* the wait — but any evenly spread tile can land there too. Marks
+  // stay where they are, because `review` wants the state boundary; only the
+  // picture waits for the dissolve to finish.
+  const settled = (frame: number) => {
+    const cut = cuts.find((c) => frame > c && frame <= c + crossfadeFrames);
+    const clear = cut === undefined ? frame : cut + crossfadeFrames + 1;
+    return Math.min(clear, durationFrames - 1);
+  };
   const wanted = [
     0,
-    ...marks.map((m) => (m.frame === 0 ? 0 : settled(m.frame))),
+    ...marks.map((m) =>
+      m.frame === 0
+        ? 0
+        : Math.min(m.frame + crossfadeFrames, durationFrames - 1),
+    ),
     durationFrames - 1,
   ].filter(inRange);
   const unique = [...new Set(wanted)].sort((a, b) => a - b);
@@ -68,7 +78,7 @@ export function markedFrames(
     const filled = new Set(unique);
     for (const frame of uniformFrames(durationFrames, count)) {
       if (filled.size >= count) break;
-      filled.add(frame);
+      filled.add(settled(frame));
     }
     return [...filled].sort((a, b) => a - b);
   }
