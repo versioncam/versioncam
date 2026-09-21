@@ -44,11 +44,16 @@ export async function record(argv: string[]): Promise<number> {
         const { timeline, cost } = await runClip(browser, config, clip, {
           draft,
         });
-        const seconds = (timeline.durationFrames / timeline.fps).toFixed(1);
+        // Both seconds are named. The line used to print "(7.5s) … — 2.6s" and
+        // leave the reader to work out that the first is the clip and the
+        // second is the machine; they move in opposite directions when a clip
+        // gets slower to record, which makes guessing worse than useless.
+        const plays = (timeline.durationFrames / timeline.fps).toFixed(1);
+        const took = ((Date.now() - started) / 1000).toFixed(1);
         process.stdout.write(
-          `  ${clip.id}${draft ? " (draft)" : ""}: ${timeline.durationFrames} frames (${seconds}s), ` +
+          `  ${clip.id}${draft ? " (draft)" : ""}: ${timeline.durationFrames} frames, ` +
             `${timeline.states.length} states, ${timeline.cuts.length} cuts ` +
-            `— ${((Date.now() - started) / 1000).toFixed(1)}s\n` +
+            `— plays ${plays}s · took ${took}s\n` +
             `    ${formatTiming(cost)}\n`,
         );
       } catch (error) {

@@ -103,7 +103,7 @@ demos preview <id>            open the scrubber in a real browser
 demos inspect <path>          what a clip can click
 demos measure <path> <sel>    where the matches of a selector are
 demos login                   sign in once and save the session
-demos doctor                  check this machine can record and encode
+demos doctor                  check this machine can record, and the app is up
 ```
 
 `demos check` is the CI command. It does not render: a demo that no longer
@@ -179,9 +179,13 @@ against.
 next second would come from the frames or from somewhere else:
 
 ```
-  01-create-a-shipment: 425 frames (7.1s), 63 states, 1 cuts — 6.3s
+  01-create-a-shipment: 425 frames, 63 states, 1 cuts — plays 7.1s · took 6.3s
     open 0.0s · settles 0.5s · frames 5.7s (79 captured, 346 skipped) · write 0.0s
 ```
+
+`plays` is the clip's own length and `took` is what the machine spent making
+it. They move in opposite directions when a clip gets slower to record, which
+is why both are named.
 
 ## Determinism
 

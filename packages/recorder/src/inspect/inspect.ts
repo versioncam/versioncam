@@ -136,6 +136,18 @@ export async function inspectPage(page: Page): Promise<Inventory> {
   });
 }
 
+/**
+ * How many controls the text form prints.
+ *
+ * An application page can carry several hundred, and this inventory is read
+ * by something with a context budget: a wall of button geometry crowds out
+ * the page it was meant to describe. Sixty is about a screen and a half, and
+ * enough to find the beat's target on every page we have measured. The count
+ * of what was left out is printed, so a trimmed list is never mistaken for
+ * the whole page, and `--json` is never trimmed.
+ */
+const MAX_PRINTED_CONTROLS = 60;
+
 /** The inventory as something a person reads in a terminal. */
 export function formatInventory(inventory: Inventory): string {
   const lines: string[] = [
@@ -144,16 +156,26 @@ export function formatInventory(inventory: Inventory): string {
     "",
     `controls (${inventory.controls.length}):`,
   ];
-  for (const c of inventory.controls) {
+  const printed = inventory.controls.slice(0, MAX_PRINTED_CONTROLS);
+  for (const c of printed) {
     const id = c.testId ? `  [${c.testId}]` : "";
     lines.push(
       `  ${c.role.padEnd(8)} ${c.name}${id}  @ ${c.box.x},${c.box.y} ${c.box.w}x${c.box.h}`,
     );
   }
+  const dropped = inventory.controls.length - printed.length;
+  if (dropped > 0) {
+    lines.push(`  … ${dropped} more not shown; \`--json\` lists all of them.`);
+  }
   lines.push("", `fields (${inventory.fields.length}):`);
+  // With geometry, like the controls: a field is a click target before it is a
+  // typing target, and without a box an author cannot tell which of two
+  // similarly named inputs is the one on screen.
   for (const f of inventory.fields) {
     const id = f.testId ? `  [${f.testId}]` : "";
-    lines.push(`  ${f.kind.padEnd(8)} ${f.name}${id}`);
+    lines.push(
+      `  ${f.kind.padEnd(8)} ${f.name}${id}  @ ${f.box.x},${f.box.y} ${f.box.w}x${f.box.h}`,
+    );
   }
   if (inventory.plotMarks.length > 0) {
     lines.push("", "plot mark groups:");

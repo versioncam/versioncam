@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Somewhere to type</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      input,
+      textarea,
+      select {
+        position: absolute;
+        font-size: 16px;
+        border: 1px solid #999999;
+      }
+      /* Fixed positions and sizes: the inventory reports geometry and the test
+         asserts these exact numbers. */
+      #recipient {
+        left: 40px;
+        top: 40px;
+        width: 300px;
+        height: 36px;
+      }
+      #notes {
+        left: 40px;
+        top: 120px;
+        width: 300px;
+        height: 80px;
+      }
+      #route {
+        left: 40px;
+        top: 240px;
+        width: 200px;
+        height: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <input
+      id="recipient"
+      data-testid="recipient"
+      aria-label="Recipient"
+      type="text"
+    />
+    <textarea id="notes" data-testid="notes" placeholder="Notes"></textarea>
+    <select id="route" data-testid="route" aria-label="Route">
+      <option>Overnight</option>
+      <option>Standard</option>
+    </select>
+  </body>
+</html>

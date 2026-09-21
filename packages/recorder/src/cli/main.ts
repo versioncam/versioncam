@@ -28,7 +28,7 @@ const USAGE = `demos — record and render demo clips of a real app
       --json                      machine-readable
   demos measure <path> <sel>    where the matches of a selector are
   demos login                   sign in once and save the browser session
-  demos doctor                  check this machine can record and encode
+  demos doctor                  check this machine can record, and the app is up
 
 Run from a directory containing recorder.config.ts.
 `;

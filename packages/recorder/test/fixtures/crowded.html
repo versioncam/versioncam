@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>More controls than anyone wants to read</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .marker {
+        position: absolute;
+        width: 50px;
+        height: 30px;
+        border: none;
+        background: #dddddd;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // 72 controls on a 12x6 lattice: more than the inventory prints and more
+      // than `measure` lists boxes for, which is the point of the page. The
+      // geometry is a formula rather than 72 literals, and the tests assert
+      // against the same one: column c sits at 40 + 70c, row r at 40 + 90r, so
+      // the lattice spans x 40–860 and y 40–520.
+      for (let r = 0; r < 6; r += 1) {
+        for (let c = 0; c < 12; c += 1) {
+          const button = document.createElement("button");
+          const index = r * 12 + c;
+          button.className = "marker";
+          button.type = "button";
+          button.textContent = "M" + index;
+          button.setAttribute("data-testid", "marker-" + index);
+          button.style.left = 40 + c * 70 + "px";
+          button.style.top = 40 + r * 90 + "px";
+          document.body.appendChild(button);
+        }
+      }
+    </script>
+  </body>
+</html>

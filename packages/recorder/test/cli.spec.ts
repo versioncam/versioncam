@@ -1,9 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 /**
  * The CLI as a consumer meets it: the built `dist/cli/main.js`, run as a
@@ -38,6 +41,31 @@ function run(
 }
 
 /**
+ * The same, without blocking this process.
+ *
+ * `doctor` asks whether the app answers, and in these tests the app is a
+ * server running on this very event loop — which `execFileSync` would hold
+ * shut for the whole run, so the CLI would find nothing listening.
+ */
+const execFileAsync = promisify(execFile);
+
+async function runAsync(
+  args: string[],
+  cwd: string,
+): Promise<{ status: number; stdout: string }> {
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+    return { status: 0, stdout };
+  } catch (error) {
+    const e = error as { code?: number; stdout?: string };
+    return { status: e.code ?? 1, stdout: e.stdout ?? "" };
+  }
+}
+
+/**
  * A directory shaped like a consumer's repository: the package installed under
  * node_modules, and a config that imports it by name.
  *
@@ -45,7 +73,7 @@ function run(
  * for every real user — esbuild only leaves the import alone, for Node to
  * resolve, when the specifier is the bare package name.
  */
-function appDir(): string {
+function appDir(baseUrl = "http://example.test"): string {
   const dir = mkdtempSync(join(tmpdir(), "living-demos-cli-"));
   const scope = join(dir, "node_modules", "@living-demos");
   mkdirSync(scope, { recursive: true });
@@ -53,9 +81,25 @@ function appDir(): string {
   writeFileSync(
     join(dir, "recorder.config.ts"),
     `import { defineRecorder } from "@living-demos/recorder";\n` +
-      `export default defineRecorder({ baseUrl: "http://example.test" });\n`,
+      `export default defineRecorder({ baseUrl: "${baseUrl}" });\n`,
   );
   return dir;
+}
+
+/** A server that answers, so `doctor` has an app to find. */
+async function servedDir(
+  status = 200,
+): Promise<{ dir: string; close: () => Promise<void> }> {
+  const server = createServer((_request, response) => {
+    response.writeHead(status);
+    response.end("ok");
+  });
+  await new Promise<void>((ready) => server.listen(0, "127.0.0.1", ready));
+  const port = (server.address() as AddressInfo).port;
+  return {
+    dir: appDir(`http://127.0.0.1:${port}`),
+    close: () => new Promise<void>((done) => server.close(() => done())),
+  };
 }
 
 test.describe("the demos CLI", () => {
@@ -83,14 +127,44 @@ test.describe("the demos CLI", () => {
     expect(stderr).toContain("frobnicate");
   });
 
-  test("doctor passes on a machine that can record", () => {
+  test("doctor passes on a machine that can record, with the app up", async () => {
+    const app = await servedDir();
+    try {
+      const { status, stdout } = await runAsync(["doctor"], app.dir);
+      expect(stdout).toContain("chromium");
+      expect(stdout).toContain("ffmpeg");
+      expect(stdout).toContain("HTTP 200");
+      // Every check should pass here: this suite only runs where Chromium and
+      // ffmpeg already do, and the app is a server this test started.
+      expect(stdout).not.toContain("✗");
+      expect(status).toBe(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("doctor counts a login page as reachable", async () => {
+    // An app behind a sign-in answers 401 or redirects, and records perfectly
+    // well once `auth` is configured. Only silence means it is not there.
+    const app = await servedDir(401);
+    try {
+      const { status, stdout } = await runAsync(["doctor"], app.dir);
+      expect(stdout).toContain("HTTP 401");
+      expect(stdout).not.toContain("✗");
+      expect(status).toBe(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("doctor says when nothing is serving the app", () => {
+    // The check an authoring loop leans on: a stopped dev server should be
+    // named here, not discovered three minutes later as a missing locator.
     const { status, stdout } = run(["doctor"], appDir());
-    expect(stdout).toContain("chromium");
-    expect(stdout).toContain("ffmpeg");
-    // Every check should pass here: this suite only runs where Chromium and
-    // ffmpeg already do.
-    expect(stdout).not.toContain("✗");
-    expect(status).toBe(0);
+    expect(stdout).toContain("✗ app");
+    expect(stdout).toContain("http://example.test");
+    expect(stdout).toContain("Start the app");
+    expect(status).toBe(1);
   });
 
   test("doctor reports a missing config rather than crashing", () => {

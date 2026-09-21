@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import type { Rect } from "../core/timeline.js";
 
 /**
  * Where the things matching a selector actually are.
@@ -9,10 +10,22 @@ import type { Page } from "playwright";
  * it. Measuring first is what made every working stroke in the prototype work.
  */
 
+/**
+ * Above this many matches, a list of boxes is a wall of numbers and the grid
+ * is the answer. Below it, the boxes are the answer: a handful of markers is
+ * exactly the case where an author needs to know where each one is.
+ */
+const MAX_LISTED = 12;
+
 export type Measurement = {
   selector: string;
   count: number;
-  /** Union of every match, in viewport pixels. */
+  /**
+   * Each match's own box, while there are few enough to read. Empty above
+   * `MAX_LISTED`, where `bounds` and `grid` are what a stroke is planned from.
+   */
+  boxes: Rect[];
+  /** Union of every match's box, in viewport pixels. */
   bounds: { x0: number; y0: number; x1: number; y1: number } | null;
   /** The same, as fractions of the viewport, which is how strokes are written. */
   fractions: { x0: number; y0: number; x1: number; y1: number } | null;
@@ -25,64 +38,72 @@ export async function measureSelector(
   page: Page,
   selector: string,
 ): Promise<Measurement> {
-  return page.evaluate((sel) => {
-    const cols = 12;
-    const rows = 8;
-    const grid: number[][] = Array.from({ length: rows }, () =>
-      new Array<number>(cols).fill(0),
-    );
-    const viewport = { width: window.innerWidth, height: window.innerHeight };
-    const centres = Array.from(document.querySelectorAll(sel)).map((el) => {
-      const r = el.getBoundingClientRect();
-      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-    });
+  return page.evaluate(
+    ({ sel, maxListed }) => {
+      const cols = 12;
+      const rows = 8;
+      const grid: number[][] = Array.from({ length: rows }, () =>
+        new Array<number>(cols).fill(0),
+      );
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const boxes = Array.from(document.querySelectorAll(sel)).map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      });
 
-    if (centres.length === 0) {
+      if (boxes.length === 0) {
+        return {
+          selector: sel,
+          count: 0,
+          boxes: [],
+          bounds: null,
+          fractions: null,
+          viewport,
+          grid,
+        };
+      }
+
+      // Over boxes, not over centres. Centres collapse a single match to a
+      // point — bounds of zero size, from which no framing can be planned —
+      // and understate a cluster by half an element on every side.
+      const bounds = {
+        x0: Math.min(...boxes.map((b) => b.x)),
+        y0: Math.min(...boxes.map((b) => b.y)),
+        x1: Math.max(...boxes.map((b) => b.x + b.w)),
+        y1: Math.max(...boxes.map((b) => b.y + b.h)),
+      };
+
+      // The grid stays a count of centres: it answers "where is the mass",
+      // and a box spanning cells would smear that.
+      for (const b of boxes) {
+        const c = Math.min(
+          cols - 1,
+          Math.max(0, Math.floor(((b.x + b.w / 2) / viewport.width) * cols)),
+        );
+        const r = Math.min(
+          rows - 1,
+          Math.max(0, Math.floor(((b.y + b.h / 2) / viewport.height) * rows)),
+        );
+        grid[r][c] += 1;
+      }
+
       return {
         selector: sel,
-        count: 0,
-        bounds: null,
-        fractions: null,
+        count: boxes.length,
+        boxes: boxes.length <= maxListed ? boxes : [],
+        bounds,
+        fractions: {
+          x0: bounds.x0 / viewport.width,
+          y0: bounds.y0 / viewport.height,
+          x1: bounds.x1 / viewport.width,
+          y1: bounds.y1 / viewport.height,
+        },
         viewport,
         grid,
       };
-    }
-
-    const xs = centres.map((p) => p.x);
-    const ys = centres.map((p) => p.y);
-    const bounds = {
-      x0: Math.min(...xs),
-      y0: Math.min(...ys),
-      x1: Math.max(...xs),
-      y1: Math.max(...ys),
-    };
-
-    for (const p of centres) {
-      const c = Math.min(
-        cols - 1,
-        Math.max(0, Math.floor((p.x / viewport.width) * cols)),
-      );
-      const r = Math.min(
-        rows - 1,
-        Math.max(0, Math.floor((p.y / viewport.height) * rows)),
-      );
-      grid[r][c] += 1;
-    }
-
-    return {
-      selector: sel,
-      count: centres.length,
-      bounds,
-      fractions: {
-        x0: bounds.x0 / viewport.width,
-        y0: bounds.y0 / viewport.height,
-        x1: bounds.x1 / viewport.width,
-        y1: bounds.y1 / viewport.height,
-      },
-      viewport,
-      grid,
-    };
-  }, selector);
+    },
+    { sel: selector, maxListed: MAX_LISTED },
+  );
 }
 
 export function formatMeasurement(m: Measurement): string {
@@ -93,8 +114,20 @@ export function formatMeasurement(m: Measurement): string {
     `${m.selector}: ${m.count} match(es) in ${m.viewport.width}x${m.viewport.height}`,
     `  bounds px   x ${b.x0.toFixed(0)}–${b.x1.toFixed(0)}   y ${b.y0.toFixed(0)}–${b.y1.toFixed(0)}`,
     `  bounds frac x ${f.x0.toFixed(2)}–${f.x1.toFixed(2)}   y ${f.y0.toFixed(2)}–${f.y1.toFixed(2)}`,
-    "  density (rows = y, cols = x):",
   ];
+
+  if (m.boxes.length > 0) {
+    lines.push("  boxes:");
+    for (const [index, box] of m.boxes.entries()) {
+      lines.push(
+        `    ${String(index).padStart(2)}  @ ${box.x.toFixed(0)},${box.y.toFixed(0)} ` +
+          `${box.w.toFixed(0)}x${box.h.toFixed(0)}`,
+      );
+    }
+    return lines.join("\n");
+  }
+
+  lines.push("  density (rows = y, cols = x):");
   for (const [r, row] of m.grid.entries()) {
     const y = ((r + 0.5) / m.grid.length).toFixed(2);
     lines.push(
