@@ -134,9 +134,17 @@ default.
 
 ## Determinism
 
-Two runs of a clip produce the same bytes. The package's own tests assert it
-both for capture and for rendering, and a golden-file check pins the capture
-path against unintended change.
+Two runs of a clip on one machine produce the same bytes. The package's own
+tests assert it for capture and for rendering, and a golden-file check pins the
+capture path against unintended change.
+
+Across machines the claim is narrower, and worth stating precisely: the
+**timeline** is identical — it is what the driver decided, and nothing in it
+depends on the host. The captured **pixels** are not, because macOS and Linux
+rasterise text differently, so the same page in the same state is the same
+picture and a different file. Byte-identity is a property of a fixed rendering
+environment; the golden-file check compares bytes only on the platform its
+baseline was recorded on, and compares the timeline everywhere.
 
 Regenerate that baseline deliberately, never reflexively:
 

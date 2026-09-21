@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
-import { cpSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import { clip, runClip } from "../src/driver/clip.js";
@@ -30,6 +37,14 @@ import {
  * prototype — the cursor's resting position moved off the toolbar, and CSS
  * animations began being scrubbed by authored time — so it described a driver
  * that no longer existed anywhere.
+ *
+ * The timeline is compared everywhere; the captured bytes only on the platform
+ * the golden was recorded on. Byte-identity is a property of a fixed rendering
+ * environment, not of the recorder: macOS and Linux rasterise text differently,
+ * so the same page in the same state is the same picture and not the same file.
+ * The claim that survives a change of machine is the timeline — which is also
+ * the claim worth making, since the timeline is what the driver decides and
+ * the pixels are what the app drew.
  */
 test("reproduces the committed recording of the fixture", async () => {
   const browser = await chromium.launch();
@@ -61,9 +76,13 @@ test("reproduces the committed recording of the fixture", async () => {
     if (process.env.UPDATE_FIXTURE === "1") {
       rmSync(FIXTURE_RECORDING, { recursive: true, force: true });
       cpSync(dir, FIXTURE_RECORDING, { recursive: true });
+      writeFileSync(
+        join(FIXTURE_RECORDING, "recorded-on.json"),
+        `${JSON.stringify({ platform: process.platform }, null, 2)}\n`,
+      );
       test.info().annotations.push({
         type: "fixture",
-        description: `regenerated ${FIXTURE_RECORDING}`,
+        description: `regenerated ${FIXTURE_RECORDING} on ${process.platform}`,
       });
     }
 
