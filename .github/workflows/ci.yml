@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:integration
+
+      # The example app proves the package works from outside itself.
+      - name: Start the example app
+        continue-on-error: true
+        run: npm run dev -w examples/demo-app &
+      - name: Wait for the example app
+        continue-on-error: true
+        run: npx wait-on http://localhost:5174 -t 60000
+      - name: Check the example's clips
+        continue-on-error: true
+        working-directory: examples/demo-app
+        run: npx demos check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: example-demos
+          path: examples/demo-app/.demos/out

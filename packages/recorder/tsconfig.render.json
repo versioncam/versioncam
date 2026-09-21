@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "dist/.types-render",
+    "tsBuildInfoFile": "./node_modules/.tmp/render.tsbuildinfo"
+  },
+  "include": ["render-page"],
+  "references": [{ "path": "./tsconfig.json" }]
+}

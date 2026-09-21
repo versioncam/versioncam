@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.types/
 *.tsbuildinfo
 
 # Recordings and renders are build products.

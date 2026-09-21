@@ -1,0 +1,45 @@
+{
+  "name": "@living-demos/recorder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Record demo clips of a real web app: scripted, deterministic, regenerated on deploy.",
+  "bin": {
+    "demos": "./dist/cli/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./scene": {
+      "types": "./dist/scene.d.ts",
+      "import": "./dist/scene.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json && vite build -c vite.render.config.ts",
+    "test:integration": "env -u NODE_OPTIONS playwright test -c test/playwright.config.ts"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.0",
+    "playwright": "1.59.1"
+  },
+  "optionalDependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.1",
+    "@types/node": "^22.10.0",
+    "@types/pngjs": "^6.0.5",
+    "jsdom": "^26.0.0",
+    "pngjs": "^7.0.0",
+    "vite": "^8.0.16"
+  }
+}
