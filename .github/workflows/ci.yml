@@ -15,7 +15,10 @@ jobs:
           node-version: 22
           cache: npm
 
+      # ffmpeg encodes; ffprobe checks what was encoded. ffmpeg-static ships
+      # only the former, so the system package is what CI uses.
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - run: npm ci
       - run: npm run build
       - run: npm run typecheck
@@ -25,20 +28,29 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:integration
 
-      # The example app proves the package works from outside itself.
+      # The example app is the proof that the package works from outside
+      # itself: a separate workspace, consuming it by name, with its own config.
       - name: Start the example app
-        continue-on-error: true
-        run: npm run dev -w examples/demo-app &
-      - name: Wait for the example app
-        continue-on-error: true
-        run: npx wait-on http://localhost:5174 -t 60000
-      - name: Check the example's clips
-        continue-on-error: true
+        run: |
+          npm run dev -w examples/demo-app &
+          for _ in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:5174/ && exit 0
+            sleep 1
+          done
+          echo "the example app did not start" >&2
+          exit 1
+
+      - name: Check the example's clips still match it
         working-directory: examples/demo-app
         run: npx demos check
+
+      - name: Render the example's clips
+        working-directory: examples/demo-app
+        run: npx demos render --sequence
+
       - uses: actions/upload-artifact@v4
         if: always()
-        continue-on-error: true
         with:
           name: example-demos
           path: examples/demo-app/.demos/out
+          if-no-files-found: warn

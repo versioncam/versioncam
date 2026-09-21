@@ -1,2 +1,57 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><title>Demo app</title></head><body><div id="app"></div><script type="module" src="/src/main.ts"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parcel Desk</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Parcel Desk</h1>
+      <p class="sub">A deliberately ordinary app, so the clips are about the recorder.</p>
+    </header>
+
+    <main>
+      <section class="panel" aria-labelledby="new-title">
+        <h2 id="new-title">New shipment</h2>
+        <form id="shipment-form" data-testid="shipment-form" novalidate>
+          <label for="recipient">Recipient</label>
+          <input id="recipient" data-testid="recipient" name="recipient" autocomplete="off" />
+
+          <label for="destination">Destination</label>
+          <input id="destination" data-testid="destination" name="destination" autocomplete="off" />
+
+          <button type="submit" data-testid="create-shipment">Create shipment</button>
+        </form>
+        <p class="status" id="form-status" data-testid="form-status" role="status"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="list-title">
+        <h2 id="list-title">Shipments</h2>
+        <input
+          id="filter"
+          data-testid="filter"
+          placeholder="Filter by destination"
+          aria-label="Filter shipments"
+          autocomplete="off"
+        />
+        <ul id="shipments" data-testid="shipments"></ul>
+        <p class="status" id="list-status" data-testid="list-status" role="status"></p>
+      </section>
+    </main>
+
+    <dialog id="confirm" data-testid="confirm-dialog">
+      <h2>Cancel this shipment?</h2>
+      <p id="confirm-detail" data-testid="confirm-detail"></p>
+      <div class="dialog-actions">
+        <button type="button" data-testid="confirm-keep">Keep it</button>
+        <button type="button" data-testid="confirm-cancel" class="danger">
+          Cancel shipment
+        </button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
