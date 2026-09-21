@@ -43,3 +43,43 @@ test("a missing locator fails by name, with the step and the moment", async () =
     await browser.close();
   }
 });
+
+/**
+ * The other locator failure, which used to be reported as this one.
+ *
+ * A pilot's `byText("Nairobi")` matched a table cell and a status line, and
+ * Playwright's strict-mode violation reached the author as "Nothing matched" —
+ * so it went looking for a control that had been on screen all along. The two
+ * failures call for opposite repairs and must therefore read differently.
+ */
+test("a locator matching several elements says so, and how to narrow it", async () => {
+  test.setTimeout(90_000);
+  const browser = await launchBrowser();
+  try {
+    const ambiguous = clip(
+      "ambiguous-text",
+      { title: "Ambiguous", viewport: { width: 1000, height: 700 }, seed: 1 },
+      async (s: RecordingSession) => {
+        await s.offCamera(installFixtureRoutes);
+        await s.open("/duplicate-text.html");
+        await s.hold(200);
+        await s.click(s.byText("Nairobi"));
+      },
+    );
+
+    const error = await runClip(browser, testConfig(), ambiguous).then(
+      () => null,
+      (e: Error) => e,
+    );
+
+    expect(error).not.toBeNull();
+    expect(error?.message).toContain("Matched 2 elements");
+    expect(error?.message).not.toContain("Nothing matched");
+    // The remedy, named: without it the count alone reads as a page problem.
+    expect(error?.message).toContain("byRole");
+    expect(error?.message).toContain("test id");
+    expect(error?.message).toMatch(/frame \d+/);
+  } finally {
+    await browser.close();
+  }
+});

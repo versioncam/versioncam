@@ -484,9 +484,26 @@ export class RecordingSession {
     });
   }
 
+  /**
+   * Put a line of text on the clip, from now until the next caption or the end.
+   *
+   * `from` defaults to the moment it is written, not to zero. Defaulting to
+   * zero meant a second caption covered the whole clip on top of the first, so
+   * every frame carried both lines drawn over each other — which reads on a
+   * contact sheet as ghosted text rather than as a caption bug, and cost a
+   * pilot most of a round to diagnose.
+   */
   caption(text: string, options: { from?: number; to?: number } = {}): void {
+    const t0 = options.from ?? this.t;
+    const previous = this.timeline.captions[this.timeline.captions.length - 1];
+    // A caption stays up until something replaces it, so writing the next one
+    // is what ends the last one. `max` keeps the range well formed when a
+    // caption was given an explicit `from` later than this one's.
+    if (previous && previous.t1 > t0) {
+      previous.t1 = Math.max(previous.t0, t0);
+    }
     this.timeline.captions.push({
-      t0: options.from ?? 0,
+      t0,
       t1: options.to ?? Number.POSITIVE_INFINITY,
       text,
     });
@@ -514,11 +531,7 @@ export class RecordingSession {
     try {
       await locator.waitFor({ state: "visible", timeout: timeoutMs });
     } catch {
-      throw new Error(
-        `Nothing matched ${locator.toString()} within ${timeoutMs}ms at ` +
-          `t=${this.t.toFixed(2)}s (frame ${this.frame}). The clip expected it ` +
-          `to be on screen by this point.`,
-      );
+      throw new Error(await this.whyLocatorFailed(locator, timeoutMs));
     }
     const box = await locator.boundingBox();
     if (!box) {
@@ -527,6 +540,37 @@ export class RecordingSession {
       );
     }
     return { x: box.x, y: box.y, w: box.width, h: box.height };
+  }
+
+  /**
+   * Which kind of locator failure this was.
+   *
+   * Playwright reports both of them as a rejected wait, and they call for
+   * opposite repairs. Nothing matched means the clip reached for something the
+   * app never rendered — look at the page again. Several matched is a
+   * strict-mode violation: the locator found the text, on more than one
+   * element, and the beat is fine as long as the locator names one of them.
+   * Saying "nothing matched" for the second sent a pilot hunting a control
+   * that was on screen the whole time.
+   */
+  private async whyLocatorFailed(
+    locator: Locator,
+    timeoutMs: number,
+  ): Promise<string> {
+    const when = `at t=${this.t.toFixed(2)}s (frame ${this.frame})`;
+    // The count is a second round trip to a page that has just failed one, so
+    // a locator that cannot even be counted falls back to the simpler report.
+    const count = await locator.count().catch(() => 0);
+    if (count > 1) {
+      return (
+        `Matched ${count} elements with ${locator.toString()} ${when}. ` +
+        "A locator has to resolve to one: use `byRole` with a name, or a test id."
+      );
+    }
+    return (
+      `Nothing matched ${locator.toString()} within ${timeoutMs}ms ${when}. ` +
+      "The clip expected it to be on screen by this point."
+    );
   }
 
   private async resolvePoint(target: Locator | Vec2): Promise<Vec2> {

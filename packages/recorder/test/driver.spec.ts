@@ -195,3 +195,46 @@ test.describe("recording the fixture page", () => {
     expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   });
 });
+
+/**
+ * A caption belongs to the part of the clip it was written in.
+ *
+ * It used to belong to all of it: `from` defaulted to zero, so a second
+ * caption ran from the start on top of the first and the renderer drew both on
+ * every frame. On a contact sheet that reads as ghosted text — a rendering
+ * fault, not an authoring one — which is where a pilot spent a round.
+ */
+test("a second caption starts where it was written, and ends the first", async () => {
+  const browser = await launchBrowser();
+  try {
+    const { timeline } = await runClip(
+      browser,
+      testConfig(),
+      clip(
+        "two-captions",
+        { title: "Two captions", viewport: { width: 1000, height: 700 } },
+        async (s: RecordingSession) => {
+          await s.offCamera(installFixtureRoutes);
+          await s.open("/buttons.html");
+          s.caption("First");
+          await s.hold(500);
+          s.caption("Second");
+          await s.hold(500);
+        },
+      ),
+    );
+
+    const [first, second] = timeline.captions;
+    expect(timeline.captions).toHaveLength(2);
+    expect(first.t0).toBeCloseTo(0, 6);
+    // Written after half a second of holding, and starting there.
+    expect(second.t0).toBeCloseTo(0.5, 2);
+    expect(first.t1).toBeCloseTo(second.t0, 6);
+    // Which is the property that matters: no frame carries both.
+    expect(first.t1).toBeLessThanOrEqual(second.t0);
+    // And the last one still runs to the end of the clip.
+    expect(second.t1).toBeCloseTo(timeline.durationFrames / timeline.fps, 6);
+  } finally {
+    await browser.close();
+  }
+});
