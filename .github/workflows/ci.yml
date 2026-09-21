@@ -44,6 +44,12 @@ jobs:
         working-directory: examples/demo-app
         run: npx demos check
 
+      # The gate decides not to take screenshots. This is the check that it
+      # never changes what the recording shows — on a real app, not a fixture.
+      - name: The gate changes nothing
+        working-directory: examples/demo-app
+        run: npm run test:integration
+
       - name: Render the example's clips
         working-directory: examples/demo-app
         run: npx demos render --sequence
