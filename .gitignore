@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Recordings and renders are build products.
+recordings/
+out/
+**/recordings/
+**/out/
+
+# Sessions, credentials, replayed network. Never committed.
+.env
+.env.*
+.demos/
+**/.auth/
+*.har
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+.DS_Store
