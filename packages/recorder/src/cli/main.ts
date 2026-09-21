@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { check } from "./commands/check.js";
 import { doctor } from "./commands/doctor.js";
+import { init } from "./commands/init.js";
 import { inspect } from "./commands/inspect.js";
 import { login } from "./commands/login.js";
 import { measure } from "./commands/measure.js";
@@ -29,6 +30,8 @@ const USAGE = `demos — record and render demo clips of a real app
   demos measure <path> <sel>    where the matches of a selector are
   demos login                   sign in once and save the browser session
   demos doctor                  check this machine can record and encode
+  demos init --claude           copy the authoring skill and agents into .claude/
+      --force                     overwrite files that are already there
 
 Run from a directory containing recorder.config.ts.
 `;
@@ -45,6 +48,7 @@ const COMMANDS: Record<string, Command> = {
   measure,
   login,
   doctor,
+  init,
 };
 
 /**

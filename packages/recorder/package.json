@@ -23,7 +23,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "plugin"
   ],
   "engines": {
     "node": ">=22"
