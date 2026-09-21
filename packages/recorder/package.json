@@ -15,6 +15,10 @@
     "./scene": {
       "types": "./dist/scene.d.ts",
       "import": "./dist/scene.js"
+    },
+    "./fixtures": {
+      "types": "./dist/fixtures.d.ts",
+      "import": "./dist/fixtures.js"
     }
   },
   "files": [
