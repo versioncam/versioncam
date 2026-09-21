@@ -201,7 +201,12 @@ export async function contactSheet(
   await new Promise<void>((resolveSheet, rejectSheet) => {
     // `tile` composites frames of ONE stream, so the tiles are fed in as a
     // numbered image sequence rather than as N separate inputs.
-    const columns = Math.ceil(frames.length / 2);
+    // Two rows once there are enough tiles to fill them, one row before that.
+    // `tile` pads a grid it cannot fill, so three frames in a 2x2 gave a fourth
+    // cell holding a repeat of the third — a tile a reviewer has to work out is
+    // not evidence, which is exactly the work a contact sheet exists to save.
+    const rows = frames.length > 4 ? 2 : 1;
+    const columns = Math.ceil(frames.length / rows);
     const child = spawn(
       ffmpegPath(),
       [
@@ -211,7 +216,7 @@ export async function contactSheet(
         "-i",
         join(tileDir, "%02d.png"),
         "-vf",
-        `scale=960:-1,tile=${columns}x2`,
+        `scale=960:-1,tile=${columns}x${rows}`,
         "-frames:v",
         "1",
         sheet,

@@ -241,7 +241,13 @@ test.describe("the demos CLI", () => {
     expect(sheet.endsWith("buttons-sheet.png")).toBe(true);
     expect(existsSync(sheet)).toBe(true);
     // The opening frame, the beat, and the last frame — 115 of them, so 114.
-    expect(frames).toBe("frames 0 · 40 · 114");
+    //
+    // The beat is sampled at 46 rather than at its mark on 40: a mark sits on
+    // the first frame of the renderer's crossfade, where the tile still shows
+    // the page as it was before the wait. Six frames on, the dissolve has
+    // finished. The example app's first authored clip found this — its one
+    // beat came out as the old list with the new one ghosting through it.
+    expect(frames).toBe("frames 0 · 46 · 114");
   });
 
   test("frame writes one png, by number and by time", () => {

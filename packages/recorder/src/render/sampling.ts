@@ -34,12 +34,27 @@ export function markedFrames(
   durationFrames: number,
   marks: Mark[],
   count = SHEET_TILES,
+  crossfadeFrames = 0,
 ): number[] {
   const inRange = (frame: number) =>
     Number.isInteger(frame) && frame >= 0 && frame < durationFrames;
-  const wanted = [0, ...marks.map((m) => m.frame), durationFrames - 1].filter(
-    inRange,
-  );
+  // Past the crossfade, not at the mark itself.
+  //
+  // A mark sits at the first frame whose state is the settled one, which is
+  // also the first frame of the renderer's crossfade — where the blend has
+  // barely started and the tile still shows what was on screen *before* the
+  // wait. Sampling there gave a reviewer the old page with the new one
+  // ghosting through it: the beat looked like it had not happened.
+  //
+  // The mark stays where it is, because `review` wants the state boundary.
+  // Only the picture needs to wait for the dissolve to finish.
+  const settled = (frame: number) =>
+    Math.min(frame + crossfadeFrames, durationFrames - 1);
+  const wanted = [
+    0,
+    ...marks.map((m) => (m.frame === 0 ? 0 : settled(m.frame))),
+    durationFrames - 1,
+  ].filter(inRange);
   const unique = [...new Set(wanted)].sort((a, b) => a - b);
   if (unique.length <= count) return unique;
 

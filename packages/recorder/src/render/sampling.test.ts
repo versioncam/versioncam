@@ -50,3 +50,22 @@ describe("markedFrames", () => {
     expect(markedFrames(101, marksAt(-1, 50, 4000))).toEqual([0, 50, 100]);
   });
 });
+
+describe("sampling past a crossfade", () => {
+  it("shows the settled page, not the dissolve into it", () => {
+    // A mark is the first frame of the settled state, which is also the first
+    // frame of the renderer's crossfade: at the mark the tile is still mostly
+    // the page as it was before the wait. Six frames later the dissolve has
+    // finished. This is the bug the example app's first authored clip found —
+    // its one beat rendered as the old list with the new one ghosting through.
+    expect(markedFrames(149, marksAt(0, 29), 8, 6)).toEqual([0, 35, 148]);
+  });
+
+  it("never samples past the end", () => {
+    expect(markedFrames(40, marksAt(0, 37), 8, 6)).toEqual([0, 39]);
+  });
+
+  it("leaves the frames alone when nothing crossfades", () => {
+    expect(markedFrames(149, marksAt(0, 29), 8, 0)).toEqual([0, 29, 148]);
+  });
+});
