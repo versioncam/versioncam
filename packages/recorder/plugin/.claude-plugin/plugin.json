@@ -1,0 +1,12 @@
+{
+  "name": "living-demos",
+  "description": "Write a demo clip of a running app from a sentence of intent: an authoring skill that drives the recorder's command line and reviews the result from a contact sheet.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Peter Bulovec",
+    "email": "92371345+petbul@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/peter-ixo/living-demos/tree/main/packages/recorder/plugin",
+  "repository": "https://github.com/peter-ixo/living-demos",
+  "keywords": ["demo", "recording", "playwright", "screencast"]
+}

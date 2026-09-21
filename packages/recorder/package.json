@@ -24,7 +24,8 @@
   "files": [
     "dist",
     "bin",
-    "dsl.md"
+    "dsl.md",
+    "plugin"
   ],
   "engines": {
     "node": ">=22"

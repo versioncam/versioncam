@@ -313,4 +313,41 @@ test.describe("the demos CLI", () => {
     // The method the README promised for months and the session never had.
     expect(stdout).not.toContain("drag(");
   });
+
+  /**
+   * `init` copies prompts into a repository, so the interesting behaviour is
+   * what it does the second time: a plugin update must never silently discard
+   * a file someone has edited.
+   */
+  test("init --claude installs the plugin's prompts, and will not clobber them", () => {
+    const dir = mkdtempSync(join(tmpdir(), "living-demos-init-"));
+    const agent = join(dir, ".claude", "agents", "demo-author.md");
+
+    // It needs no config: a repository can install the prompts before it has
+    // any clips to write them for.
+    expect(run(["init"], dir).status).toBe(1);
+    expect(existsSync(agent)).toBe(false);
+
+    const first = run(["init", "--claude"], dir);
+    expect(first.status).toBe(0);
+    expect(first.stdout).toContain(join(".claude", "agents", "demo-author.md"));
+    expect(first.stdout).toContain(
+      join(".claude", "skills", "demos-author", "SKILL.md"),
+    );
+    expect(existsSync(join(dir, ".claude", "agents", "demo-reviewer.md"))).toBe(
+      true,
+    );
+
+    writeFileSync(agent, "edited by hand");
+
+    const second = run(["init", "--claude"], dir);
+    expect(second.status).toBe(1);
+    expect(second.stderr).toContain("demo-author.md");
+    expect(second.stderr).toContain("--force");
+    expect(readFileSync(agent, "utf8")).toBe("edited by hand");
+
+    const forced = run(["init", "--claude", "--force"], dir);
+    expect(forced.status).toBe(0);
+    expect(readFileSync(agent, "utf8")).toContain("name: demo-author");
+  });
 });
