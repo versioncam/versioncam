@@ -39,7 +39,14 @@ export async function openAppPage(
   await settlePage(page, () => inFlight, {
     label: "inspect",
     quietMs: config.settle.quietMs,
-    timeoutMs: config.settle.timeoutMs,
+    // A cold open, not a mid-clip wait, so it gets a cold open's budget — the
+    // same ninety seconds `open()` allows. The general `settle.timeoutMs` is
+    // fifteen, which a map app exceeds every single time: `inspect` then warned
+    // "timed out, still waiting on hook" on every call and returned complete,
+    // correct data anyway. An agent using it second-guessed that data for
+    // several calls before trusting it, which is a fair reading of a message
+    // that says a thing failed when it did not.
+    timeoutMs: 90_000,
     yieldMs: config.settle.yieldMs,
     hook: config.settle.ready ? () => config.settle.ready!(page) : undefined,
   });

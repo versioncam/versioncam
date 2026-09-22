@@ -97,7 +97,9 @@ export async function settlePage(
       // a better failure than one that dies at frame 300. The log line is how
       // it gets noticed.
       console.warn(
-        `[recorder] ${label} timed out after ${timeoutMs}ms, still waiting on ${lastBlocker}`,
+        `[recorder] ${label} gave up waiting after ${timeoutMs}ms ` +
+          `(still ${lastBlocker}) and carried on — what follows may show a ` +
+          `half-loaded page`,
       );
       return {
         label,

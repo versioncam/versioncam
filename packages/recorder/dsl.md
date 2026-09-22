@@ -73,6 +73,10 @@ naming the count — narrow it rather than reaching for the first match.
   session, and is written in fractions of the target's box, so the stroke
   survives a layout change. Measure first: `demos measure <path> <selector>`.
   `{ duration, modifiers }`.
+  A frame taken partway through the stroke looks wrong, and is not: the
+  smoothing curves outside the points it passes through, so a half-drawn loop
+  swings wide of the thing it is about to enclose before coming back. Judge the
+  selection from a frame after the loop closes, not from the middle of it.
 
 ## Keyboard
 
@@ -86,8 +90,14 @@ naming the count — narrow it rather than reaching for the first match.
 None of these spends clip time. Each needs frames after it.
 
 - `camera.zoom(target, scale?, options?)` — frame a locator or a rect, padded,
-  capped at 1.65x so the image is never upscaled. Keeps the target inside the
-  frame even at the edge of the page.
+  keeping the target inside the frame even at the edge of the page.
+  `scale` is a **ceiling, not a multiplier**: it caps how far in the camera may
+  go (the frame is never narrower than `viewport.width / scale`), and the
+  default cap of 1.65 exists so a captured pixel is never upscaled. A small
+  target does not fill the frame as a result — at 1440 wide, `zoom(x, 1.7)`
+  still shows about 850 pixels of page, which for a 310-pixel card reads as
+  barely zoomed at all. If you want the target to dominate the shot, pass a
+  rect from `demos measure` to `camera.to` instead.
 - `camera.to(rect, options?)` — frame an exact rectangle in viewport pixels.
 - `camera.reset(options?)` — back to the whole viewport. Ending a clip on this
   and nothing else is the classic mistake: `demos review` warns about it.
