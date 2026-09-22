@@ -31,6 +31,15 @@ PLUGIN="$ROOT/packages/recorder/plugin"
 OUT="$ROOT/docs/evals/$(date +%Y-%m-%d)"
 mkdir -p "$OUT"
 
+# A 401 costs three minutes per intent before it gives up, because the CLI
+# retries an error that will never succeed. Nine minutes to learn that a token
+# expired is nine minutes too many.
+if ! claude auth status >/dev/null 2>&1; then
+  echo "The CLI is not signed in — `claude auth status` says so." >&2
+  echo "Run: claude auth login    (or: claude setup-token, for a long-lived one)" >&2
+  exit 1
+fi
+
 if ! curl -sf -o /dev/null http://localhost:5174/; then
   echo "The example app is not answering on :5174. In another terminal:" >&2
   echo "  cd $APP && npm run dev" >&2
