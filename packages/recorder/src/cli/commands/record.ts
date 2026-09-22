@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { launchBrowser } from "../../driver/launch.js";
 import { runClip } from "../../driver/clip.js";
@@ -68,7 +70,18 @@ export async function record(argv: string[]): Promise<number> {
   if (failures.length > 0) {
     process.stderr.write("\n");
     for (const { id, error } of failures) {
-      process.stderr.write(`${id}\n  ${error.message}\n\n`);
+      // The message says what broke; the picture says why. An authoring agent
+      // spent two of its three attempts reasoning about plausible causes —
+      // timing races, mount races, drag granularity — for a failure that was
+      // obvious in one look at the screenshot: its drag had landed on the
+      // chart's axis labels instead of the brush. It had been told to read the
+      // file and still treated it as a secondary check, because nothing at the
+      // moment of failure said the file was there. Now it does.
+      const shot = join(config.recordingsDir, id, "failure.png");
+      const picture = existsSync(shot)
+        ? `\n  the page when it gave up: ${shot}`
+        : "";
+      process.stderr.write(`${id}\n  ${error.message}${picture}\n\n`);
     }
     return 1;
   }

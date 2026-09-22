@@ -61,16 +61,21 @@ const execFileAsync = promisify(execFile);
 async function runAsync(
   args: string[],
   cwd: string,
-): Promise<{ status: number; stdout: string }> {
+): Promise<{ status: number; stdout: string; stderr: string }> {
   try {
-    const { stdout } = await execFileAsync(process.execPath, [CLI, ...args], {
-      cwd,
-      encoding: "utf8",
-    });
-    return { status: 0, stdout };
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [CLI, ...args],
+      { cwd, encoding: "utf8" },
+    );
+    return { status: 0, stdout, stderr };
   } catch (error) {
-    const e = error as { code?: number; stdout?: string };
-    return { status: e.code ?? 1, stdout: e.stdout ?? "" };
+    const e = error as { code?: number; stdout?: string; stderr?: string };
+    return {
+      status: e.code ?? 1,
+      stdout: e.stdout ?? "",
+      stderr: e.stderr ?? "",
+    };
   }
 }
 
@@ -121,8 +126,11 @@ async function servedDir(
   status = 200,
 ): Promise<{ dir: string; close: () => Promise<void> }> {
   const server = createServer((_request, response) => {
-    response.writeHead(status);
-    response.end("ok");
+    // A document, not a body of text: without a content type the browser may
+    // treat the response as a download, and a download never fires
+    // `domcontentloaded`, so a clip opening this page waits out its timeout.
+    response.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
+    response.end("<!doctype html><title>served</title><p>ok</p>");
   });
   await new Promise<void>((ready) => server.listen(0, "127.0.0.1", ready));
   const port = (server.address() as AddressInfo).port;
@@ -219,6 +227,42 @@ test.describe("the demos CLI", () => {
     const { status, stderr } = run(["render"], appDir());
     expect(status).toBe(1);
     expect(stderr).toContain("demos record");
+  });
+
+  test("a failure names the picture of it", async () => {
+    // The message says what broke; the screenshot says why. An authoring agent
+    // spent two of three attempts reasoning about causes for a failure that
+    // was obvious in one look at the file — which it had been told to read,
+    // and which nothing at the moment of failure mentioned.
+    const { dir, close } = await servedDir();
+    try {
+      mkdirSync(join(dir, "demos"), { recursive: true });
+      writeFileSync(
+        join(dir, "demos", "broken.clip.ts"),
+        [
+          'import { clip } from "@living-demos/recorder";',
+          'export default clip("broken", { title: "Broken" }, async (s) => {',
+          '  await s.open("/");',
+          '  await s.click(s.byTestId("no-such-control"));',
+          "});",
+        ].join("\n"),
+      );
+      // Async, not `run`: `execFileSync` blocks this process's event loop, and
+      // the page the clip is opening is served by this process.
+      const { status, stderr } = await runAsync(
+        ["record", "--draft", "broken"],
+        dir,
+      );
+      expect(status).toBe(1);
+      expect(stderr).toContain("no-such-control");
+      expect(stderr).toContain("the page when it gave up");
+      expect(stderr).toContain("failure.png");
+      expect(
+        existsSync(join(dir, ".demos", "recordings", "broken", "failure.png")),
+      ).toBe(true);
+    } finally {
+      await close();
+    }
   });
 
   test("offers a draft, and says so where the commands are listed", () => {
