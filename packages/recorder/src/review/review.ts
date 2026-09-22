@@ -28,7 +28,8 @@ export type Beat = {
 export type ReviewBounds = { minSeconds?: number; maxSeconds?: number };
 
 export type ReviewItem = {
-  check: "duration" | "settles" | "beats" | "progress" | "rendered";
+  check:
+    "duration" | "settles" | "beats" | "progress" | "rendered" | "onscreen";
   pass: boolean;
   /**
    * A finding worth printing that is not worth failing over: `pass` is false,
@@ -193,6 +194,51 @@ function checkRendered(timeline: Timeline): ReviewItem {
   };
 }
 
+/**
+ * Is what the clip points at actually on screen?
+ *
+ * A highlight is drawn at the rectangle the driver measured, and a locator
+ * below the fold measures perfectly well: `demos measure` reported the example
+ * app's status line at y 928 in an 800-pixel viewport without comment, and the
+ * clip that rings it has been drawing that ring off the bottom of the frame
+ * since it was written. Nothing said so — not `record`, which succeeded, not
+ * `review`, which had no clause for it, and not the video, which simply lacks
+ * the ring it was supposed to end on.
+ *
+ * A warning rather than a failure: the camera can legitimately be somewhere
+ * else entirely by the time a highlight runs, and only the renderer knows for
+ * certain. But a highlight wholly outside the viewport is almost always a
+ * mistake, and it is invisible in every other way.
+ */
+function checkOnScreen(timeline: Timeline): ReviewItem {
+  const { width, height } = timeline.viewport;
+  const offscreen = timeline.highlights.filter(
+    (h) =>
+      h.rect.y >= height ||
+      h.rect.x >= width ||
+      h.rect.y + h.rect.h <= 0 ||
+      h.rect.x + h.rect.w <= 0,
+  );
+  if (offscreen.length === 0) {
+    return {
+      check: "onscreen",
+      pass: true,
+      detail: `${timeline.highlights.length} highlight(s), all inside the viewport`,
+    };
+  }
+  const where = offscreen
+    .map((h) => `y ${Math.round(h.rect.y)}–${Math.round(h.rect.y + h.rect.h)}`)
+    .join(", ");
+  return {
+    check: "onscreen",
+    pass: false,
+    warning: true,
+    detail:
+      `${offscreen.length} highlight(s) outside the ${width}x${height} viewport ` +
+      `(${where}) — drawn where no frame can show them`,
+  };
+}
+
 export function reviewRecording(input: ReviewInput): ReviewResult {
   const items: ReviewItem[] = [
     checkDuration(input.timeline, input.bounds),
@@ -200,6 +246,7 @@ export function reviewRecording(input: ReviewInput): ReviewResult {
     checkBeats(input.timeline, input.beats ?? []),
     checkProgress(input.timeline),
     checkRendered(input.timeline),
+    checkOnScreen(input.timeline),
   ];
   return {
     pass: items.every((item) => item.pass || item.warning === true),

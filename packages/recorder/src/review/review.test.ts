@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyTimeline } from "../core/timeline.js";
-import type { Mark, Timeline } from "../core/timeline.js";
+import type { Mark, Rect, Timeline } from "../core/timeline.js";
 import type { SettleReport } from "../driver/settle.js";
 import { formatReview, reviewRecording } from "./review.js";
 import type { ReviewInput, ReviewResult } from "./review.js";
@@ -92,6 +92,7 @@ describe("reviewRecording", () => {
       "beats",
       "progress",
       "rendered",
+      "onscreen",
     ]);
     for (const clause of result.items) expect(clause.pass).toBe(true);
   });
@@ -237,7 +238,8 @@ describe("formatReview", () => {
     );
     const lines = text.split("\n");
     expect(lines[0]).toBe("02-find: FAIL");
-    expect(lines).toHaveLength(6);
+    // The verdict, then a line per clause.
+    expect(lines).toHaveLength(7);
     expect(text).toContain("✗ beats");
     expect(text).toContain("✓ duration");
   });
@@ -248,5 +250,46 @@ describe("formatReview", () => {
     const text = formatReview("02-find", review({ timeline }));
     expect(text).toContain("02-find: PASS");
     expect(text).toContain("! rendered");
+  });
+});
+
+describe("a highlight nobody can see", () => {
+  const withHighlight = (rect: Rect): Timeline => {
+    const timeline = timelineOf({ seconds: 10 });
+    timeline.highlights = [{ t0: 0.5, t1: 2, rect, style: "ring" }];
+    return timeline;
+  };
+
+  it("warns when a ring is drawn below the fold", () => {
+    // The example app's status line measures at y 928 in an 800px viewport,
+    // and the clip that rings it drew that ring off the bottom of every frame
+    // from the day it was written. `record` succeeded, `review` had no clause,
+    // and the video simply lacked the ring it was meant to end on. This
+    // timeline is 1000x700, so 928 is comfortably below its fold too.
+    const result = reviewRecording({
+      timeline: withHighlight({ x: 421, y: 928, w: 578, h: 20 }),
+    });
+    const item = result.items.find((i) => i.check === "onscreen");
+    expect(item?.pass).toBe(false);
+    expect(item?.warning).toBe(true);
+    expect(item?.detail).toContain("928");
+    // A warning, not a failure: the camera may legitimately be elsewhere.
+    expect(result.pass).toBe(true);
+  });
+
+  it("is content with a ring inside the viewport", () => {
+    const result = reviewRecording({
+      timeline: withHighlight({ x: 100, y: 200, w: 300, h: 40 }),
+    });
+    expect(result.items.find((i) => i.check === "onscreen")?.pass).toBe(true);
+  });
+
+  it("allows a highlight that is partly on screen", () => {
+    // A panel taller than the viewport is normal, and a ring around it reads
+    // fine as a three-sided border.
+    const result = reviewRecording({
+      timeline: withHighlight({ x: 100, y: 500, w: 300, h: 400 }),
+    });
+    expect(result.items.find((i) => i.check === "onscreen")?.pass).toBe(true);
   });
 });
