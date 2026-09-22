@@ -111,6 +111,8 @@ demos measure <path> <sel>    where the matches of a selector are
 demos dsl                     the clip DSL, every method, one line each
 demos login                   sign in once and save the session
 demos doctor                  check this machine can record, and the app is up
+demos init --claude           copy the authoring skill and agents into .claude/
+    --force                     overwrite files that are already there
 ```
 
 `demos check` is the CI command. It does not render: a demo that no longer
@@ -215,6 +217,52 @@ next second would come from the frames or from somewhere else:
 `plays` is the clip's own length and `took` is what the machine spent making
 it. They move in opposite directions when a clip gets slower to record, which
 is why both are named.
+
+## Authoring
+
+A clip is a script, and writing one is a loop: look at the page, write, record,
+look at what you got, fix. `@living-demos/recorder` ships that loop as a Claude
+Code plugin — a skill that orchestrates it and two agents that do the work.
+There is no API key and no SDK: the model is whichever Claude Code session runs
+the skill, and it reads contact sheets with the same tool it reads files with.
+
+```bash
+npx demos init --claude          # copy the skill and agents into .claude/
+# or, without copying anything:
+claude --plugin-dir node_modules/@living-demos/recorder/plugin
+```
+
+Then, with the app running:
+
+```
+/demos-author "Find a shipment by filtering the list, and show how many matched"
+```
+
+**What happens.** The skill checks the app is up, inspects the start page, and
+hands that to a `demo-author` agent along with the intent. The author reads
+`demos dsl` and your existing clips, writes a beat sheet, writes the clip, and
+records it in draft until `demos review` passes. The skill then renders a
+contact sheet sampled *at the beats* and spawns a `demo-reviewer` — a fresh one
+every round, which sees the picture, the beats and a five-item checklist, and
+nothing of how the clip was written. A reviewer that has read the author's
+reasoning agrees with it. Its verdict goes back to the same author, which keeps
+what it learned about the page. Six rounds at most, then it stops and says why.
+
+**What you get**, under `.demos/author/<id>/`: the beat sheet, a `summary.json`,
+the final sheet, and per round the author's report, its beats and the reviewer's
+verdict. The clip itself goes in your clips directory, which is the part worth
+reading and committing.
+
+**What it costs.** About fifteen minutes and four recordings for one clip, most
+of it model latency rather than the recorder. It is not cheap and it is not
+instant; it is, however, unattended.
+
+**What it is not.** The author cannot sign your app in — if `open()` lands on a
+sign-in screen it stops and says so, because that is `auth` in your config and
+`demos login` is interactive. It does not run `git`. And `demos review` only
+checks what needs no eyes: duration, that every beat left a mark, that each beat
+changed the screen, that nothing was written after the last frame. Whether the
+clip is *good* is the reviewer's job, and after that, yours.
 
 ## Determinism
 
