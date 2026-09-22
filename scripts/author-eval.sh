@@ -14,6 +14,7 @@
 # Usage:
 #   scripts/author-eval.sh                 # all three example intents
 #   scripts/author-eval.sh e1              # just one, to see it work first
+#   scripts/author-eval.sh e2 e3           # the ones you have not run yet
 #
 set -euo pipefail
 
@@ -52,11 +53,18 @@ add e1 "Create a shipment for a new recipient and show it appearing in the list.
 add e2 "Find a shipment by filtering the list, and show how many matched."
 add e3 "Cancel a shipment, confirming in the dialog, and show the list after."
 
-WANTED="${1:-all}"
+# No arguments runs everything; otherwise exactly the ids named, in order.
+WANTED=("$@")
+wanted() {
+  [[ ${#WANTED[@]} -eq 0 ]] && return 0
+  local id="$1"; local w
+  for w in "${WANTED[@]}"; do [[ "$w" == "$id" ]] && return 0; done
+  return 1
+}
 
 for i in "${!IDS[@]}"; do
   id="${IDS[$i]}"; intent="${INTENTS[$i]}"
-  [[ "$WANTED" != "all" && "$WANTED" != "$id" ]] && continue
+  wanted "$id" || continue
 
   echo "── $id ──────────────────────────────────────────────"
   echo "   $intent"
