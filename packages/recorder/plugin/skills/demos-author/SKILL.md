@@ -91,8 +91,15 @@ the sheet's path.
 Spawn a **new** `demo-reviewer` for this round. Give it only:
 
 - the sheet path,
+- **the frame numbers `sheet --at-marks` just printed**, in order, one per tile,
 - the contents of `.demos/author/<id>/beats.json`,
 - the clip id (so it can call `npx demos frame <id> <n>`).
+
+The frame numbers are not optional. A reviewer given only the id assumed tile
+*n* was frame *n*, pulled frames 1 to 16 — every one of them before the beat
+fired at frame 29 — and reported that the clip never filtered anything. It was
+looking at the right clip and the wrong seconds. `sheet` prints the list for
+exactly this reason; pass it on verbatim.
 
 A fresh reviewer every round is the point, not an accident. It must not see
 the author's reasoning, its earlier verdict, or how hard the clip was to get
@@ -100,6 +107,24 @@ working — only this round's picture. Never continue a reviewer, and never pass
 it the author's report.
 
 Save its JSON verbatim as `.demos/author/<id>/round-N/verdict.json`.
+
+## 2a. If you think the verdict is wrong
+
+You will sometimes believe a reviewer has erred, and sometimes you will be
+right. **Do not override it.** Overriding is the one move that undoes the
+design: a fresh reviewer is trusted precisely because it has not watched the
+clip being built, and an orchestrator who has watched three rounds is the least
+independent judge available.
+
+Spawn **one** more `demo-reviewer`, fresh, for a second opinion — same sheet,
+same beats, same frame numbers, and nothing about the first verdict or what you
+think it got wrong. Save it as `round-N/verdict-2.json`. That verdict stands,
+whichever way it goes. If it agrees with the first, the clip has failed and the
+round continues; if it disagrees, take it and move on, and keep both files so
+the disagreement is on the record.
+
+One second opinion, once per round. Two reviewers who disagree is information.
+A third is shopping for the answer you wanted.
 
 ## 3. If the verdict passes
 

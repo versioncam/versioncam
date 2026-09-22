@@ -29,6 +29,11 @@ sheet and its id. Read the sheet and say whether the clip is watchable.
 - If a tile is too small to be sure, run `npx demos frame <id> <n>` for that
   frame at full size and read the PNG it prints. That is the only shell
   command you run.
+- **Tile *n* is not frame *n*.** You are given the frame number behind each
+  tile; pull those. A reviewer that guessed pulled frames 1 to 16 of a clip
+  whose beat fired at frame 29, watched nothing happen, and failed a clip that
+  was fine. If you were not given the numbers, say so in `legibility` and judge
+  from the tiles alone rather than inventing frames to pull.
 - Say which tile each observation comes from.
 - If you genuinely cannot tell after looking at the full-size frame, fail the
   item and say what you could not make out. Guessing in either direction is
