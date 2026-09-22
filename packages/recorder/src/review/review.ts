@@ -1,5 +1,6 @@
 import { frameAt } from "../core/timeline.js";
-import type { Timeline } from "../core/timeline.js";
+import { evalCamera } from "../core/camera.js";
+import type { Rect, Timeline } from "../core/timeline.js";
 import type { SettleReport } from "../driver/settle.js";
 
 /**
@@ -212,13 +213,35 @@ function checkRendered(timeline: Timeline): ReviewItem {
  */
 function checkOnScreen(timeline: Timeline): ReviewItem {
   const { width, height } = timeline.viewport;
-  const offscreen = timeline.highlights.filter(
-    (h) =>
-      h.rect.y >= height ||
-      h.rect.x >= width ||
-      h.rect.y + h.rect.h <= 0 ||
-      h.rect.x + h.rect.w <= 0,
-  );
+  const full: Rect = { x: 0, y: 0, w: width, h: height };
+
+  // Against the camera, not the viewport.
+  //
+  // The first version of this clause compared a highlight to the whole page,
+  // which is a true statement that does not add up to the thing anyone cares
+  // about. An authoring agent hit the difference: its closing ring sat at
+  // y 16–167, comfortably inside a 900-pixel viewport and comfortably *above*
+  // a camera cropped to y 99 and down. The clause passed and the top of the
+  // card — the chip naming the filter, the whole point of the shot — was not
+  // in the frame.
+  //
+  // Sampled at both ends of the highlight because the camera can be moving
+  // through it: a ring that starts cropped and ends visible is still a ring
+  // someone can read.
+  const visible = (h: (typeof timeline.highlights)[number]): boolean => {
+    const rects =
+      timeline.camera.length > 0
+        ? [evalCamera(timeline.camera, h.t0), evalCamera(timeline.camera, h.t1)]
+        : [full];
+    return rects.some(
+      (r) =>
+        h.rect.x + h.rect.w > r.x &&
+        h.rect.y + h.rect.h > r.y &&
+        h.rect.x < r.x + r.w &&
+        h.rect.y < r.y + r.h,
+    );
+  };
+  const offscreen = timeline.highlights.filter((h) => !visible(h));
   if (offscreen.length === 0) {
     return {
       check: "onscreen",
@@ -234,7 +257,7 @@ function checkOnScreen(timeline: Timeline): ReviewItem {
     pass: false,
     warning: true,
     detail:
-      `${offscreen.length} highlight(s) outside the ${width}x${height} viewport ` +
+      `${offscreen.length} highlight(s) outside what the camera is showing ` +
       `(${where}) — drawn where no frame can show them`,
   };
 }

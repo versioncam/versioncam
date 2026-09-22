@@ -293,3 +293,41 @@ describe("a highlight nobody can see", () => {
     expect(result.items.find((i) => i.check === "onscreen")?.pass).toBe(true);
   });
 });
+
+describe("a highlight the camera is not showing", () => {
+  it("fails a ring the camera has cropped, even though the page has not", () => {
+    // The clause used to compare the highlight to the whole viewport, which is
+    // a true statement that does not add up to what anyone cares about. An
+    // authoring agent's closing ring sat at y 16–167, comfortably inside a
+    // 700-pixel viewport and comfortably above a camera cropped to y 300 down.
+    const timeline = timelineOf({ seconds: 10 });
+    timeline.highlights = [
+      { t0: 5, t1: 7, rect: { x: 100, y: 16, w: 300, h: 151 }, style: "ring" },
+    ];
+    timeline.camera = [
+      { t: 0, rect: { x: 0, y: 300, w: 1000, h: 400 }, ease: "hold" },
+    ];
+    const item = reviewRecording({ timeline }).items.find(
+      (i) => i.check === "onscreen",
+    );
+    expect(item?.pass).toBe(false);
+    expect(item?.detail).toContain("camera");
+  });
+
+  it("is content once the camera has pulled back to it", () => {
+    const timeline = timelineOf({ seconds: 10 });
+    timeline.highlights = [
+      { t0: 5, t1: 7, rect: { x: 100, y: 16, w: 300, h: 151 }, style: "ring" },
+    ];
+    // Cropped when the ring appears, the whole page by the time it ends: a
+    // reader can still see what it points at.
+    timeline.camera = [
+      { t: 0, rect: { x: 0, y: 300, w: 1000, h: 400 }, ease: "hold" },
+      { t: 7, rect: { x: 0, y: 0, w: 1000, h: 700 }, ease: "minjerk" },
+    ];
+    expect(
+      reviewRecording({ timeline }).items.find((i) => i.check === "onscreen")
+        ?.pass,
+    ).toBe(true);
+  });
+});

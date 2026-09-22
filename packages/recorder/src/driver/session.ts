@@ -125,11 +125,15 @@ export class RecordingSession {
     this.rng = seeded(options.seed);
     this.motion = options.config.motion;
     this.statesDir = join(options.outputDir, "states");
-    // Over open map, clear of the toolbar and the side panels. Parking it on
-    // a control means frame 0 opens with that control's tooltip already up.
+    // Where frame 0 finds the pointer. Parking it on a control means the clip
+    // opens with that control's tooltip already up, or its focus ring showing —
+    // which a reviewer will fail, and has, on two different apps. There is no
+    // default that suits every layout, so `cursorStart` is a config field and
+    // this is only its fallback.
+    const start = options.config.cursorStart;
     this.cursor = [
-      options.viewport.width * 0.72,
-      options.viewport.height * 0.28,
+      options.viewport.width * start.x,
+      options.viewport.height * start.y,
     ];
 
     this.timeline = emptyTimeline({
@@ -355,6 +359,83 @@ export class RecordingSession {
    * release. `planner` comes from `loop([...])` and is expressed in fractions
    * of the target's box, so the stroke survives a layout change.
    */
+  /**
+   * Drag across a target, in fractions of its own box.
+   *
+   * A brush, a slider, a range handle: controls that respond to a stroke and
+   * ignore a click. The README promised this method for months before it
+   * existed, and the gap was not academic — PathGen's date-histogram clip
+   * clicks a bar to filter by month, which sets a zero-width d3 brush, which
+   * *clears* the filter rather than applying one. That clip has never shown
+   * the thing its caption claims, and nothing said so: the click lands, the
+   * page changes enough for a pixel diff, and the recording looks fine.
+   *
+   * Fractions rather than pixels for the same reason `lasso` uses them: a
+   * stroke authored against a real box survives the next padding change.
+   * `{ x1: 0.18, y1: 0.5, x2: 0.36, y2: 0.5 }` drags left-to-right across the
+   * middle. Beware the edges — a chart's axis labels live inside its own box,
+   * and a drag starting at x 0.08 selects that text instead of the control.
+   */
+  async drag(
+    target: Locator | Rect,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    options: { duration?: number; modifiers?: ("Shift" | "Alt")[] } = {},
+  ): Promise<void> {
+    const box = isRect(target) ? target : await this.boxOf(target);
+    const at = (f: { x: number; y: number }): Vec2 => [
+      box.x + box.w * f.x,
+      box.y + box.h * f.y,
+    ];
+    const start = at(from);
+    const end = at(to);
+
+    const durationMs = options.duration ?? this.motion.lassoDurationMs;
+    const frames = Math.max(
+      2,
+      Math.round((durationMs / 1000) * this.options.fps),
+    );
+
+    await this.moveTo(start);
+    await this.hold(this.motion.hoverDwellMs);
+
+    for (const modifier of options.modifiers ?? []) {
+      await this.page.keyboard.down(modifier);
+    }
+
+    await this.pressMouse("down");
+
+    // One authored point per frame, as `lasso` does: the stroke advances at
+    // exactly the rate the video plays, so the app is never asked to keep up
+    // with a drag that outruns its own rendering.
+    const frameSeconds = 1 / this.options.fps;
+    for (let step = 1; step <= frames; step += 1) {
+      const u = step / frames;
+      const point: Vec2 = [
+        start[0] + (end[0] - start[0]) * u,
+        start[1] + (end[1] - start[1]) * u,
+      ];
+      const previous = this.cursor;
+      this.timeline.cursor.push({
+        kind: "move",
+        t0: this.t,
+        t1: this.t + frameSeconds,
+        from: previous,
+        to: point,
+        ctrl: [(previous[0] + point[0]) / 2, (previous[1] + point[1]) / 2],
+        ease: "minjerk",
+      });
+      this.cursor = point;
+      await this.advanceTo(this.t + frameSeconds);
+    }
+
+    await this.pressMouse("up");
+
+    for (const modifier of options.modifiers ?? []) {
+      await this.page.keyboard.up(modifier);
+    }
+  }
+
   async lasso(
     target: Locator,
     planner: LoopPlanner,

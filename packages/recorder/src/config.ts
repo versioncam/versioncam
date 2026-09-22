@@ -87,6 +87,12 @@ export type ReviewConfig = {
   maxSeconds?: number;
 };
 
+export type CursorStart = {
+  /** Fractions of the viewport: `{ x: 0.72, y: 0.28 }` is up and to the right. */
+  x: number;
+  y: number;
+};
+
 export type RecorderConfig = {
   /** Where the app is served. */
   baseUrl: string;
@@ -105,6 +111,19 @@ export type RecorderConfig = {
   settle?: SettleConfig;
   capture?: CaptureConfig;
   review?: ReviewConfig;
+  /**
+   * Where the cursor rests in the first captured frame, in fractions of the
+   * viewport. Default `{ x: 0.72, y: 0.28 }`.
+   *
+   * There is no good default, which is the point of the field. The original
+   * was picked to sit over open map and clear of PathGen's toolbars, and a
+   * reviewer has since failed a clip's opening frame on two different apps for
+   * landing on something: a list row in one, a "Select metrics" input in the
+   * other. `open()` captures frame 0 before a clip body's first line runs, so
+   * no `moveTo` can reach it — an app whose layout puts a control there has to
+   * say so here.
+   */
+  cursorStart?: CursorStart;
   clock?: {
     /** The instant the app's fake clock starts at. */
     time?: string | Date;
@@ -143,6 +162,7 @@ export type ResolvedConfig = {
   };
   capture: Required<CaptureConfig>;
   review: Required<ReviewConfig>;
+  cursorStart: CursorStart;
   clock: { time: Date; timezoneId: string; locale: string };
   theme: {
     accent: string;
@@ -266,6 +286,10 @@ export function resolveConfig(
     review: {
       minSeconds: config.review?.minSeconds ?? 9,
       maxSeconds: config.review?.maxSeconds ?? 11,
+    },
+    cursorStart: {
+      x: config.cursorStart?.x ?? 0.72,
+      y: config.cursorStart?.y ?? 0.28,
     },
     clock: {
       time: new Date(config.clock?.time ?? "2026-09-01T09:00:00Z"),

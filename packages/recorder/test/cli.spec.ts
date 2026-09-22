@@ -361,13 +361,16 @@ test.describe("the demos CLI", () => {
     expect(bad.status).toBe(1);
   });
 
-  test("dsl prints the reference, and it says nothing about drag", () => {
+  test("dsl prints the reference, and every method in it is real", () => {
     const { status, stdout } = run(["dsl"], PACKAGE);
     expect(status).toBe(0);
     expect(stdout).toContain("byTestId");
     expect(stdout).toContain("camera.zoom");
-    // The method the README promised for months and the session never had.
-    expect(stdout).not.toContain("drag(");
+    // `drag` is here now, and was not for months while the README claimed it.
+    // The guarantee is not that any particular method exists — `dsl.spec.ts`
+    // enforces that this list and the session agree — it is that reading this
+    // output is never how you learn about a method that is not there.
+    expect(stdout).toContain("drag(");
   });
 
   /**

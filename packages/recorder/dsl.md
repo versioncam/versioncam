@@ -3,7 +3,8 @@
 Everything a clip body can call on its session, `s`. `test/dsl.spec.ts`
 asserts that this list and `RecordingSession` name exactly the same members, so
 a method here exists and a method that exists is here. The README promised an
-`s.drag` for months; there has never been one.
+`s.drag` for months while there was none; there is one now, because a clip that
+needed it had been silently doing nothing instead.
 
 Three rules the whole surface follows:
 
@@ -60,6 +61,13 @@ naming the count — narrow it rather than reaching for the first match.
   reading a tooltip. `{ dwell, duration }`.
 - `click(target?, options?)` — approach, dwell, press, release. Called with no
   target it clicks where the cursor already is. `{ dwell }`.
+- `drag(target, from, to, options?)` — press, draw a straight stroke, release.
+  `from` and `to` are fractions of the target's own box, so the drag survives a
+  layout change: `{ x: 0.18, y: 0.5 }` to `{ x: 0.36, y: 0.5 }` crosses the
+  middle. For a control that answers a stroke and ignores a click — a brush, a
+  slider, a range handle. Mind the edges: a chart's axis labels live inside its
+  own box, and a drag starting at x 0.08 selects that text instead of the
+  control. `{ duration, modifiers }`.
 - `lasso(target, planner, options?)` — press, follow a smoothed closed loop,
   release. The planner comes from `loop([[0.3, 0.3], …])`, exported beside the
   session, and is written in fractions of the target's box, so the stroke
