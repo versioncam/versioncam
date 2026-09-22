@@ -11,11 +11,29 @@ the second it gave up — instead of quietly producing a video that is wrong.
 
 ## Install
 
+This package is not published yet — it is `private: true` and on no registry —
+so a consumer installs it from the checkout:
+
 ```bash
-npm i -D @living-demos/recorder
+# once, in this repository
+npm --prefix packages/recorder link
+
+# then in the app that wants clips
+npm link @living-demos/recorder
 npx playwright install chromium
-npx demos doctor          # checks node, chromium, ffmpeg, and your config
+npx demos doctor          # node, chromium, ffmpeg, your config, and the app
 ```
+
+A `file:` dependency works too and survives `npm ci`, which a link does not:
+
+```jsonc
+// package.json in the app
+{ "devDependencies": { "@living-demos/recorder": "file:../living-demos/packages/recorder" } }
+```
+
+Publishing is a decision rather than a task: drop `private`, pick a registry,
+and for a private one wire an auth token into CI. Until then a link or a
+`file:` path is the whole story, and both work.
 
 ffmpeg and ffprobe come from the system (`brew install ffmpeg`,
 `apt install ffmpeg`). The optional `ffmpeg-static` covers images that have
