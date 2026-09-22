@@ -89,9 +89,12 @@ export async function review(argv: string[]): Promise<number> {
     timeline: { ...recorded, marks: recorded.marks ?? [] },
     settles,
     beats,
+    // The flags override the config, which overrides the default. A clip's
+    // right length is a house style, not a law: an app whose clips are one
+    // crisp interaction each says so in `review` and is not argued with.
     bounds: {
-      minSeconds: bound(values.min, "min"),
-      maxSeconds: bound(values.max, "max"),
+      minSeconds: bound(values.min, "min") ?? config.review.minSeconds,
+      maxSeconds: bound(values.max, "max") ?? config.review.maxSeconds,
     },
   });
 

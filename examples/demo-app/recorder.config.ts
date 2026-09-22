@@ -13,6 +13,12 @@ export default defineRecorder({
   baseUrl: process.env.DEMOS_BASE_URL ?? "http://localhost:5174",
   viewport: { width: 1280, height: 800 },
   clips: "demos/clips/**/*.clip.ts",
+
+  // Each of these clips is a single interaction — fill a form, filter a list,
+  // confirm a dialog — and four to eight seconds is the honest length for one.
+  // The package default aims at ten, which suits a clip that walks through a
+  // workflow; this app has none. The authoring loop reads whatever is here.
+  review: { minSeconds: 4, maxSeconds: 11 },
   scenes: "demos/scenes/index.ts",
 
   theme: {

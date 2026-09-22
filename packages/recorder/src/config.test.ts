@@ -120,3 +120,23 @@ describe("outputSize", () => {
     }
   });
 });
+
+describe("how long a clip of this app should be", () => {
+  it("aims at ten seconds unless the app says otherwise", () => {
+    expect(resolveConfig({ baseUrl: "http://x" }, "/tmp").review).toEqual({
+      minSeconds: 9,
+      maxSeconds: 11,
+    });
+  });
+
+  it("takes the app's word for it", () => {
+    // The example app's clips are one interaction each, and four seconds is
+    // the honest length for one. A default that called them failures would be
+    // a rule about the tool rather than about the clip.
+    const config = resolveConfig(
+      { baseUrl: "http://x", review: { minSeconds: 4, maxSeconds: 11 } },
+      "/tmp",
+    );
+    expect(config.review).toEqual({ minSeconds: 4, maxSeconds: 11 });
+  });
+});

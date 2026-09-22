@@ -73,6 +73,20 @@ export type CaptureConfig = {
   forceCaptureEvery?: number;
 };
 
+export type ReviewConfig = {
+  /**
+   * How long a clip of this app should run, in seconds.
+   *
+   * Ten seconds is the shape of a feature clip and the default, but it is a
+   * house style rather than a law: an app whose clips are one crisp
+   * interaction each should say five, and an app demonstrating a workflow may
+   * want twenty. `demos review` enforces whatever is here, the authoring loop
+   * aims at it, and `--min`/`--max` override it for one run.
+   */
+  minSeconds?: number;
+  maxSeconds?: number;
+};
+
 export type RecorderConfig = {
   /** Where the app is served. */
   baseUrl: string;
@@ -90,6 +104,7 @@ export type RecorderConfig = {
   auth?: AuthConfig;
   settle?: SettleConfig;
   capture?: CaptureConfig;
+  review?: ReviewConfig;
   clock?: {
     /** The instant the app's fake clock starts at. */
     time?: string | Date;
@@ -127,6 +142,7 @@ export type ResolvedConfig = {
     ready: ((page: Page) => Promise<boolean>) | null;
   };
   capture: Required<CaptureConfig>;
+  review: Required<ReviewConfig>;
   clock: { time: Date; timezoneId: string; locale: string };
   theme: {
     accent: string;
@@ -246,6 +262,10 @@ export function resolveConfig(
     capture: {
       gate: config.capture?.gate ?? true,
       forceCaptureEvery: forceCaptureEvery,
+    },
+    review: {
+      minSeconds: config.review?.minSeconds ?? 9,
+      maxSeconds: config.review?.maxSeconds ?? 11,
     },
     clock: {
       time: new Date(config.clock?.time ?? "2026-09-01T09:00:00Z"),
