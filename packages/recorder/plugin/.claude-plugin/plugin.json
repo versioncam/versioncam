@@ -6,7 +6,7 @@
     "name": "Peter Bulovec",
     "email": "92371345+petbul@users.noreply.github.com"
   },
-  "homepage": "https://github.com/peter-ixo/living-demos/tree/main/packages/recorder/plugin",
-  "repository": "https://github.com/peter-ixo/living-demos",
+  "homepage": "https://github.com/petbul/living-demos/tree/main/packages/recorder/plugin",
+  "repository": "https://github.com/petbul/living-demos",
   "keywords": ["demo", "recording", "playwright", "screencast"]
 }
