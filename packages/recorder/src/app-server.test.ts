@@ -81,7 +81,11 @@ describe("ensureApp", () => {
   it("reuses a server that is already answering, and leaves it running", async () => {
     const port = await freePort();
     await serve(port);
-    const app = await ensureApp(configFor(port, { command: "exit 1" }));
+    // Stated, not defaulted: the default is off wherever CI is set, and this
+    // suite runs in CI too.
+    const app = await ensureApp(
+      configFor(port, { command: "exit 1", reuseExistingServer: true }),
+    );
 
     expect(app.started).toBe(false);
     expect(app.detail).toContain(`http://127.0.0.1:${port}`);
