@@ -11,8 +11,23 @@ the second it gave up — instead of quietly producing a video that is wrong.
 
 ## Install
 
+Once published, three steps, and the third is a sentence:
+
+```bash
+npm i -D versioncam
+npx versioncam init          # installs the authoring skill into .claude/
+```
+
+```
+/versioncam "Show a user filtering the list down to one shipment"
+```
+
+The first run of the skill sets the repository up: it writes
+`versioncam.config.ts` from what it finds, proves the app starts and records
+the same way twice, and only then writes the clip. See *Authoring*.
+
 This package is not published yet — it is `private: true` and on no registry —
-so a consumer installs it from the checkout:
+so until it is, a consumer installs it from the checkout:
 
 ```bash
 # once, in this repository
@@ -30,10 +45,6 @@ A `file:` dependency works too and survives `npm ci`, which a link does not:
 // package.json in the app
 { "devDependencies": { "versioncam": "file:../versioncam/packages/recorder" } }
 ```
-
-Publishing is a decision rather than a task: drop `private`, pick a registry,
-and for a private one wire an auth token into CI. Until then a link or a
-`file:` path is the whole story, and both work.
 
 ffmpeg and ffprobe come from the system (`brew install ffmpeg`,
 `apt install ffmpeg`). The optional `ffmpeg-static` covers images that have
@@ -170,7 +181,8 @@ versioncam measure <path> <sel>    where the matches of a selector are, and what
 versioncam dsl                     the clip DSL, every method, one line each
 versioncam login                   sign in once and save the session
 versioncam doctor                  check this machine can record, and that the app starts
-versioncam init --claude           copy the authoring skill and agents into .claude/
+versioncam init                    install the authoring skill into .claude/
+    --into <dir>                   into <dir>/versioncam/ instead, for another host
     --force                        overwrite files that are already there
 ```
 
@@ -280,48 +292,58 @@ is why both are named.
 ## Authoring
 
 A clip is a script, and writing one is a loop: look at the page, write, record,
-look at what you got, fix. `versioncam` ships that loop as a Claude
-Code plugin — a skill that orchestrates it and two agents that do the work.
-There is no API key and no SDK: the model is whichever Claude Code session runs
-the skill, and it reads contact sheets with the same tool it reads files with.
+look at what you got, fix. `versioncam` ships that loop as one agent skill.
+There is no API key and no SDK: the model is whichever agent session runs the
+skill, and it reads contact sheets with the same tool it reads files with.
 
 ```bash
-npx versioncam init --claude          # copy the skill and agents into .claude/
-# or, without copying anything:
+npx versioncam init          # .claude/skills/versioncam/ and .claude/agents/versioncam-reviewer.md
+# or, for Claude Code without copying anything:
 claude --plugin-dir node_modules/versioncam/plugin
 ```
 
-Then, with the app running:
+`init --into <dir>` puts the skill directory somewhere else, for a host that
+reads skills from elsewhere. Then:
 
 ```
 /versioncam "Find a shipment by filtering the list, and show how many matched"
 ```
 
-**What happens.** The skill checks the app is up, inspects the start page, and
-hands that to a `demo-author` agent along with the intent. The author reads
-`versioncam dsl` and your existing clips, writes a beat sheet, writes the clip, and
-records it in draft until `versioncam review` passes. The skill then renders a
-contact sheet sampled *at the beats* and spawns a `demo-reviewer` — a fresh one
-every round, which sees the picture, the beats and a five-item checklist, and
-nothing of how the clip was written. A reviewer that has read the author's
-reasoning agrees with it. Its verdict goes back to the same author, which keeps
-what it learned about the page. Six rounds at most, then it stops and says why.
+**The first run** — in a directory with no `versioncam.config.ts` — sets the
+repository up before anything else: how the app starts and where it is served,
+from its scripts and its framework's config; whether it signs in, which it
+asks you about; a config with a `webServer`, so nothing has to be running;
+`doctor` and `inspect` to prove the app starts and settles; and `stability`
+on a three-second clip, so no clip is written against an app that does not
+record the same way twice. It commits nothing.
 
-**What you get**, under `.versioncam/author/<id>/`: the beat sheet, a `summary.json`,
-the final sheet, and per round the author's report, its beats and the reviewer's
-verdict. The clip itself goes in your clips directory, which is the part worth
-reading and committing.
+**Every run.** The session inspects the start page and writes the clip itself:
+it reads `versioncam dsl` and your existing clips, writes a beat sheet, writes
+the clip, and records it in draft until `versioncam review` passes, three
+recordings at most. Then a contact sheet sampled *at the beats*, and a fresh
+reviewer every round — `versioncam-reviewer`, which sees the picture, the
+beats and a five-item checklist, and nothing of how the clip was written. A
+reviewer that has read the author's reasoning agrees with it. Its verdict comes
+back as fixes to make, and the round repeats; six rounds at most, then it stops
+and says why. On a host that cannot register the reviewer as an agent, the same
+file is a subagent's prompt, or — with no subagents at all — a checklist the
+session applies to its own sheet, and the verdict says which.
 
-**What it costs.** About fifteen minutes and four recordings for one clip, most
-of it model latency rather than the recorder. It is not cheap and it is not
-instant; it is, however, unattended.
+**What you get**, under `.versioncam/author/<id>/`: the beat sheet, a
+`summary.json`, the final sheet, and per round what the author found, its
+beats and the reviewer's verdict. The clip itself goes in your clips
+directory, which is the part worth reading and committing.
 
-**What it is not.** The author cannot sign your app in — if `open()` lands on a
-sign-in screen it stops and says so, because that is `auth` in your config and
-`versioncam login` is interactive. It does not run `git`. And `versioncam review` only
-checks what needs no eyes: duration, that every beat left a mark, that each beat
-changed the screen, that nothing was written after the last frame. Whether the
-clip is *good* is the reviewer's job, and after that, yours.
+**What it costs.** Six to twelve minutes and one or two rounds for a clip on
+the example app, most of it model latency rather than the recorder. It is not
+cheap and it is not instant; it is, however, unattended.
+
+**What it is not.** The skill cannot sign your app in for you — it asks how
+you want that handled, and `versioncam login` is yours to run because it waits
+for you. It does not run `git`. And `versioncam review` only checks what needs
+no eyes: duration, that every beat left a mark, that each beat changed the
+screen, that nothing was written after the last frame. Whether the clip is
+*good* is the reviewer's job, and after that, yours.
 
 ## Determinism
 

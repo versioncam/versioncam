@@ -1,4 +1,4 @@
-# versioncam
+# Versioncam
 
 Demo clips as a build product.
 
@@ -14,14 +14,18 @@ stay true.
 
 ## Status
 
-Prototype. The recorder exists and works, inside the PathGen frontend repo
-([PR #313](https://github.com/PathGen-AI/frontend/pull/313)): six clips of a
-live surveillance app, byte-identical across runs, plus the renderer, the
-encoder and the test suite. This repo is where it becomes a product. The
-[plan](docs/plan.md) says how, in order, with what has to be true at each step.
+The recorder is the `versioncam` package, in `packages/recorder`: record,
+render, check in CI, prove an app records the same way twice, and an agent
+skill — `npx versioncam init`, then `/versioncam "<intent>"` — that sets a
+repository up on its first run and writes, records and reviews a clip from one
+sentence. It began inside the PathGen frontend repo
+([PR #313](https://github.com/PathGen-AI/frontend/pull/313)), which is now its
+first consumer. The [plan](docs/plan.md) says what comes next, in order, with
+what has to be true at each step; the `docs/wp*.md` files are the work
+packages as executed.
 
-Nothing here is public yet, and the licence decision is deliberately open —
-see the plan.
+Nothing is published yet. The repository stays closed and the npm package will
+be public; the licence text is still to be chosen — see the plan.
 
 ## The idea in one paragraph
 
@@ -35,12 +39,15 @@ genuinely fire, and draws the pointer in post at output resolution. Zoom and
 pan are keyframes applied to frames captured at 2× device pixels. Two runs
 produce the same bytes, and the tests assert that rather than hoping.
 
-## Layout (intended)
+## Layout
 
 ```
-packages/recorder   the core: driver, renderer, encoder, CLI, config boundary
-packages/author     the LLM loop: inspect → plan → script → record → review → fix
-packages/action     GitHub Action: record on preview deploys, post sheets on PRs
-examples/           a small app with clips, for tests and for showing it off
-docs/plan.md        the execution plan
+packages/recorder   the versioncam package: driver, renderer, encoder, CLI, config boundary,
+                    and plugin/ — the authoring skill and its reviewer
+examples/demo-app   a deliberately boring app with clips, for tests and for showing it off
+docs/plan.md        the execution plan; docs/wp*.md, each work package as executed
+scripts/            the headless evaluation harness, run from a plain terminal
 ```
+
+A GitHub Action around `versioncam check` and `render` is the next work
+package, WP7.

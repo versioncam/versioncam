@@ -18,6 +18,13 @@ const PLUGIN_DIR = resolve(
   "plugin",
 );
 
+/** What WP5's `init --claude` wrote, which the new skill replaces. */
+const OLD_INSTALL = [
+  join(".claude", "skills", "demos-author"),
+  join(".claude", "agents", "demo-author.md"),
+  join(".claude", "agents", "demo-reviewer.md"),
+];
+
 /** Every file under `dir`, as paths relative to it. */
 async function filesUnder(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { recursive: true, withFileTypes: true });
@@ -28,72 +35,77 @@ async function filesUnder(dir: string): Promise<string[]> {
 }
 
 /**
- * Copy the authoring skill and its agents into this repository's `.claude/`.
+ * Install the skill, and nothing else.
  *
- * `claude --plugin-dir node_modules/versioncam/plugin` loads the
- * same files without copying anything, and is the better default. This exists
- * for the other case: prompts are the part of this package people most want to
- * change, and a copy in `.claude/` is a file they can edit, diff and commit
- * alongside their clips.
+ * The skill is the whole product surface for an agent: one directory — the
+ * orchestration, the authoring brief, the first-run brief — and the reviewer's
+ * file. No config stub, because the first run writes the real one from the
+ * repository, and a stub is a config somebody has to finish by hand.
+ *
+ * By default into `.claude/`, where Claude Code finds both: the skill under
+ * `skills/versioncam/`, the reviewer under `agents/`, where it registers as an
+ * agent whose tools are limited to looking. `--into <dir>` is for a host that
+ * reads skills from elsewhere — which path that is gets checked against the
+ * host's own documentation by whoever needs it, not guessed here — and there
+ * the reviewer goes inside the skill's directory, where the skill looks for it
+ * on a host that cannot register agents.
  *
  * It refuses to overwrite rather than merging, and it refuses *everything* if
- * any one destination exists. A half-installed set is the bad outcome: the
- * skill spawns its agents by name, so a new skill beside an old agent file
- * fails in the middle of a round instead of at the copy.
+ * any one destination exists. A half-installed set is the bad outcome: a new
+ * skill beside an old reviewer file fails in the middle of a round instead of
+ * at the copy. And the prompts are the part of this package people most want
+ * to edit, so a second `init` must never silently discard their edits.
  */
 export async function init(argv: string[]): Promise<number> {
   const { values } = parseArgs({
     args: argv,
     options: {
-      claude: { type: "boolean", default: false },
       force: { type: "boolean", default: false },
+      into: { type: "string" },
+      claude: { type: "boolean", default: false },
     },
     strict: false,
     allowPositionals: true,
   });
 
-  if (values.claude !== true) {
+  if (values.claude === true) {
     process.stderr.write(
-      "Usage: versioncam init --claude\n" +
-        "Copies the authoring skill and agents into .claude/ for Claude Code.\n",
+      "`--claude` is gone: `versioncam init` installs into .claude/ by default, and `--into <dir>` puts the skill somewhere else.\n",
     );
     return 1;
   }
 
-  if (!existsSync(PLUGIN_DIR)) {
+  const skillDir = join(PLUGIN_DIR, "skills", "versioncam");
+  const reviewer = join(PLUGIN_DIR, "agents", "versioncam-reviewer.md");
+  if (!existsSync(skillDir) || !existsSync(reviewer)) {
     process.stderr.write(
-      `No plugin directory at ${PLUGIN_DIR}.\n` +
+      `No skill at ${skillDir}.\n` +
         "Reinstall versioncam, or run this from an installed copy.\n",
     );
     return 1;
   }
 
   const cwd = process.cwd();
-  const copies: { from: string; to: string }[] = [];
-  for (const group of ["agents", "skills"]) {
-    const source = join(PLUGIN_DIR, group);
-    if (!existsSync(source)) continue;
-    for (const file of await filesUnder(source)) {
-      copies.push({
-        from: join(source, file),
-        to: join(cwd, ".claude", group, file),
-      });
-    }
-  }
+  const into = values.into as string | undefined;
+  const skillTarget = into
+    ? resolve(cwd, into, "versioncam")
+    : join(cwd, ".claude", "skills", "versioncam");
+  const reviewerTarget = into
+    ? join(skillTarget, "versioncam-reviewer.md")
+    : join(cwd, ".claude", "agents", "versioncam-reviewer.md");
 
-  if (copies.length === 0) {
-    process.stderr.write(
-      `Nothing to copy: ${PLUGIN_DIR} has no agents or skills.\n`,
-    );
-    return 1;
-  }
+  const copies = (await filesUnder(skillDir)).map((file) => ({
+    from: join(skillDir, file),
+    to: join(skillTarget, file),
+  }));
+  copies.push({ from: reviewer, to: reviewerTarget });
 
   const existing = copies.filter((c) => existsSync(c.to));
   if (existing.length > 0 && values.force !== true) {
     process.stderr.write(
       `Already there:\n` +
         existing.map((c) => `  ${relative(cwd, c.to)}\n`).join("") +
-        "Pass --force to overwrite.\n",
+        "Nothing was copied. Pass --force to overwrite.\n",
     );
     return 1;
   }
@@ -104,8 +116,24 @@ export async function init(argv: string[]): Promise<number> {
     process.stdout.write(`${relative(cwd, to)}\n`);
   }
 
+  if (into) {
+    process.stdout.write(
+      `\nThe reviewer is ${relative(cwd, reviewerTarget)}. A host that can register agents should register it as versioncam-reviewer; one that cannot, the skill reads it from there.\n`,
+    );
+  }
+
+  // Two skills answering the same request is worse than either alone.
+  const old = OLD_INSTALL.filter((path) => existsSync(join(cwd, path)));
+  if (old.length > 0) {
+    process.stdout.write(
+      `\nAn older install is still here, and replaced by this one — remove it:\n` +
+        old.map((path) => `  ${path}\n`).join(""),
+    );
+  }
+
   process.stdout.write(
-    `\nRestart Claude Code, then run /versioncam "<what the clip should show>".\n`,
+    `\nInstalled. Ask your agent: /versioncam "<what the clip should show>"\n` +
+      "The first run sets this repository up.\n",
   );
   return 0;
 }

@@ -1,6 +1,6 @@
 {
   "name": "versioncam",
-  "description": "Write a demo clip of a running app from a sentence of intent: an authoring skill that drives the recorder's command line and reviews the result from a contact sheet.",
+  "description": "Record a short, true demo clip of a web app from one sentence: a skill that sets the repository up on its first run, writes the clip, and has a reviewer pass it from a contact sheet.",
   "version": "0.1.0",
   "author": {
     "name": "Peter Bulovec",

@@ -44,7 +44,8 @@ const USAGE = `versioncam — record and render demo clips of a real app
   versioncam dsl                     the clip DSL, every method, one line each
   versioncam login                   sign in once and save the browser session
   versioncam doctor                  check this machine can record, and that the app starts
-  versioncam init --claude           copy the authoring skill and agents into .claude/
+  versioncam init                    install the authoring skill into .claude/
+      --into <dir>                   into <dir>/versioncam/ instead, for another host
       --force                        overwrite files that are already there
 
 Run from a directory containing versioncam.config.ts.

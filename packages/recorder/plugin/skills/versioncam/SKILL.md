@@ -1,31 +1,54 @@
 ---
 name: versioncam
-description: Write a demo clip of the running app from a sentence of intent, then iterate until it records cleanly and a reviewer passes it from the contact sheet. Use in a repository that has versioncam.config.ts and the versioncam package, when someone asks for a demo clip, a screencast or a short video of a feature. The app must be running at the config's baseUrl.
+description: Record a short demo clip — a screencast, a short video, a GIF of a feature — of this repository's web app from one sentence of what it should show, and iterate until a reviewer passes it from a contact sheet. Use when someone asks to record, film or make a demo of a feature, or to set versioncam up in a repository. Works in any repository with a web app — the first run writes versioncam.config.ts, works out how to start the app, and proves the app records the same way twice before anything is authored.
 user-invocable: true
 argument-hint: "\"<what the clip should show>\" [--id <slug>] [--max-rounds 6]"
 allowed-tools:
   - Agent
+  - SendMessage
+  - AskUserQuestion
   - Read
   - Write
-  - SendMessage
+  - Edit
+  - Glob
+  - Grep
   - Bash(npx versioncam *)
   - Bash(mkdir *)
   - Bash(cp *)
+  - Bash(ls *)
 ---
 
-# Author a demo clip
+# Record a demo clip
 
 `$ARGUMENTS`
 
-You run a loop. Two subagents do the work: `demo-author` writes and repairs the
-clip, `demo-reviewer` looks at a picture of it and says whether it is
-watchable. You spawn them, carry verdicts between them, and decide when to
-stop. Do not write or fix the clip yourself — the author has the page in its
-context and you do not.
+You turn one sentence into a clip: a script in this repository that drives the
+running app through its own controls, and a video recorded from it. You write
+the clip; a reviewer who has never seen how it was written looks at a picture
+of it and says whether it shows what it claims; and you go round again until it
+does, or the rounds run out.
 
-Follow these steps in order.
+Follow these steps in order. Two more files sit beside this one, in this
+skill's directory: `onboarding.md` and `authoring.md`. They are briefs, read
+when a step says to.
 
-## 0. Set up
+## 0. Which phase
+
+First, check versioncam is installed where Node will find it:
+`ls -d node_modules/versioncam`, then the same in each parent directory up to
+the repository root (`../node_modules/versioncam`, …) — a workspace hoists it.
+If none has it, **stop** and say it must be installed first. Every step below
+runs `npx versioncam`, and `npx` with nothing installed downloads whatever is
+published under that name.
+
+Then: is there a `versioncam.config.ts` (or `.js`, `.mjs`) in the working
+directory?
+
+- **No** → this is the repository's first run. Read `onboarding.md` and do all
+  of it, then continue with step 1.
+- **Yes** → continue with step 1.
+
+## 1. Set up
 
 Parse `$ARGUMENTS`. The first quoted string is the **intent**. `--id <slug>`
 names the clip; without it, derive a slug from the intent — lowercase, hyphens,
@@ -36,48 +59,44 @@ mkdir -p .versioncam/author/<id>
 npx versioncam doctor
 ```
 
-`doctor` reports node, chromium, ffmpeg, the config and whether the app answers
-at `baseUrl`. If the app is unreachable, **stop** and say so: nothing below
-works without a running app, and every round would burn a subagent to discover
-that. If a check other than the app fails, print it and stop too.
+`doctor` checks the machine and the config, and **starts the app** through the
+config's `webServer` when nothing is serving it, then stops it again. Every
+later command does the same, so you never start a dev server yourself. If the
+app check fails, **stop** and say so: nothing below works without the app, and
+every round would spend a recording discovering that. If another check fails,
+print it and stop too.
 
-Then capture the start page once, for the author's opening context:
+Then capture the start page once:
 
 ```bash
 npx versioncam inspect /
 ```
 
-## 1. Round 1 — spawn the author
+## 2. Author — this session
 
-Spawn the `demo-author` agent. Give it, in the prompt:
+Read `authoring.md` now: it is how to write and repair a clip, and it applies
+to you. Then, as it says: `npx versioncam dsl`, the existing clips, `inspect`
+of every page the intent touches; write `.versioncam/author/<id>/beats.json`;
+write the clip; `record --draft`; `review --beats …`; repair — **at most three
+recordings**, then on to the sheet, passed or not.
 
-- the intent, verbatim;
-- the clip id;
-- the clips directory (from `versioncam.config.ts` — the `clips` glob);
-- the full output of `npx versioncam inspect /`, inline, not a path;
-- the beats path it must write: `.versioncam/author/<id>/beats.json`.
+Write what the round produced to `.versioncam/author/<id>/round-N/author.md` —
+the four things `authoring.md` asks for, including the paragraph on what was
+awkward about the tools. That paragraph is the point of keeping these
+directories; do not summarise it away. Copy `beats.json` beside it.
 
-Tell it to work until `npx versioncam record --draft <id>` succeeds **and**
-`npx versioncam review <id> --beats .versioncam/author/<id>/beats.json` passes, then
-return.
+**Delegation.** If the first `inspect /` printed more than 400 lines, or your
+host makes subagents cheap, hand the authoring to a subagent instead of doing
+it here. Spawn a plain one (general-purpose) whose prompt is the full text of
+`authoring.md`, followed by the intent, the clip id, the clips directory (the
+config's `clips`), the `inspect /` output inline, and the beats path. **Keep the
+agent id it returns**: that id is how you continue the same author in later
+rounds, with `SendMessage`, everything it learned about the page still in its
+context — spawning a new one would start from nothing and repeat the same
+recordings. Save its reply as `round-N/author.md`. You then orchestrate; the
+rest of this file is the same either way.
 
-**Keep the agent id it returns.** That id is how you continue this same author
-in later rounds, with everything it learned about the page still in its
-context. Spawning `demo-author` again instead would start from nothing and
-repeat the same three recordings.
-
-When it returns, copy its work into the round directory:
-
-```bash
-mkdir -p .versioncam/author/<id>/round-1
-cp .versioncam/author/<id>/beats.json .versioncam/author/<id>/round-1/
-```
-
-Save the author's returned text as `.versioncam/author/<id>/round-1/author.md`,
-including its paragraph on what was awkward about the tools. That paragraph is
-the point of keeping these directories; do not summarise it away.
-
-## 2. Every round — the sheet, then a fresh reviewer
+## 3. The sheet, then a fresh reviewer
 
 ```bash
 npx versioncam sheet <id> --at-marks
@@ -86,9 +105,9 @@ npx versioncam sheet <id> --at-marks
 `--at-marks` samples frame 0, each beat's settle mark, and the last frame,
 instead of eight evenly spaced points — so the tiles the reviewer sees are the
 beats, not whatever happened to fall on an eighth of the duration. It prints
-the sheet's path.
+the sheet's path, then the frame number behind each tile.
 
-Spawn a **new** `demo-reviewer` for this round. Give it only:
+The reviewer is given only:
 
 - the sheet path,
 - **the frame numbers `sheet --at-marks` just printed**, in order, one per tile,
@@ -101,32 +120,54 @@ fired at frame 29 — and reported that the clip never filtered anything. It was
 looking at the right clip and the wrong seconds. `sheet` prints the list for
 exactly this reason; pass it on verbatim.
 
+The reviewer's brief is `versioncam-reviewer.md`: in `agents/` two levels up
+from this skill's directory when the skill came from the plugin, in
+`.claude/agents/` when `versioncam init` installed it, and beside this file
+when it was installed with `--into`. Take the first rung of this ladder your
+host allows:
+
+1. **Registered.** If an agent named `versioncam-reviewer` is available — it is
+   `versioncam:versioncam-reviewer` when it came with the plugin — spawn it
+   with those inputs. It is blind by construction: a fresh context holding the
+   sheet and the beats and nothing of how the clip was made. Its JSON says
+   `"reviewer": "restricted"`.
+2. **A plain subagent.** Otherwise, spawn a general-purpose subagent whose
+   prompt is the full text of `versioncam-reviewer.md` followed by those
+   inputs. It is blind by instruction rather than by construction; save its
+   verdict with `"reviewer": "unrestricted"`.
+3. **No subagents.** Otherwise, read `versioncam-reviewer.md` and judge the
+   sheet yourself, in a step of its own — *before* you look at your beats or
+   your clip again, with only the four inputs in front of you — and save the
+   verdict with `"reviewer": "self"`. The summary says so: a clip passed by its
+   own author is a weaker claim, and whoever reads it should know.
+
 A fresh reviewer every round is the point, not an accident. It must not see
-the author's reasoning, its earlier verdict, or how hard the clip was to get
+the author's reasoning, an earlier verdict, or how hard the clip was to get
 working — only this round's picture. Never continue a reviewer, and never pass
 it the author's report.
 
-Save its JSON verbatim as `.versioncam/author/<id>/round-N/verdict.json`.
+Save its JSON verbatim, with `reviewer` as above, as
+`.versioncam/author/<id>/round-N/verdict.json`.
 
-## 2a. If you think the verdict is wrong
+### If you think the verdict is wrong
 
 You will sometimes believe a reviewer has erred, and sometimes you will be
 right. **Do not override it.** Overriding is the one move that undoes the
 design: a fresh reviewer is trusted precisely because it has not watched the
-clip being built, and an orchestrator who has watched three rounds is the least
+clip being built, and a session that has watched three rounds is the least
 independent judge available.
 
-Spawn **one** more `demo-reviewer`, fresh, for a second opinion — same sheet,
-same beats, same frame numbers, and nothing about the first verdict or what you
-think it got wrong. Save it as `round-N/verdict-2.json`. That verdict stands,
-whichever way it goes. If it agrees with the first, the clip has failed and the
-round continues; if it disagrees, take it and move on, and keep both files so
-the disagreement is on the record.
+Get **one** second opinion, from a fresh reviewer on the same rung — same
+sheet, same beats, same frame numbers, and nothing about the first verdict or
+what you think it got wrong. Save it as `round-N/verdict-2.json`. That verdict
+stands, whichever way it goes. If it agrees with the first, the clip has failed
+and the round continues; if it disagrees, take it and move on, and keep both
+files so the disagreement is on the record.
 
 One second opinion, once per round. Two reviewers who disagree is information.
 A third is shopping for the answer you wanted.
 
-## 3. If the verdict passes
+## 4. If the verdict passes
 
 Take the real recording and render it:
 
@@ -140,47 +181,51 @@ Copy that final sheet into `.versioncam/author/<id>/`. Write
 `.versioncam/author/<id>/summary.json`:
 
 ```json
-{ "id": "<id>", "rounds": 3, "passed": true, "wallMs": 812000 }
+{ "id": "<id>", "rounds": 2, "passed": true, "wallMs": 812000, "reviewer": "restricted" }
 ```
 
-Print the summary, name the clip file and the rendered video, and stop.
+`reviewer` is the rung the passing verdict came from. `wallMs` only if you can
+measure it — leave it out rather than guess; a harness running you measures it
+from outside. After a first run that found the app unstable, add
+`"stable": false`.
 
-## 4. If this was the last round
+Name the clip file and the rendered video, and stop.
+
+## 5. If this was the last round
 
 If the verdict failed and `N == max-rounds`, write `summary.json` with
-`"passed": false` and the last verdict inline. Print it, say which items
-failed, and stop. In a headless run, exit non-zero.
+`"passed": false` and the last verdict inline. Say which items failed, and
+stop; in a headless run, say plainly in your final message that it failed.
 
 Do not quietly raise `max-rounds`. A clip that has not converged in six rounds
 is a finding about the intent or the tools, and it is worth more written down
 than ground out.
 
-## 5. Otherwise — send the verdict back
+## 6. Otherwise — fix it, and go round again
 
-Send the author a message — the same author, by the agent id you kept — with:
-
-- the verdict JSON **verbatim**, not summarised, not reordered, not softened;
-- the instruction: fix the failing items, re-record in draft, run
-  `npx versioncam review`, and return.
-
-Do not add your own opinion of the clip. You have not seen it; the reviewer
-has, and the author trusts the verdict because it is a reviewer's and not a
+Fix what the verdict names — the items that failed, read as written — and
+nothing it did not name. When the authoring is delegated, send the author the
+verdict JSON **verbatim** with `SendMessage`, by the id you kept — not
+summarised, not reordered, not softened — and the instruction: fix the failing
+items, re-record in draft, run `npx versioncam review`, and return. Add no
+opinion of your own: the reviewer has looked at the clip in a way you have
+not, and the author trusts the verdict because it is a reviewer's and not a
 relayed impression.
 
-Increment N, make `.versioncam/author/<id>/round-N/`, copy the author's new report
-and beats into it, and go back to step 2.
+Re-record in draft, run `review`, make `.versioncam/author/<id>/round-N/` for
+the new round with its `author.md` and `beats.json`, and go back to step 3.
 
 ## What this leaves behind
 
 ```
 .versioncam/author/<id>/
   beats.json
-  summary.json
+  summary.json              { id, rounds, passed, wallMs?, reviewer }
   <id>-sheet.png            the final sheet
-  round-1/  author.md  beats.json  verdict.json
+  round-1/  author.md  beats.json  verdict.json  (verdict-2.json)
   round-2/  …
 ```
 
-`.versioncam/` is gitignored — it is a build product, and none of it should be
-committed. The clip file the author wrote is not: it lives in the clips
-directory and is the thing worth reviewing and keeping.
+`.versioncam/` is gitignored — a build product, none of it to be committed. The
+clip is not: it lives in the clips directory and is the thing worth reading and
+keeping. You commit nothing; that is the person's call.

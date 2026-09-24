@@ -557,35 +557,88 @@ test.describe("the versioncam CLI", () => {
    * what it does the second time: a plugin update must never silently discard
    * a file someone has edited.
    */
-  test("init --claude installs the plugin's prompts, and will not clobber them", () => {
+  test("init installs the skill and the reviewer, and will not clobber them", () => {
     const dir = mkdtempSync(join(tmpdir(), "versioncam-init-"));
-    const agent = join(dir, ".claude", "agents", "demo-author.md");
+    const skill = join(dir, ".claude", "skills", "versioncam", "SKILL.md");
+    const reviewer = join(dir, ".claude", "agents", "versioncam-reviewer.md");
 
-    // It needs no config: a repository can install the prompts before it has
-    // any clips to write them for.
-    expect(run(["init"], dir).status).toBe(1);
-    expect(existsSync(agent)).toBe(false);
-
-    const first = run(["init", "--claude"], dir);
+    // It needs no config: the first run of the skill writes that.
+    const first = run(["init"], dir);
     expect(first.status).toBe(0);
-    expect(first.stdout).toContain(join(".claude", "agents", "demo-author.md"));
+    for (const file of ["SKILL.md", "authoring.md", "onboarding.md"]) {
+      expect(first.stdout).toContain(
+        join(".claude", "skills", "versioncam", file),
+      );
+    }
     expect(first.stdout).toContain(
-      join(".claude", "skills", "versioncam", "SKILL.md"),
+      join(".claude", "agents", "versioncam-reviewer.md"),
     );
-    expect(existsSync(join(dir, ".claude", "agents", "demo-reviewer.md"))).toBe(
-      true,
+    expect(readFileSync(reviewer, "utf8")).toContain(
+      "name: versioncam-reviewer",
     );
+    expect(first.stdout).toContain(
+      'Installed. Ask your agent: /versioncam "<what the clip should show>"',
+    );
+    expect(first.stdout).toContain("The first run sets this repository up.");
+    // No config stub: the first run writes the real one.
+    expect(existsSync(join(dir, "versioncam.config.ts"))).toBe(false);
 
-    writeFileSync(agent, "edited by hand");
+    writeFileSync(skill, "edited by hand");
 
-    const second = run(["init", "--claude"], dir);
+    const second = run(["init"], dir);
     expect(second.status).toBe(1);
-    expect(second.stderr).toContain("demo-author.md");
+    expect(second.stderr).toContain(join("versioncam", "SKILL.md"));
     expect(second.stderr).toContain("--force");
-    expect(readFileSync(agent, "utf8")).toBe("edited by hand");
+    expect(readFileSync(skill, "utf8")).toBe("edited by hand");
 
-    const forced = run(["init", "--claude", "--force"], dir);
+    const forced = run(["init", "--force"], dir);
     expect(forced.status).toBe(0);
-    expect(readFileSync(agent, "utf8")).toContain("name: demo-author");
+    expect(readFileSync(skill, "utf8")).toContain("name: versioncam");
+  });
+
+  test("init refuses the lot when any one file is already there", () => {
+    // Half an install is the bad outcome: a new skill beside an old reviewer
+    // fails in the middle of a round instead of at the copy.
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-init-"));
+    const reviewer = join(dir, ".claude", "agents", "versioncam-reviewer.md");
+    mkdirSync(dirname(reviewer), { recursive: true });
+    writeFileSync(reviewer, "someone else's reviewer");
+
+    const { status, stderr } = run(["init"], dir);
+    expect(status).toBe(1);
+    expect(stderr).toContain("versioncam-reviewer.md");
+    expect(stderr).toContain("Nothing was copied");
+    expect(existsSync(join(dir, ".claude", "skills", "versioncam"))).toBe(
+      false,
+    );
+  });
+
+  test("init --into puts the skill, reviewer and all, where another host looks", () => {
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-init-"));
+    const { status, stdout } = run(["init", "--into", "agent-skills"], dir);
+    expect(status).toBe(0);
+    const target = join(dir, "agent-skills", "versioncam");
+    for (const file of [
+      "SKILL.md",
+      "authoring.md",
+      "onboarding.md",
+      "versioncam-reviewer.md",
+    ]) {
+      expect(existsSync(join(target, file))).toBe(true);
+    }
+    // It says where the reviewer went, and touches nothing of Claude Code's.
+    expect(stdout).toContain(
+      join("agent-skills", "versioncam", "versioncam-reviewer.md"),
+    );
+    expect(existsSync(join(dir, ".claude"))).toBe(false);
+  });
+
+  test("init --claude is gone, and says what replaced it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-init-"));
+    const { status, stderr } = run(["init", "--claude"], dir);
+    expect(status).toBe(1);
+    expect(stderr).toContain("`--claude` is gone");
+    expect(stderr).toContain("--into");
+    expect(existsSync(join(dir, ".claude"))).toBe(false);
   });
 });

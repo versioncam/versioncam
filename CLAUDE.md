@@ -12,10 +12,10 @@ plan's sections 1–3 and the current work package before changing code.
 
 | Path | What |
 |---|---|
-| `packages/recorder` | the package — `src/` (driver, capture gate, renderer, review, CLI in `src/cli`), `bin/` (the committed launcher), `plugin/` (the Claude Code skill and agents), `dsl.md` (the DSL reference a reflection test keeps honest), unit tests beside the code as `*.test.ts`, integration tests in `test/` |
+| `packages/recorder` | the package — `src/` (driver, capture gate, renderer, review, CLI in `src/cli`), `bin/` (the committed launcher), `plugin/` (the authoring skill — `SKILL.md`, `authoring.md`, `onboarding.md` — and its reviewer), `dsl.md` (the DSL reference a reflection test keeps honest), unit tests beside the code as `*.test.ts`, integration tests in `test/` |
 | `examples/demo-app` | a deliberately boring Vite app with three clips: the proof the package works from outside itself. Serves on **5174** |
 | `docs/` | `plan.md`, the `wp*.md` records, `evals/<date>/` results |
-| `scripts/` | the headless eval harness (`author-eval.sh`, `pathgen-eval.sh`) |
+| `scripts/` | the headless eval harness (`author-eval.sh`, `onboard-eval.sh`, `pathgen-eval.sh`) |
 
 ## Commands, from the repository root
 

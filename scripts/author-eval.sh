@@ -4,8 +4,8 @@
 #
 # This is the only way to get a cost per clip: `total_cost_usd` and the token
 # counts live in `claude -p --output-format json` and nowhere else. It is also
-# the only run in which Claude Code discovers the skill and registers the agent
-# types itself, rather than an orchestrating session standing in for them.
+# the only run in which Claude Code discovers the skill and registers the
+# reviewer itself, rather than an orchestrating session standing in for them.
 #
 # It must run from a normal terminal. Claude Code refuses to launch inside
 # another Claude Code session, and the check below is that refusal made early
@@ -41,10 +41,13 @@ if ! claude auth status >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! curl -sf -o /dev/null http://localhost:5174/; then
-  echo "The example app is not answering on :5174. In another terminal:" >&2
-  echo "  cd $APP && npm run dev" >&2
-  exit 1
+# Not a requirement any more: the example app's config says how to start it,
+# and every command starts it when nothing answers and stops it afterwards.
+# Said anyway, because a dev server someone left running is reused as it is.
+if curl -sf -o /dev/null http://localhost:5174/; then
+  echo "The example app is already up on :5174; every command will reuse it."
+else
+  echo "Nothing on :5174 — each command starts the example app from its config."
 fi
 
 declare -a IDS=() INTENTS=()
@@ -70,11 +73,13 @@ for i in "${!IDS[@]}"; do
   echo "   $intent"
   started=$(date +%s)
 
-  # `--permission-mode bypassPermissions` because the loop spawns subagents that
-  # run `npx versioncam …` and write a clip file, and a prompt nobody is there to
-  # answer stalls the run. Everything it touches is inside this repository.
+  # `--permission-mode bypassPermissions` because the loop spawns a reviewer,
+  # runs `npx versioncam …` and writes a clip file, and a prompt nobody is there
+  # to answer stalls the run — as would a question, so `AskUserQuestion` is
+  # withheld. Everything it touches is inside this repository.
   ( cd "$APP" && claude -p "/versioncam \"$intent\"" \
       --plugin-dir "$PLUGIN" \
+      --disallowedTools AskUserQuestion \
       --output-format json \
       --permission-mode bypassPermissions \
       > "$OUT/$id.json" ) || echo "   (exited non-zero — the JSON still has the reason)"
@@ -98,3 +103,5 @@ PY
 done
 
 echo "JSON in $OUT — that is what the plan's Part V table needs."
+echo "Transcripts in $APP/.versioncam/author/<id>/."
+echo "The clips the runs wrote are in $APP/demos/clips/: trial clips. Read them, then delete them — never commit them."

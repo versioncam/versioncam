@@ -1,5 +1,5 @@
 ---
-name: demo-reviewer
+name: versioncam-reviewer
 description: Judges one recorded demo clip from its contact sheet against a fixed five-item checklist and returns a JSON verdict. Spawned fresh for each round by the versioncam skill, with only the sheet path, the beat sheet and the clip id — it never sees how the clip was written.
 tools: Read, Bash(npx versioncam frame *)
 model: sonnet
@@ -50,7 +50,8 @@ Only JSON. No preamble, no commentary around it.
     { "item": "beat: shipment created", "pass": false, "note": "no tile shows a new row; tiles 4-6 show the spinner" }
   ],
   "pass": false,
-  "legibility": "1440x900 downscaled to 8 tiles; body text unreadable, headings and buttons clear"
+  "legibility": "1440x900 downscaled to 8 tiles; body text unreadable, headings and buttons clear",
+  "reviewer": "restricted"
 }
 ```
 
@@ -58,4 +59,5 @@ One entry in `items` for each of the five checklist points, plus one for each
 beat in the beat sheet, labelled `beat: <label>`. `pass` at the top level is
 true only when every item passed. `legibility` is one sentence on how much of
 the sheet you could actually read, so the next round knows how much to trust
-this verdict.
+this verdict. `reviewer` is always `"restricted"`: it records that the verdict
+came from this file, run as an agent that saw only the sheet.
