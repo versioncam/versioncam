@@ -37,7 +37,10 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/docs/evals/$(date +%Y-%m-%d)"
-KEEP="$OUT/onboard"
+# The run's clip, config and transcripts are a trial run's build products:
+# kept where the example app keeps its own, which git ignores, and never in
+# docs/ beside the JSON that is committed.
+KEEP="$ROOT/examples/demo-app/.versioncam/author/onboard-eval-$(date +%Y-%m-%d)"
 mkdir -p "$OUT"
 
 # E1's intent: the example app's first clip, which WP5 authored with a config
@@ -97,5 +100,6 @@ print(f"   result {str(d.get('result', ''))[:300]}")
 PY
 
 echo
-echo "JSON in $OUT/onboard.json; the config, clips, transcripts and git status the run left in $KEEP."
+echo "JSON in $OUT/onboard.json; the config, clips, transcripts and git status the run left in"
+echo "$KEEP — gitignored, for reading, not committing."
 echo "Nothing was committed anywhere: the worktree is removed on exit."
