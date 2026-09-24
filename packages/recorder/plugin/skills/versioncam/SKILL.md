@@ -112,7 +112,8 @@ The reviewer is given only:
 - the sheet path,
 - **the frame numbers `sheet --at-marks` just printed**, in order, one per tile,
 - the contents of `.versioncam/author/<id>/beats.json`,
-- the clip id (so it can call `npx versioncam frame <id> <n>`).
+- the clip id (so it can call `npx versioncam frame <id> <n>` — from this
+  directory, which you name if a subagent on your host starts somewhere else).
 
 The frame numbers are not optional. A reviewer given only the id assumed tile
 *n* was frame *n*, pulled frames 1 to 16 — every one of them before the beat
@@ -133,8 +134,9 @@ host allows:
    `"reviewer": "restricted"`.
 2. **A plain subagent.** Otherwise, spawn a general-purpose subagent whose
    prompt is the full text of `versioncam-reviewer.md` followed by those
-   inputs. It is blind by instruction rather than by construction; save its
-   verdict with `"reviewer": "unrestricted"`.
+   inputs. It is blind by instruction rather than by construction. Its JSON
+   will still say `"restricted"`, because the file it was given says so; save
+   it with `"reviewer": "unrestricted"`, which is what it was.
 3. **No subagents.** Otherwise, read `versioncam-reviewer.md` and judge the
    sheet yourself, in a step of its own — *before* you look at your beats or
    your clip again, with only the four inputs in front of you — and save the
