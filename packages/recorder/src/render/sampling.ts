@@ -58,11 +58,7 @@ export function markedFrames(
   };
   const wanted = [
     0,
-    ...marks.map((m) =>
-      m.frame === 0
-        ? 0
-        : Math.min(m.frame + crossfadeFrames, durationFrames - 1),
-    ),
+    ...marks.map((m) => beatFrame(m, durationFrames, crossfadeFrames)),
     durationFrames - 1,
   ].filter(inRange);
   const unique = [...new Set(wanted)].sort((a, b) => a - b);
@@ -90,4 +86,71 @@ export function markedFrames(
   }
   kept.push(unique[unique.length - 1]);
   return [...new Set(kept)];
+}
+
+/**
+ * The frame a beat is shown at: its mark, moved past the crossfade that
+ * starts there — the same frame `markedFrames` puts on a sheet, so asking for
+ * a beat by name and looking at its tile are one picture.
+ */
+export function beatFrame(
+  mark: Mark,
+  durationFrames: number,
+  crossfadeFrames = 0,
+): number {
+  return mark.frame === 0
+    ? 0
+    : Math.min(mark.frame + crossfadeFrames, durationFrames - 1);
+}
+
+/**
+ * Which frame `frame --at <label>` means, or why there is none.
+ *
+ * By label because matching a beat to a frame number was arithmetic, and an
+ * agent got the arithmetic wrong. The exact label first; then a prefix, case
+ * ignored, because a label is a phrase someone wrote and the first word is
+ * what gets typed back. A prefix that fits several labels is refused rather
+ * than settled by order — the wrong beat looked at confidently is worse than
+ * a question — and every refusal lists the labels there are.
+ */
+export function frameAtMark(
+  // `marks` optional because recordings made before marks existed have none,
+  // whatever the type of a current timeline says.
+  timeline: { durationFrames: number; marks?: readonly Mark[] },
+  wanted: string,
+  crossfadeFrames = 0,
+): { frame: number; label: string } | { error: string } {
+  const marks = timeline.marks ?? [];
+  if (marks.length === 0) {
+    return {
+      error:
+        "This recording has no beats to go by — no labelled settle(), or it " +
+        "was made before marks existed. Ask for a frame number or --t instead.",
+    };
+  }
+  const labels = [...new Set(marks.map((m) => m.label))];
+  const list = labels.map((l) => `  ${JSON.stringify(l)}`).join("\n");
+
+  const exact = marks.find((m) => m.label === wanted);
+  const prefix = wanted.toLowerCase();
+  const candidates = labels.filter((l) => l.toLowerCase().startsWith(prefix));
+  if (!exact && candidates.length > 1) {
+    return {
+      error: `${JSON.stringify(wanted)} starts more than one beat:\n${candidates
+        .map((l) => `  ${JSON.stringify(l)}`)
+        .join("\n")}`,
+    };
+  }
+  const mark =
+    exact ??
+    marks.find((m) => candidates.length === 1 && m.label === candidates[0]);
+  if (!mark) {
+    return {
+      error: `No beat is labelled ${JSON.stringify(wanted)}. The beats:\n${list}`,
+    };
+  }
+  return {
+    frame: beatFrame(mark, timeline.durationFrames, crossfadeFrames),
+    label: mark.label,
+  };
 }

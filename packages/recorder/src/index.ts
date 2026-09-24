@@ -61,7 +61,20 @@ export {
   readTimeline,
 } from "./render/render.js";
 export type { RenderOutcome, RenderTarget } from "./render/render.js";
-export { markedFrames, uniformFrames, SHEET_TILES } from "./render/sampling.js";
+export {
+  beatFrame,
+  frameAtMark,
+  markedFrames,
+  uniformFrames,
+  SHEET_TILES,
+} from "./render/sampling.js";
+export {
+  compareRecordings,
+  frameHashes,
+  readRecording,
+  stateFileAt,
+} from "./driver/compare.js";
+export type { Comparison, RecordingRef } from "./driver/compare.js";
 export {
   formatReview,
   reviewRecording,

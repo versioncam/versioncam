@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { readTimeline, renderFrame } from "../../render/render.js";
+import { frameAtMark } from "../../render/sampling.js";
 
 /**
  * One frame of a recording, at the size it will be published.
@@ -15,16 +16,20 @@ import { readTimeline, renderFrame } from "../../render/render.js";
 export async function frame(argv: string[]): Promise<number> {
   const { positionals, values } = parseArgs({
     args: argv,
-    options: { t: { type: "string" } },
+    options: { t: { type: "string" }, at: { type: "string" } },
     strict: false,
     allowPositionals: true,
   });
 
   const [id, nth] = positionals as string[];
   const byTime = values.t as string | undefined;
-  if (!id || (nth === undefined && byTime === undefined)) {
+  const byBeat = values.at as string | undefined;
+  if (
+    !id ||
+    (nth === undefined && byTime === undefined && byBeat === undefined)
+  ) {
     process.stderr.write(
-      "Usage: versioncam frame <id> <n>  (or --t <seconds>)\n",
+      "Usage: versioncam frame <id> <n>  (or --t <seconds>, or --at <beat label>)\n",
     );
     return 1;
   }
@@ -38,14 +43,24 @@ export async function frame(argv: string[]): Promise<number> {
     return 1;
   }
 
-  // Seconds are converted here rather than in the renderer: the frame rate is
-  // the recording's, and the printed file name should say which frame the time
-  // turned out to be.
+  // Seconds and beats are converted here rather than in the renderer: the
+  // frame rate and the marks are the recording's, and the printed file name
+  // should say which frame the time or the beat turned out to be.
   const timeline = await readTimeline(config, id);
-  const wanted =
-    byTime !== undefined
-      ? Math.round(Number(byTime) * timeline.fps)
-      : Number(nth);
+  let wanted: number;
+  if (byBeat !== undefined) {
+    const beat = frameAtMark(timeline, byBeat, config.motion.crossfadeFrames);
+    if ("error" in beat) {
+      process.stderr.write(`${beat.error}\n`);
+      return 1;
+    }
+    wanted = beat.frame;
+  } else {
+    wanted =
+      byTime !== undefined
+        ? Math.round(Number(byTime) * timeline.fps)
+        : Number(nth);
+  }
   if (!Number.isFinite(wanted)) {
     process.stderr.write(`Not a frame: ${byTime ?? nth}\n`);
     return 1;

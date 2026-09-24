@@ -25,6 +25,13 @@ export type Measurement = {
    * `MAX_LISTED`, where `bounds` and `grid` are what a stroke is planned from.
    */
   boxes: Rect[];
+  /**
+   * What each listed match says, trimmed, beside its box — so a status line
+   * can be read before a beat promises what it will say. `inspect` names
+   * controls and fields and says nothing of the text around them, which left
+   * an author opening the app by hand to learn what "1 of 12" looked like.
+   */
+  texts: string[];
   /** Union of every match's box, in viewport pixels. */
   bounds: { x0: number; y0: number; x1: number; y1: number } | null;
   /** The same, as fractions of the viewport, which is how strokes are written. */
@@ -46,9 +53,18 @@ export async function measureSelector(
         new Array<number>(cols).fill(0),
       );
       const viewport = { width: window.innerWidth, height: window.innerHeight };
-      const boxes = Array.from(document.querySelectorAll(sel)).map((el) => {
+      const matches = Array.from(document.querySelectorAll(sel));
+      const boxes = matches.map((el) => {
         const r = el.getBoundingClientRect();
         return { x: r.x, y: r.y, w: r.width, h: r.height };
+      });
+      // `innerText` where there is one: it is the text as rendered, so a hidden
+      // span does not speak and a line break is a space. SVG has only
+      // `textContent`. Long text is cut, because a match can be a whole list.
+      const texts = matches.map((el) => {
+        const raw = (el as HTMLElement).innerText ?? el.textContent ?? "";
+        const text = raw.replace(/\s+/g, " ").trim();
+        return text.length > 80 ? `${text.slice(0, 79)}…` : text;
       });
 
       if (boxes.length === 0) {
@@ -56,6 +72,7 @@ export async function measureSelector(
           selector: sel,
           count: 0,
           boxes: [],
+          texts: [],
           bounds: null,
           fractions: null,
           viewport,
@@ -91,6 +108,7 @@ export async function measureSelector(
         selector: sel,
         count: boxes.length,
         boxes: boxes.length <= maxListed ? boxes : [],
+        texts: boxes.length <= maxListed ? texts : [],
         bounds,
         fractions: {
           x0: bounds.x0 / viewport.width,
@@ -121,7 +139,7 @@ export function formatMeasurement(m: Measurement): string {
     for (const [index, box] of m.boxes.entries()) {
       lines.push(
         `    ${String(index).padStart(2)}  @ ${box.x.toFixed(0)},${box.y.toFixed(0)} ` +
-          `${box.w.toFixed(0)}x${box.h.toFixed(0)}`,
+          `${box.w.toFixed(0)}x${box.h.toFixed(0)}  text=${JSON.stringify(m.texts[index] ?? "")}`,
       );
     }
     return lines.join("\n");

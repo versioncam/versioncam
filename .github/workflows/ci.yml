@@ -38,10 +38,22 @@ jobs:
         run: npx versioncam check
 
       # The gate decides not to take screenshots. This is the check that it
-      # never changes what the recording shows — on a real app, not a fixture.
-      - name: The gate changes nothing
+      # never changes what the recording shows — on a real app, not a fixture —
+      # and, beside it, that the app records the same way twice at all, which
+      # the gate's check depends on.
+      - name: The gate changes nothing, and the app is stable
         working-directory: examples/demo-app
         run: npm run test:gate
+
+      # When two recordings differ, the tests attach the pictures behind the
+      # first differing frame. On a runner nobody can log into, that is the
+      # only way to see what differed.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: example-test-results
+          path: examples/demo-app/test-results
+          if-no-files-found: ignore
 
       - name: Render the example's clips
         working-directory: examples/demo-app

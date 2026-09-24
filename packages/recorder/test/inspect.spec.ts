@@ -35,8 +35,7 @@ test.describe("looking at a page", () => {
 
       // And it reads as something a person can act on.
       const text = formatInventory(inventory);
-      expect(text).toContain("Press me");
-      expect(text).toContain("[target]");
+      expect(text).toContain("Press me [text]  [target]");
 
       await page.close();
     } finally {
@@ -63,9 +62,57 @@ test.describe("looking at a page", () => {
       // form has to say where it is — it used to print the name alone, which
       // is no help at all when two inputs are named alike.
       const text = formatInventory(inventory);
-      expect(text).toContain("Recipient  [recipient]  @ 40,40 300x36");
-      expect(text).toContain("Notes  [notes]  @ 40,120 300x80");
-      expect(text).toContain("Route  [route]  @ 40,240 200x32");
+      expect(text).toContain(
+        "Recipient [aria-label]  [recipient]  @ 40,40 300x36",
+      );
+      expect(text).toContain("Notes [placeholder]  [notes]  @ 40,120 300x80");
+      expect(text).toContain("Route [aria-label]  [route]  @ 40,240 200x32");
+
+      await page.close();
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("says where every name came from, which is which locator finds it", async () => {
+    // Two fields can print the same name and need different locators:
+    // `byLabel` finds an aria-label or a <label>, not a placeholder. An agent
+    // that could not tell which it had spent a recording finding out.
+    const browser = await launchBrowser();
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1000, height: 700 },
+      });
+      await installFixtureRoutes(page);
+      await page.goto(`${FIXTURE_ORIGIN}/fields.html`);
+
+      const { fields, controls } = await inspectPage(page);
+      const field = (testId: string) => fields.find((f) => f.testId === testId);
+      expect(field("recipient")).toMatchObject({
+        name: "Recipient",
+        nameSource: "aria-label",
+      });
+      expect(field("city")).toMatchObject({
+        name: "City",
+        nameSource: "label",
+      });
+      // A label that wraps its select reads its own words, not the options.
+      expect(field("speed")).toMatchObject({
+        name: "Speed",
+        nameSource: "label",
+      });
+      expect(field("notes")).toMatchObject({
+        name: "Notes",
+        nameSource: "placeholder",
+      });
+      expect(field("reference")).toMatchObject({
+        name: "reference",
+        nameSource: "name",
+      });
+      expect(controls.find((c) => c.testId === "close")).toMatchObject({
+        name: "Close dialog",
+        nameSource: "aria-label",
+      });
 
       await page.close();
     } finally {
@@ -122,6 +169,9 @@ test.describe("looking at a page", () => {
       expect(found.fractions?.x0).toBeCloseTo(0.4, 2);
       expect(found.fractions?.y0).toBeCloseTo(0.4286, 3);
       expect(formatMeasurement(found)).toContain("@ 400,300 240x80");
+      // And what it says, so a beat's `expect` can quote the screen.
+      expect(found.texts).toEqual(["Press me"]);
+      expect(formatMeasurement(found)).toContain('text="Press me"');
 
       // Nothing matching is reported, not thrown: an author needs to know the
       // selector was wrong, and a stack trace does not say that any better.
@@ -130,6 +180,28 @@ test.describe("looking at a page", () => {
       expect(missing.boxes).toEqual([]);
       expect(missing.bounds).toBeNull();
       expect(formatMeasurement(missing)).toContain("nothing matched");
+
+      await page.close();
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("reads a status line as it is rendered", async () => {
+    const browser = await launchBrowser();
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1000, height: 700 },
+      });
+      await installFixtureRoutes(page);
+      await page.goto(`${FIXTURE_ORIGIN}/fields.html`);
+
+      // Markup across three lines and a span; one line of text on screen.
+      const status = await measureSelector(page, '[data-testid="status"]');
+      expect(status.texts).toEqual(["1 of 12 shipments match"]);
+      expect(formatMeasurement(status)).toContain(
+        'text="1 of 12 shipments match"',
+      );
 
       await page.close();
     } finally {

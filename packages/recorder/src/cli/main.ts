@@ -13,6 +13,7 @@ import { record } from "./commands/record.js";
 import { render } from "./commands/render.js";
 import { review } from "./commands/review.js";
 import { sheet } from "./commands/sheet.js";
+import { stability } from "./commands/stability.js";
 import { loadEnvFiles } from "../env.js";
 
 const USAGE = `versioncam — record and render demo clips of a real app
@@ -23,10 +24,14 @@ const USAGE = `versioncam — record and render demo clips of a real app
       --scene <id>                   render a designed scene (repeatable)
       --sequence                     stitch the results into one piece
   versioncam check [id…]             record everything; non-zero if any clip breaks
+  versioncam stability [id…]         record each clip twice the same way; stable or not
+      --runs <n>                     how many times (default 2)
+      --full                         at full quality rather than draft
   versioncam sheet <id>              an eight-frame contact sheet
       --at-marks                     sample the beats instead of even spacing
   versioncam frame <id> <n>          one frame at output size, to a png
       --t <seconds>                  pick the frame by time instead
+      --at <label>                   or by the beat it shows
   versioncam preview <id>            open the scrubber in a real browser
       --scene <id>                   preview a scene instead
       --frame <n>                    start at this frame
@@ -51,6 +56,7 @@ const COMMANDS: Record<string, Command> = {
   record,
   render,
   check,
+  stability,
   sheet,
   frame,
   preview,

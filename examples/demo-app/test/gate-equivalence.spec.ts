@@ -1,15 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync } from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
 import {
+  compareRecordings,
   launchBrowser,
   loadClips,
   loadConfig,
   runClip,
+  stateFileAt,
   withApp,
 } from "versioncam";
-import type { RunClipResult } from "versioncam";
+import type { Comparison, RecordingRef } from "versioncam";
 
 /**
  * The capture gate, against a real app rather than a fixture.
@@ -21,14 +22,32 @@ import type { RunClipResult } from "versioncam";
  * failure is a video that is quietly wrong, so this runs on every push.
  */
 
-/** Every frame of a recording, as the bytes that frame actually shows. */
-function framePixels({ timeline, dir }: RunClipResult): string[] {
-  const states = timeline.states.map((name) =>
-    createHash("sha1")
-      .update(readFileSync(join(dir, "states", name)))
-      .digest("hex"),
-  );
-  return timeline.frames.map((index) => states[index]);
+/**
+ * The two pictures behind the first frame that differs, attached to the
+ * result — which CI uploads when this fails. A hash says two frames are not
+ * the same; only the pictures say how, and on a runner nobody can log into,
+ * this is the only way to see them.
+ */
+async function showDifference(
+  clipId: string,
+  result: Comparison,
+  runs: [string, RecordingRef][],
+): Promise<string> {
+  const frame = result.firstDifference;
+  if (frame === null) return "";
+  for (const [name, recording] of runs) {
+    const state = stateFileAt(recording, frame);
+    if (!state) continue;
+    // Copied into the test's own output directory, which is what CI uploads,
+    // rather than attached where it lies under `.versioncam/`.
+    const copy = test
+      .info()
+      .outputPath(`${clipId}-frame-${frame}-${name}${extname(state)}`);
+    mkdirSync(dirname(copy), { recursive: true });
+    copyFileSync(state, copy);
+    await test.info().attach(basename(copy), { path: copy });
+  }
+  return `${result.frames - result.identical} of ${result.frames} frames differ, the first at frame ${frame}`;
 }
 
 test("the gate changes nothing, on every clip this app has", async () => {
@@ -69,13 +88,18 @@ test("the gate changes nothing, on every clip this app has", async () => {
           JSON.stringify(ungated.timeline.frames)
         ) {
           const control = await run(false);
+          const twice = compareRecordings(control, ungated);
+          const how = await showDifference(clip.id, twice, [
+            ["ungated", ungated],
+            ["control", control],
+          ]);
           expect(
-            framePixels(control),
+            twice.firstDifference,
             `${clip.id}: recorded twice the same way and got two different ` +
-              `recordings, so this machine cannot reproduce this clip at all. ` +
-              `That is not the gate; look for something in the app that does ` +
-              `not depend on authored time.`,
-          ).toEqual(framePixels(ungated));
+              `recordings (${how}), so this machine cannot reproduce this ` +
+              `clip at all. That is not the gate; look for something in the ` +
+              `app that does not depend on authored time.`,
+          ).toBeNull();
         }
 
         const saved = Math.round(
@@ -89,9 +113,12 @@ test("the gate changes nothing, on every clip this app has", async () => {
         expect(gated.timeline.frames, `${clip.id}: frame mapping`).toEqual(
           ungated.timeline.frames,
         );
-        expect(framePixels(gated), `${clip.id}: pixels`).toEqual(
-          framePixels(ungated),
-        );
+        const same = compareRecordings(gated, ungated);
+        const how = await showDifference(clip.id, same, [
+          ["ungated", ungated],
+          ["gated", gated],
+        ]);
+        expect(same.firstDifference, `${clip.id}: pixels — ${how}`).toBeNull();
         expect(
           gated.cost.skipped,
           `${clip.id}: skipped nothing`,

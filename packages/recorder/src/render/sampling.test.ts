@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markedFrames, uniformFrames } from "./sampling.js";
+import { frameAtMark, markedFrames, uniformFrames } from "./sampling.js";
 
 const marksAt = (...frames: number[]) =>
   frames.map((frame, index) => ({ frame, label: `beat ${index}` }));
@@ -123,5 +123,74 @@ describe("no tile is two pages at once", () => {
 
   it("leaves tiles alone that are nowhere near a cut", () => {
     expect(markedFrames(149, marksAt(0), 8, 6, [140])).toContain(21);
+  });
+});
+
+describe("frame --at <label>", () => {
+  // A clip with three beats, the renderer's six-frame crossfade after each.
+  const timeline = {
+    durationFrames: 120,
+    marks: [
+      { frame: 0, label: "open /" },
+      { frame: 40, label: "shipment created" },
+      { frame: 90, label: "Shipment cancelled" },
+    ],
+  };
+
+  it("finds a beat by its exact label, at the frame its tile shows", () => {
+    // Past the crossfade, like the sheet: the mark's own frame still shows the
+    // page as it was before the wait.
+    expect(frameAtMark(timeline, "shipment created", 6)).toEqual({
+      frame: 46,
+      label: "shipment created",
+    });
+    expect(frameAtMark(timeline, "open /", 6)).toEqual({
+      frame: 0,
+      label: "open /",
+    });
+  });
+
+  it("takes a prefix, whatever its case, when only one beat fits", () => {
+    expect(frameAtMark(timeline, "SHIPMENT CA", 6)).toEqual({
+      frame: 96,
+      label: "Shipment cancelled",
+    });
+    expect(frameAtMark(timeline, "open", 6)).toMatchObject({ frame: 0 });
+  });
+
+  it("prefers the exact label over a longer one it starts", () => {
+    const both = {
+      durationFrames: 120,
+      marks: [
+        { frame: 30, label: "open dialog" },
+        { frame: 60, label: "open" },
+      ],
+    };
+    expect(frameAtMark(both, "open")).toEqual({ frame: 60, label: "open" });
+  });
+
+  it("refuses a prefix that fits several beats, naming them", () => {
+    const answer = frameAtMark(timeline, "shipment", 6);
+    expect(answer).toHaveProperty("error");
+    const { error } = answer as { error: string };
+    expect(error).toContain('"shipment created"');
+    expect(error).toContain('"Shipment cancelled"');
+    expect(error).not.toContain('"open /"');
+  });
+
+  it("lists the beats there are when none fits", () => {
+    const { error } = frameAtMark(timeline, "filtered") as { error: string };
+    expect(error).toContain('No beat is labelled "filtered"');
+    for (const label of ["open /", "shipment created", "Shipment cancelled"]) {
+      expect(error).toContain(JSON.stringify(label));
+    }
+  });
+
+  it("says so when a recording has no beats at all", () => {
+    const { error } = frameAtMark({ durationFrames: 90 }, "anything") as {
+      error: string;
+    };
+    expect(error).toContain("no beats");
+    expect(error).toContain("--t");
   });
 });

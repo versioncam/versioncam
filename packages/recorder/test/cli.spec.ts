@@ -168,19 +168,40 @@ function listening(port: number): Promise<boolean> {
  * The "dev server" is one line of Node, run through a shell the way `npm run
  * dev` would be.
  */
-async function startableDir(): Promise<{ dir: string; port: number }> {
+async function startableDir(
+  page = "<!doctype html><title>started</title><p>ok</p>",
+): Promise<{ dir: string; port: number }> {
   const port = await freePort();
+  // The page is a file the server reads on every request, rather than a
+  // string inside the command: HTML inside JavaScript inside a shell command
+  // inside a config file is four kinds of quoting for one test.
   const script =
     `require('http').createServer((q, s) => {` +
     ` s.writeHead(200, { 'Content-Type': 'text/html' });` +
-    ` s.end('<!doctype html><title>started</title><p>ok</p>'); })` +
+    ` s.end(require('fs').readFileSync('page.html')); })` +
     `.listen(${port}, '127.0.0.1')`;
   const command = JSON.stringify(`"${process.execPath}" -e "${script}"`);
   const dir = appDir(
     `http://127.0.0.1:${port}`,
     `, webServer: { command: ${command} }`,
   );
+  writeFileSync(join(dir, "page.html"), page);
   return { dir, port };
+}
+
+/** A clip that opens the page and looks at it: enough to compare two runs. */
+function writeOpenClip(dir: string): void {
+  mkdirSync(join(dir, "demos"), { recursive: true });
+  writeFileSync(
+    join(dir, "demos", "open.clip.ts"),
+    [
+      'import { clip } from "versioncam";',
+      'export default clip("open", { title: "Open" }, async (s) => {',
+      '  await s.open("/");',
+      "  await s.hold(300);",
+      "});",
+    ].join("\n"),
+  );
 }
 
 test.describe("the versioncam CLI", () => {
@@ -191,6 +212,7 @@ test.describe("the versioncam CLI", () => {
       "record",
       "render",
       "check",
+      "stability",
       "sheet",
       "frame",
       "preview",
@@ -273,17 +295,7 @@ test.describe("the versioncam CLI", () => {
 
   test("a command that started the app leaves nothing running", async () => {
     const { dir, port } = await startableDir();
-    mkdirSync(join(dir, "demos"), { recursive: true });
-    writeFileSync(
-      join(dir, "demos", "open.clip.ts"),
-      [
-        'import { clip } from "versioncam";',
-        'export default clip("open", { title: "Open" }, async (s) => {',
-        '  await s.open("/");',
-        "  await s.hold(200);",
-        "});",
-      ].join("\n"),
-    );
+    writeOpenClip(dir);
     const { status, stdout, stderr } = await runAsync(
       ["record", "--draft", "open"],
       dir,
@@ -315,6 +327,55 @@ test.describe("the versioncam CLI", () => {
     } finally {
       await new Promise<void>((done) => squatter.close(() => done()));
     }
+  });
+
+  test("stability records a clip twice and calls a steady page stable", async () => {
+    const { dir, port } = await startableDir();
+    writeOpenClip(dir);
+    const { status, stdout } = await runAsync(["stability", "open"], dir);
+    expect(stdout).toMatch(/open: run 1 vs run 2 — (\d+) frames, \1 identical/);
+    expect(stdout.trim().split("\n").at(-1)).toBe("stable");
+    expect(status).toBe(0);
+    // Beside the clip's own recording, never over it.
+    expect(
+      existsSync(
+        join(dir, ".versioncam", "recordings", "__stability", "run-2", "open"),
+      ),
+    ).toBe(true);
+    expect(await listening(port)).toBe(false);
+  });
+
+  test("stability shows what differs on a page that is not on authored time", async () => {
+    // The recorder fakes the clock, so a date on the page is the same every
+    // run. A random number is not, which is the shape of the real failures:
+    // something the app does that nothing in the recorder drives.
+    const { dir } = await startableDir(
+      "<!doctype html><title>random</title>" +
+        '<p id="id" style="font: 40px sans-serif"></p>' +
+        "<script>document.getElementById('id').textContent = crypto.randomUUID();</script>",
+    );
+    writeOpenClip(dir);
+    const { status, stdout } = await runAsync(["stability", "open"], dir);
+    expect(stdout).toContain("first difference at frame 0");
+    expect(stdout.trim().split("\n").at(-1)).toBe(
+      "unstable — something on this page does not run on authored time",
+    );
+    expect(status).toBe(1);
+    // The two pictures, named by frame and run, with the extension the
+    // recording's own state images have.
+    const files = stdout
+      .split("\n")
+      .filter((line) => line.startsWith("  "))
+      .map((line) => line.trim());
+    expect(files).toEqual([
+      expect.stringMatching(
+        /^\.versioncam\/stability\/open\/frame-0-run1\.\w+$/,
+      ),
+      expect.stringMatching(
+        /^\.versioncam\/stability\/open\/frame-0-run2\.\w+$/,
+      ),
+    ]);
+    for (const file of files) expect(existsSync(join(dir, file))).toBe(true);
   });
 
   test("says what it looked for when a directory has no clips", () => {
@@ -422,6 +483,21 @@ test.describe("the versioncam CLI", () => {
     const beyond = run(["frame", "buttons", "999"], dir);
     expect(beyond.status).toBe(1);
     expect(beyond.stderr).toContain("0–114");
+  });
+
+  test("frame --at picks the frame by the beat it shows", () => {
+    const dir = appDirWithRecording([{ frame: 40, label: "after click" }]);
+
+    // The frame the sheet shows for that beat: past the six-frame crossfade
+    // that starts on the mark, where the page is still the old one.
+    const byBeat = run(["frame", "buttons", "--at", "after"], dir);
+    expect(byBeat.status).toBe(0);
+    expect(byBeat.stdout.trim().endsWith("buttons-frame-46.png")).toBe(true);
+
+    const missing = run(["frame", "buttons", "--at", "filtered"], dir);
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain('No beat is labelled "filtered"');
+    expect(missing.stderr).toContain('"after click"');
   });
 
   test("review reads the recording and its beat sheet, and sets the exit code", () => {

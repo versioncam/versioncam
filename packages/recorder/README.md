@@ -73,11 +73,11 @@ a reason to fork.
 **The app starts itself.** `webServer` is Playwright's, field for field:
 `command`, `url` (default `baseUrl`), `cwd` (default the config's directory),
 `timeoutMs` (default two minutes), `reuseExistingServer`, `env`. Every command
-that drives the app — `record`, `check`, `inspect`, `measure`, `login`,
-`doctor` — first asks `url` whether anything is serving. Any answer counts, a
-401 included, and a server that answers is used as it is and left running
-afterwards; with `CI` set it is refused instead, because on a runner a server
-that was up before the job started is not the build under test
+that drives the app — `record`, `check`, `stability`, `inspect`, `measure`,
+`login`, `doctor` — first asks `url` whether anything is serving. Any answer
+counts, a 401 included, and a server that answers is used as it is and left
+running afterwards; with `CI` set it is refused instead, because on a runner a
+server that was up before the job started is not the build under test
 (`reuseExistingServer: true` allows it). Silence means the command starts
 `command` through a shell, with the shell's environment plus `env` — not what
 the recorder loaded from `.env.recording` for itself — waits for an answer,
@@ -138,6 +138,12 @@ npx versioncam inspect /shipments          # what is on the page and what it is 
 npx versioncam measure / '.marker'         # where the matches are, as fractions
 ```
 
+`inspect` says where each name came from — `[aria-label]`, `[label]`,
+`[placeholder]`, `[text]` or `[name]` — because that decides the locator:
+`byLabel` finds the first two and not a placeholder, which `byPlaceholder`
+finds instead. `measure` prints what each match says, so a beat's `expect`
+can quote the status line it is waiting for rather than guess at it.
+
 ## Commands
 
 ```
@@ -147,16 +153,20 @@ versioncam render [id…]            composite and encode
     --scene <id>                   render a designed scene
     --sequence                     stitch the results into one piece
 versioncam check [id…]             record everything; non-zero if any clip breaks
+versioncam stability [id…]         record each clip twice the same way; stable or not
+    --runs <n>                     how many times (default 2)
+    --full                         at full quality rather than draft
 versioncam sheet <id>              an eight-frame contact sheet
     --at-marks                     sample the beats instead of even spacing
 versioncam frame <id> <n>          one frame at output size, to a png
     --t <seconds>                  pick the frame by time instead
+    --at <label>                   or by the beat it shows
 versioncam preview <id>            open the scrubber in a real browser
 versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
     --beats <file>                 [{ label, expect }] the clip promised
     --min <s> --max <s>            duration bounds (default 9–11)
-versioncam inspect <path>          what a clip can click
-versioncam measure <path> <sel>    where the matches of a selector are
+versioncam inspect <path>          what a clip can click, and where each name came from
+versioncam measure <path> <sel>    where the matches of a selector are, and what they say
 versioncam dsl                     the clip DSL, every method, one line each
 versioncam login                   sign in once and save the session
 versioncam doctor                  check this machine can record, and that the app starts
@@ -343,14 +353,28 @@ The recorder can only be as deterministic as the app it is filming, and an app
 that is *nearly* deterministic is the hard case: it reproduces most runs, so the
 first failure looks like a recorder bug.
 
-Before assuming it is one, record the clip twice the same way:
+Before assuming it is one, record the clip twice the same way — which is
+what `stability` does, frame by frame, by what each frame shows:
 
 ```bash
-npx versioncam record 02-find-a-shipment && cp -r .versioncam/recordings/02-find-a-shipment /tmp/a
-npx versioncam record 02-find-a-shipment && diff -r /tmp/a .versioncam/recordings/02-find-a-shipment
+npx versioncam stability 02-find-a-shipment          # draft; --full for the real thing
 ```
 
-If those two differ, nothing about the recorder is implicated yet — something
+```
+02-find-a-shipment: run 1 vs run 2 — 268 frames, 264 identical, first difference at frame 131
+  .versioncam/stability/02-find-a-shipment/frame-131-run1.png
+  .versioncam/stability/02-find-a-shipment/frame-131-run2.png
+unstable — something on this page does not run on authored time
+```
+
+The two files are the pictures behind the first frame that differs; what
+differs is usually obvious once they are side by side. Each run records beside
+the clip's own recording, under `recordings/__stability/`, never over it. With
+no id it checks every clip, and it exits 0 only when every pair matched —
+which makes it the first thing to run in a repository before writing a clip
+for it, and what the authoring skill does on a first run.
+
+If the runs differ, nothing about the recorder is implicated yet — something
 in the app does not depend on authored time. What we have found doing this:
 
 - An **autosizing text field** that settles a frame later depending on how the

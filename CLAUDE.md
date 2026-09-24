@@ -39,9 +39,11 @@ CLI is `npx versioncam …`.
 - **Never `git add -A`.** Name the files.
 - **Never regenerate a golden or fixture recording** to make a test pass, and
   never loosen a byte-identity assertion. If two runs differ, find out why.
-- **When a clip will not reproduce, record it twice the same way first.** If
-  the two differ, the app has something that does not run on authored time;
-  if they match, suspect the recorder. (README, *Determinism*.)
+- **When a clip will not reproduce, record it twice the same way first** —
+  `npx versioncam stability <id>` does exactly that and saves the two frames
+  that differ. If the two differ, the app has something that does not run on
+  authored time; if they match, suspect the recorder. (README,
+  *Determinism*.)
 - `dsl.md` and the DSL class must agree — `test/dsl.spec.ts` checks it. A new
   public method on `RecordingSession` goes into `dsl.md` or into that test's
   exclusion list, deliberately.
