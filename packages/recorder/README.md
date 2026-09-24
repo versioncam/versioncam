@@ -51,6 +51,9 @@ export default defineRecorder({
   viewport: { width: 1440, height: 900 },
   clips: "demos/clips/**/*.clip.ts",
 
+  // How to start the app when nothing is serving it.
+  webServer: { command: "npm run dev" },
+
   // Either a saved browser session…
   auth: { storageState: ".versioncam/auth.json" },
   // …or a hook, if signing in needs steps.
@@ -66,6 +69,25 @@ export default defineRecorder({
 Everything app-specific goes through this object. If the recorder needs to know
 something about your app that this cannot express, that is a missing field, not
 a reason to fork.
+
+**The app starts itself.** `webServer` is Playwright's, field for field:
+`command`, `url` (default `baseUrl`), `cwd` (default the config's directory),
+`timeoutMs` (default two minutes), `reuseExistingServer`, `env`. Every command
+that drives the app — `record`, `check`, `inspect`, `measure`, `login`,
+`doctor` — first asks `url` whether anything is serving. Any answer counts, a
+401 included, and a server that answers is used as it is and left running
+afterwards; with `CI` set it is refused instead, because on a runner a server
+that was up before the job started is not the build under test
+(`reuseExistingServer: true` allows it). Silence means the command starts
+`command` through a shell, with the shell's environment plus `env` — not
+what the recorder loaded from `.env.recording` for itself — waits for an
+answer, and writes what it prints to `.versioncam/webserver.log`. Whatever it
+started, it stops when it finishes — normally, on an error, or on Ctrl-C — by
+signalling the command's whole process group: SIGTERM, five seconds' grace,
+then SIGKILL. Something the start command hands off to outside that group,
+such as a container runtime, is out of its reach, and so is worth starting
+yourself. So is any stack with a slow cold start: every command reuses what
+is already running.
 
 ## Write a clip
 
@@ -132,7 +154,7 @@ versioncam inspect <path>          what a clip can click
 versioncam measure <path> <sel>    where the matches of a selector are
 versioncam dsl                     the clip DSL, every method, one line each
 versioncam login                   sign in once and save the session
-versioncam doctor                  check this machine can record, and the app is up
+versioncam doctor                  check this machine can record, and that the app starts
 versioncam init --claude           copy the authoring skill and agents into .claude/
     --force                        overwrite files that are already there
 ```

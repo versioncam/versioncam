@@ -4,9 +4,11 @@ import { defineConfig } from "@playwright/test";
  * The example app's own integration test.
  *
  * It needs the app actually running, unlike the package's tests, which serve
- * their fixtures from a route table. `reuseExistingServer` is unconditional
- * because CI starts the app itself, before the clips are checked, and a second
- * Vite on a strict port would simply fail.
+ * their fixtures from a route table — and it gets it the way every command
+ * does, from `webServer` in the app's `versioncam.config.ts`, through
+ * `withApp`. Playwright's own `webServer` used to start it here instead; the
+ * two cannot both hold the port, and in CI, where an already-running server is
+ * refused rather than reused, the second would fail on the first.
  */
 export default defineConfig({
   testDir: ".",
@@ -16,11 +18,4 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:5174/",
-    reuseExistingServer: true,
-    timeout: 60_000,
-    cwd: "..",
-  },
 });

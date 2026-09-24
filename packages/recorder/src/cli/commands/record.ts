@@ -3,8 +3,11 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { launchBrowser } from "../../driver/launch.js";
 import { runClip } from "../../driver/clip.js";
+import type { ClipDefinition } from "../../driver/clip.js";
+import type { ResolvedConfig } from "../../config.js";
 import { formatTiming } from "../../core/timing.js";
 import { loadClips, loadConfig } from "../../loader.js";
+import { drivingApp } from "../app.js";
 
 /**
  * Record every clip the config points at, serially.
@@ -36,6 +39,14 @@ export async function record(argv: string[]): Promise<number> {
     return 1;
   }
 
+  return drivingApp(config, () => recordAll(config, clips, draft));
+}
+
+async function recordAll(
+  config: ResolvedConfig,
+  clips: ClipDefinition[],
+  draft: boolean,
+): Promise<number> {
   const browser = await launchBrowser();
   const failures: { id: string; error: Error }[] = [];
 

@@ -9,8 +9,12 @@ export type {
   RecorderConfig,
   RenderConfig,
   ResolvedConfig,
+  ResolvedWebServer,
   SettleConfig,
+  WebServerConfig,
 } from "./config.js";
+export { ensureApp, withApp } from "./app-server.js";
+export type { AppHandle } from "./app-server.js";
 
 export { clip, runClip } from "./driver/clip.js";
 export type { RunClipOptions } from "./driver/clip.js";

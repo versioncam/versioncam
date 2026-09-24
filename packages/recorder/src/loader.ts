@@ -153,7 +153,7 @@ export async function bundleScenes(
   if (!config.scenes) return null;
   if (!existsSync(config.scenes)) {
     throw new Error(
-      `recorder config: \`scenes\` points at a missing file: ${config.scenes}`,
+      `versioncam config: \`scenes\` points at a missing file: ${config.scenes}`,
     );
   }
   return bundleModule(config.scenes, "browser", config.cacheDir);

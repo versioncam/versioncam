@@ -30,16 +30,9 @@ jobs:
 
       # The example app is the proof that the package works from outside
       # itself: a separate workspace, consuming it by name, with its own config.
-      - name: Start the example app
-        run: |
-          npm run dev -w examples/demo-app &
-          for _ in $(seq 1 60); do
-            curl -sf -o /dev/null http://localhost:5174/ && exit 0
-            sleep 1
-          done
-          echo "the example app did not start" >&2
-          exit 1
-
+      # Nothing starts it first. `check` and the gate test each start it from
+      # the config's `webServer` and stop it again — and with CI set, a server
+      # already on the port would be refused rather than trusted.
       - name: Check the example's clips still match it
         working-directory: examples/demo-app
         run: npx versioncam check

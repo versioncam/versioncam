@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { formatInventory, inspectPage } from "../../inspect/inspect.js";
+import { drivingApp } from "../app.js";
 import { openAppPage } from "./open-app.js";
 
 export async function inspect(argv: string[]): Promise<number> {
@@ -15,18 +16,20 @@ export async function inspect(argv: string[]): Promise<number> {
   const config = await loadConfig(process.cwd());
   const path = (positionals[0] as string | undefined) ?? "/";
 
-  const browser = await launchBrowser();
-  try {
-    const { page, context } = await openAppPage(browser, config, path);
-    const inventory = await inspectPage(page);
-    process.stdout.write(
-      values.json
-        ? `${JSON.stringify(inventory, null, 2)}\n`
-        : `${formatInventory(inventory)}\n`,
-    );
-    await context.close();
-    return 0;
-  } finally {
-    await browser.close();
-  }
+  return drivingApp(config, async () => {
+    const browser = await launchBrowser();
+    try {
+      const { page, context } = await openAppPage(browser, config, path);
+      const inventory = await inspectPage(page);
+      process.stdout.write(
+        values.json
+          ? `${JSON.stringify(inventory, null, 2)}\n`
+          : `${formatInventory(inventory)}\n`,
+      );
+      await context.close();
+      return 0;
+    } finally {
+      await browser.close();
+    }
+  });
 }

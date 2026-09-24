@@ -1,7 +1,10 @@
 import { parseArgs } from "node:util";
 import { launchBrowser } from "../../driver/launch.js";
 import { runClip } from "../../driver/clip.js";
+import type { ClipDefinition } from "../../driver/clip.js";
+import type { ResolvedConfig } from "../../config.js";
 import { loadClips, loadConfig } from "../../loader.js";
+import { drivingApp } from "../app.js";
 
 /**
  * Record every clip and report which still work.
@@ -25,6 +28,13 @@ export async function check(argv: string[]): Promise<number> {
     return 1;
   }
 
+  return drivingApp(config, () => checkAll(config, clips));
+}
+
+async function checkAll(
+  config: ResolvedConfig,
+  clips: ClipDefinition[],
+): Promise<number> {
   const browser = await launchBrowser();
   const failures: { id: string; error: Error }[] = [];
 

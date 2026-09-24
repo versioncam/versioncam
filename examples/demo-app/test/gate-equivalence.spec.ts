@@ -2,7 +2,13 @@ import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { launchBrowser, loadClips, loadConfig, runClip } from "versioncam";
+import {
+  launchBrowser,
+  loadClips,
+  loadConfig,
+  runClip,
+  withApp,
+} from "versioncam";
 import type { RunClipResult } from "versioncam";
 
 /**
@@ -30,63 +36,69 @@ test("the gate changes nothing, on every clip this app has", async () => {
   const clips = await loadClips(config, []);
   expect(clips.length).toBeGreaterThan(0);
 
-  const browser = await launchBrowser();
-  try {
-    for (const clip of clips) {
-      const run = (gate: boolean) =>
-        runClip(
-          browser,
-          {
-            ...config,
-            capture: { ...config.capture, gate },
-            recordingsDir: join(
-              config.recordingsDir,
-              gate ? "__gated" : "__ungated",
-            ),
-          },
-          clip,
+  // The app is started from its own config, the way `versioncam check` starts
+  // it, and stopped again however this ends.
+  await withApp(config, async () => {
+    const browser = await launchBrowser();
+    try {
+      for (const clip of clips) {
+        const run = (gate: boolean) =>
+          runClip(
+            browser,
+            {
+              ...config,
+              capture: { ...config.capture, gate },
+              recordingsDir: join(
+                config.recordingsDir,
+                gate ? "__gated" : "__ungated",
+              ),
+            },
+            clip,
+          );
+
+        const ungated = await run(false);
+        const gated = await run(true);
+
+        // Before blaming the gate, check the app. This compares two separate
+        // recordings, so it can only mean anything if the app reproduces at
+        // all — and an app that does not is a different problem with a
+        // different fix. Only worth the third recording when something has
+        // gone wrong.
+        if (
+          JSON.stringify(gated.timeline.frames) !==
+          JSON.stringify(ungated.timeline.frames)
+        ) {
+          const control = await run(false);
+          expect(
+            framePixels(control),
+            `${clip.id}: recorded twice the same way and got two different ` +
+              `recordings, so this machine cannot reproduce this clip at all. ` +
+              `That is not the gate; look for something in the app that does ` +
+              `not depend on authored time.`,
+          ).toEqual(framePixels(ungated));
+        }
+
+        const saved = Math.round(
+          (gated.cost.skipped / gated.timeline.durationFrames) * 100,
         );
+        test.info().annotations.push({
+          type: "gate",
+          description: `${clip.id}: ${gated.cost.captured} captured, ${gated.cost.skipped} skipped (${saved}%)`,
+        });
 
-      const ungated = await run(false);
-      const gated = await run(true);
-
-      // Before blaming the gate, check the app. This compares two separate
-      // recordings, so it can only mean anything if the app reproduces at all
-      // — and an app that does not is a different problem with a different
-      // fix. Only worth the third recording when something has gone wrong.
-      if (
-        JSON.stringify(gated.timeline.frames) !==
-        JSON.stringify(ungated.timeline.frames)
-      ) {
-        const control = await run(false);
+        expect(gated.timeline.frames, `${clip.id}: frame mapping`).toEqual(
+          ungated.timeline.frames,
+        );
+        expect(framePixels(gated), `${clip.id}: pixels`).toEqual(
+          framePixels(ungated),
+        );
         expect(
-          framePixels(control),
-          `${clip.id}: recorded twice the same way and got two different ` +
-            `recordings, so this machine cannot reproduce this clip at all. ` +
-            `That is not the gate; look for something in the app that does ` +
-            `not depend on authored time.`,
-        ).toEqual(framePixels(ungated));
+          gated.cost.skipped,
+          `${clip.id}: skipped nothing`,
+        ).toBeGreaterThan(0);
       }
-
-      const saved = Math.round(
-        (gated.cost.skipped / gated.timeline.durationFrames) * 100,
-      );
-      test.info().annotations.push({
-        type: "gate",
-        description: `${clip.id}: ${gated.cost.captured} captured, ${gated.cost.skipped} skipped (${saved}%)`,
-      });
-
-      expect(gated.timeline.frames, `${clip.id}: frame mapping`).toEqual(
-        ungated.timeline.frames,
-      );
-      expect(framePixels(gated), `${clip.id}: pixels`).toEqual(
-        framePixels(ungated),
-      );
-      expect(gated.cost.skipped, `${clip.id}: skipped nothing`).toBeGreaterThan(
-        0,
-      );
+    } finally {
+      await browser.close();
     }
-  } finally {
-    await browser.close();
-  }
+  });
 });

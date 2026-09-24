@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { check } from "./commands/check.js";
 import { doctor } from "./commands/doctor.js";
 import { dsl } from "./commands/dsl.js";
@@ -15,6 +13,7 @@ import { record } from "./commands/record.js";
 import { render } from "./commands/render.js";
 import { review } from "./commands/review.js";
 import { sheet } from "./commands/sheet.js";
+import { loadEnvFiles } from "../env.js";
 
 const USAGE = `versioncam — record and render demo clips of a real app
 
@@ -39,7 +38,7 @@ const USAGE = `versioncam — record and render demo clips of a real app
   versioncam measure <path> <sel>    where the matches of a selector are
   versioncam dsl                     the clip DSL, every method, one line each
   versioncam login                   sign in once and save the browser session
-  versioncam doctor                  check this machine can record, and the app is up
+  versioncam doctor                  check this machine can record, and that the app starts
   versioncam init --claude           copy the authoring skill and agents into .claude/
       --force                        overwrite files that are already there
 
@@ -63,20 +62,6 @@ const COMMANDS: Record<string, Command> = {
   doctor,
   init,
 };
-
-/**
- * Load `.env.recording`, then `.env`, before anything reads the environment.
- *
- * Two files because the credentials a recording uses are usually not the ones
- * the app's own `.env` carries, and keeping them apart means the recording
- * file can hold a session token without that leaking into how the app runs.
- */
-function loadEnvFiles(cwd: string): void {
-  for (const name of [".env.recording", ".env"]) {
-    const file = resolve(cwd, name);
-    if (existsSync(file)) process.loadEnvFile(file);
-  }
-}
 
 async function main(): Promise<number> {
   const argv = process.argv.slice(2);

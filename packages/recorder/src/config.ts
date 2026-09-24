@@ -93,9 +93,42 @@ export type CursorStart = {
   y: number;
 };
 
+/**
+ * How to start the app when nothing is serving it yet.
+ *
+ * Playwright's `webServer`, field for field where Playwright has one, because
+ * everyone who would use this has already learned it. Without it the app has
+ * to be running before any command that drives it — which is a thing a person
+ * remembers and an agent working in a repository it has never seen does not.
+ */
+export type WebServerConfig = {
+  /** Run through a shell. Relative paths resolve against `cwd`. */
+  command: string;
+  /** What to wait for. Defaults to `baseUrl`. */
+  url?: string;
+  /** Defaults to the config file's directory. */
+  cwd?: string;
+  /** Default 120 000 — a map app's cold start, not a static page's. */
+  timeoutMs?: number;
+  /**
+   * Use a server that is already answering instead of starting one.
+   *
+   * Default `true`, and `false` when `process.env.CI` is set: on a developer's
+   * machine the server that is up is almost always theirs and the right one,
+   * and in CI one that is up before the job started it is something else.
+   */
+  reuseExistingServer?: boolean;
+  /** Merged over `process.env` for the child only. */
+  env?: Record<string, string>;
+};
+
+export type ResolvedWebServer = Required<WebServerConfig>;
+
 export type RecorderConfig = {
   /** Where the app is served. */
   baseUrl: string;
+  /** How to start it when it is not being served. Absent: it must already be. */
+  webServer?: WebServerConfig;
   viewport?: { width: number; height: number };
   /**
    * Device pixel ratio to capture at. 2 means a zoom reads real pixels rather
@@ -148,6 +181,7 @@ export type RecorderConfig = {
 export type ResolvedConfig = {
   root: string;
   baseUrl: string;
+  webServer: ResolvedWebServer | null;
   viewport: { width: number; height: number };
   dpr: number;
   fps: number;
@@ -181,7 +215,7 @@ export function defineRecorder(config: RecorderConfig): RecorderConfig {
 }
 
 function fail(field: string, why: string): never {
-  throw new Error(`recorder config: \`${field}\` ${why}`);
+  throw new Error(`versioncam config: \`${field}\` ${why}`);
 }
 
 function positiveInt(value: number, field: string): number {
@@ -204,6 +238,43 @@ export function outputSize(
 ): { width: number; height: number } {
   const exact = (width * viewport.height) / viewport.width;
   return { width, height: 2 * Math.round(exact / 2) };
+}
+
+/**
+ * Every field filled, so the code that starts the server never has to know a
+ * default.
+ *
+ * `reuseExistingServer` reads `CI` here, once, rather than at the moment of
+ * starting: a config is resolved per command, so this is the same moment, and
+ * a resolved config that says what it will do is easier to reason about than
+ * one that looks at the environment again later.
+ */
+function resolveWebServer(
+  server: WebServerConfig,
+  baseUrl: string,
+  root: string,
+): ResolvedWebServer {
+  if (typeof server.command !== "string" || server.command.trim() === "") {
+    fail("webServer.command", "must be a non-empty string");
+  }
+  const url = server.url ?? baseUrl;
+  // `URL.canParse("localhost:5174")` is true — a scheme called `localhost` —
+  // and that is exactly the string someone types, so ask for the protocol.
+  if (!/^https?:$/.test(URL.canParse(url) ? new URL(url).protocol : "")) {
+    fail("webServer.url", `must be an http(s) URL, got ${url}`);
+  }
+  const timeoutMs = positiveInt(
+    server.timeoutMs ?? 120_000,
+    "webServer.timeoutMs",
+  );
+  return {
+    command: server.command,
+    url,
+    cwd: server.cwd === undefined ? root : resolve(root, server.cwd),
+    timeoutMs,
+    reuseExistingServer: server.reuseExistingServer ?? !process.env.CI,
+    env: server.env ?? {},
+  };
 }
 
 export function resolveConfig(
@@ -255,10 +326,14 @@ export function resolveConfig(
   const outDir = abs(config.outDir ?? ".versioncam");
   const outputWidth = config.output?.width ?? 1920;
   positiveInt(outputWidth, "output.width");
+  const baseUrl = config.baseUrl.replace(/\/+$/, "");
 
   return {
     root,
-    baseUrl: config.baseUrl.replace(/\/+$/, ""),
+    baseUrl,
+    webServer: config.webServer
+      ? resolveWebServer(config.webServer, baseUrl, root)
+      : null,
     viewport,
     dpr,
     fps,

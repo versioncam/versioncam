@@ -4,13 +4,17 @@ import { defineRecorder } from "versioncam";
  * How this app describes itself to the recorder.
  *
  * Almost everything is a default. What an app usually has to say is: where it
- * is served, how to sign in, and what "the page is done" means beyond a quiet
- * DOM and an idle network. This one needs no sign-in and nothing special to
- * wait for, which is what a config should look like when an app is
- * straightforward.
+ * is served, how to start it, how to sign in, and what "the page is done"
+ * means beyond a quiet DOM and an idle network. This one needs no sign-in and
+ * nothing special to wait for, which is what a config should look like when an
+ * app is straightforward.
  */
 export default defineRecorder({
   baseUrl: process.env.DEMOS_BASE_URL ?? "http://localhost:5174",
+  // Every command that drives the app starts it with this when nothing is
+  // answering, and stops it again afterwards; a dev server that is already
+  // running is used as it is.
+  webServer: { command: "npm run dev", url: "http://localhost:5174" },
   viewport: { width: 1280, height: 800 },
   clips: "demos/clips/**/*.clip.ts",
 

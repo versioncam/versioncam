@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
+import { connect } from "node:net";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -61,12 +62,13 @@ const execFileAsync = promisify(execFile);
 async function runAsync(
   args: string[],
   cwd: string,
+  env: Record<string, string> = {},
 ): Promise<{ status: number; stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
       [CLI, ...args],
-      { cwd, encoding: "utf8" },
+      { cwd, encoding: "utf8", env: { ...process.env, ...env } },
     );
     return { status: 0, stdout, stderr };
   } catch (error) {
@@ -87,14 +89,14 @@ async function runAsync(
  * for every real user — esbuild only leaves the import alone, for Node to
  * resolve, when the specifier is the bare package name.
  */
-function appDir(baseUrl = "http://example.test"): string {
+function appDir(baseUrl = "http://example.test", fields = ""): string {
   const dir = mkdtempSync(join(tmpdir(), "versioncam-cli-"));
   mkdirSync(join(dir, "node_modules"), { recursive: true });
   symlinkSync(PACKAGE, join(dir, "node_modules", "versioncam"), "dir");
   writeFileSync(
     join(dir, "versioncam.config.ts"),
     `import { defineRecorder } from "versioncam";\n` +
-      `export default defineRecorder({ baseUrl: "${baseUrl}" });\n`,
+      `export default defineRecorder({ baseUrl: "${baseUrl}"${fields} });\n`,
   );
   return dir;
 }
@@ -137,6 +139,48 @@ async function servedDir(
     dir: appDir(`http://127.0.0.1:${port}`),
     close: () => new Promise<void>((done) => server.close(() => done())),
   };
+}
+
+/** A port nothing is listening on, from the kernel. */
+async function freePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((ready) => server.listen(0, "127.0.0.1", ready));
+  const port = (server.address() as AddressInfo).port;
+  await new Promise<void>((done) => server.close(() => done()));
+  return port;
+}
+
+/** Whether anything accepts a connection on the port. */
+function listening(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect(port, "127.0.0.1");
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", () => resolve(false));
+  });
+}
+
+/**
+ * A consumer whose config knows how to start its app, and an app that is not
+ * running: the shape of a repository after `versioncam init` and a first run.
+ * The "dev server" is one line of Node, run through a shell the way `npm run
+ * dev` would be.
+ */
+async function startableDir(): Promise<{ dir: string; port: number }> {
+  const port = await freePort();
+  const script =
+    `require('http').createServer((q, s) => {` +
+    ` s.writeHead(200, { 'Content-Type': 'text/html' });` +
+    ` s.end('<!doctype html><title>started</title><p>ok</p>'); })` +
+    `.listen(${port}, '127.0.0.1')`;
+  const command = JSON.stringify(`"${process.execPath}" -e "${script}"`);
+  const dir = appDir(
+    `http://127.0.0.1:${port}`,
+    `, webServer: { command: ${command} }`,
+  );
+  return { dir, port };
 }
 
 test.describe("the versioncam CLI", () => {
@@ -213,6 +257,64 @@ test.describe("the versioncam CLI", () => {
     expect(stdout).toContain("✗ config");
     expect(stdout).toContain("versioncam.config.ts");
     expect(status).toBe(1);
+  });
+
+  test("doctor starts the app through webServer, and stops it again", async () => {
+    // The rehearsal for every other command: a start command that is wrong
+    // should be found here, not halfway into a clip.
+    const { dir, port } = await startableDir();
+    const { status, stdout } = await runAsync(["doctor"], dir);
+    expect(stdout).toMatch(
+      /✓ app +started with ".*", HTTP 200 after .* \(stopped again\)/,
+    );
+    expect(status).toBe(0);
+    expect(await listening(port)).toBe(false);
+  });
+
+  test("a command that started the app leaves nothing running", async () => {
+    const { dir, port } = await startableDir();
+    mkdirSync(join(dir, "demos"), { recursive: true });
+    writeFileSync(
+      join(dir, "demos", "open.clip.ts"),
+      [
+        'import { clip } from "versioncam";',
+        'export default clip("open", { title: "Open" }, async (s) => {',
+        '  await s.open("/");',
+        "  await s.hold(200);",
+        "});",
+      ].join("\n"),
+    );
+    const { status, stdout, stderr } = await runAsync(
+      ["record", "--draft", "open"],
+      dir,
+    );
+    expect(stderr).toContain("app: started with");
+    expect(stdout).toContain("open (draft)");
+    expect(status).toBe(0);
+    expect(await listening(port)).toBe(false);
+  });
+
+  test("in CI, a server already on the port is refused, not reused", async () => {
+    // On a developer's machine the server that is up is theirs; on a CI
+    // runner, one that was up before the job started is not the build under
+    // test.
+    const { dir, port } = await startableDir();
+    const squatter = createServer((_request, response) => response.end());
+    await new Promise<void>((ready) =>
+      squatter.listen(port, "127.0.0.1", ready),
+    );
+    try {
+      const { status, stdout } = await runAsync(["doctor"], dir, { CI: "1" });
+      expect(stdout).toContain("✗ app");
+      expect(stdout).toContain(`port ${port}`);
+      expect(status).toBe(1);
+
+      const reused = await runAsync(["doctor"], dir, { CI: "" });
+      expect(reused.stdout).toContain("already serving at");
+      expect(reused.status).toBe(0);
+    } finally {
+      await new Promise<void>((done) => squatter.close(() => done()));
+    }
   });
 
   test("says what it looked for when a directory has no clips", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { outputSize, resolveConfig } from "./config.js";
 
 const ROOT = "/tmp/app";
@@ -138,5 +138,89 @@ describe("how long a clip of this app should be", () => {
       "/tmp",
     );
     expect(config.review).toEqual({ minSeconds: 4, maxSeconds: 11 });
+  });
+});
+
+describe("webServer", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("is absent unless the app asks for it", () => {
+    // Without one, every command assumes the app is already up, which is how
+    // this package behaved before it could start anything.
+    expect(resolveConfig({ baseUrl: "http://x" }, ROOT).webServer).toBeNull();
+  });
+
+  it("fills every field, waiting on baseUrl from the config's directory", () => {
+    vi.stubEnv("CI", "");
+    const c = resolveConfig(
+      {
+        baseUrl: "http://localhost:5174/",
+        webServer: { command: "npm run dev" },
+      },
+      ROOT,
+    );
+    expect(c.webServer).toEqual({
+      command: "npm run dev",
+      url: "http://localhost:5174",
+      cwd: "/tmp/app",
+      timeoutMs: 120_000,
+      reuseExistingServer: true,
+      env: {},
+    });
+  });
+
+  it("resolves its cwd against the config's directory", () => {
+    // PathGen's stack starts from the repository root, two levels above the
+    // workspace its config lives in.
+    const c = resolveConfig(
+      {
+        baseUrl: "http://x",
+        webServer: { command: "make start", cwd: "../.." },
+      },
+      "/repo/app/demos",
+    );
+    expect(c.webServer?.cwd).toBe("/repo");
+  });
+
+  it("will not reuse a server in CI unless told to", () => {
+    // Something already answering on a CI runner was not started by this job,
+    // so it is not the build under test.
+    vi.stubEnv("CI", "true");
+    const server = { command: "npm run dev" };
+    expect(
+      resolveConfig({ baseUrl: "http://x", webServer: server }, ROOT).webServer
+        ?.reuseExistingServer,
+    ).toBe(false);
+    expect(
+      resolveConfig(
+        {
+          baseUrl: "http://x",
+          webServer: { ...server, reuseExistingServer: true },
+        },
+        ROOT,
+      ).webServer?.reuseExistingServer,
+    ).toBe(true);
+  });
+
+  it("names the field it rejected", () => {
+    const bad = (webServer: object) => () =>
+      resolveConfig(
+        { baseUrl: "http://x", webServer: webServer as never },
+        ROOT,
+      );
+    expect(bad({ command: "" })).toThrow(/`webServer.command`/);
+    expect(bad({ command: "  " })).toThrow(/`webServer.command`/);
+    expect(bad({})).toThrow(/`webServer.command`/);
+    expect(bad({ command: "x", timeoutMs: 0 })).toThrow(
+      /`webServer.timeoutMs`/,
+    );
+    expect(bad({ command: "x", timeoutMs: 1.5 })).toThrow(
+      /`webServer.timeoutMs`/,
+    );
+    expect(bad({ command: "x", url: "localhost:5174" })).toThrow(
+      /`webServer.url`/,
+    );
   });
 });
