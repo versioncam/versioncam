@@ -79,9 +79,12 @@ below the fold, where no frame will show it.
   `clip("<id>", { title: "…", capture: { forceCaptureEvery: 1 } }, …)`.
 - **End with nothing open.** No dialog, no menu, no tooltip, no focused
   dropdown, and the cursor clear of whatever the last frame is about.
-- **Start the cursor clear of the controls.** The default start position is
-  tuned for one app and can land on a row or a button in another. If the first
-  frame shows a hover state, move the cursor somewhere neutral first.
+- **Start the cursor clear of the controls.** Where it rests in frame 0 is
+  `cursorStart` in the config, fixed before a clip's first line runs; the
+  default was tuned for one app and lands on a row or a field in others. Look
+  at frame 0 (`npx versioncam frame <id> 0`) before the sheet does; if the
+  cursor sits on a control, the fix is `cursorStart` — the one change to the
+  config allowed below.
 - **If `open()` lands on a sign-in screen, stop.** Say so and go no further.
   Signing the recorder in is the repository owner's job, through `auth` in
   `versioncam.config.ts`, and `versioncam login` is interactive so you cannot
@@ -90,9 +93,14 @@ below the fold, where no frame will show it.
   signs itself in is a clip nobody can run.
 - **Do not run `git`.** You do not need it. Someone else reads your work and
   commits it.
-- **Do not edit the app, and do not edit `versioncam.config.ts`.** Saving a
-  file the dev server watches pushes a reload into the page being recorded and
-  the run is lost.
+- **Do not edit the app, and leave `versioncam.config.ts` alone — with one
+  exception.** The app is not yours to change, and the config is every
+  clip's: a setting changed to make this clip pass changes all the others. The
+  exception is `cursorStart`, when a reviewer fails the cursor in the first
+  frame — frame 0 is taken before a clip's first line runs, so nothing in the
+  clip can move it, and the config is the only fix. Change it between
+  recordings, never during one (a save the dev server sees reloads the page
+  being recorded), and say so in what you write down.
 
 ## The shape of a clip
 

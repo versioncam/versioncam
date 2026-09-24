@@ -52,7 +52,7 @@ directory?
 
 Parse `$ARGUMENTS`. The first quoted string is the **intent**. `--id <slug>`
 names the clip; without it, derive a slug from the intent — lowercase, hyphens,
-at most 40 characters, no trailing hyphen. `--max-rounds <n>` defaults to 6.
+at most 40 characters, cut at a word boundary. `--max-rounds <n>` defaults to 6.
 
 ```bash
 mkdir -p .versioncam/author/<id>

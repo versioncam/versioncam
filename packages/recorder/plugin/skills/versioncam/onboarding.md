@@ -95,15 +95,17 @@ export default defineRecorder({
 });
 ```
 
-Plus `auth` if step 2 said so. Not `settle`, not `review`, not `theme`: every
-default is there because it is right for most apps, and a field nobody needed
-is a question the next person has to answer. Say in a comment above each
-field you did write why it has the value it has — the port came from the dev
-script, the command from the README.
+Plus `auth` if step 2 said so, and `cursorStart` if step 7 says so. Not
+`settle`, not `review`, not `theme`: every default is there because it is right
+for most apps, and a field nobody needed is a question the next person has to
+answer. Say in a comment above each field you did write why it has the value
+it has — the port came from the dev script, the command from the README.
 
-Then: create `demos/clips/`. Add `.versioncam/` to `.gitignore` — recordings,
-renders and a saved sign-in go there — creating the file if there is none and
-leaving the rest of it alone.
+Then: create `demos/clips/`, and make sure `.versioncam/` is ignored —
+recordings, renders and a saved sign-in go there. If a `.gitignore` here, or
+in a directory above this one up to the repository root, already says so,
+leave it; otherwise add the line to the nearest one, creating one here if
+there is none, and leave the rest of the file alone.
 
 ## 4. `npx versioncam doctor`
 
@@ -167,7 +169,23 @@ and in `summary.json` at the end, as `"stable": false`. A clip written against
 an app that does not reproduce will fail CI, and whoever reads the failure
 deserves to know it was known.
 
-## 7. Report
+## 7. The first frame
+
+```bash
+npx versioncam record --draft 00-open
+npx versioncam frame 00-open 0
+```
+
+Look at where the cursor is. Every clip starts it there, and it is taken
+before a clip's first line runs, so no clip can move it. The default,
+`(0.72, 0.28)` of the viewport, was picked for one app's open map and lands on
+a list row or a field in others — and a reviewer fails a clip whose first
+frame has the cursor on a control, a row or a field. If it is on one, set
+`cursorStart` in the config to open space — a margin, the gap below a panel —
+as fractions of the viewport, with a comment saying what is there, and look
+at frame 0 again.
+
+## 8. Report
 
 Before going on to the clip, say — in a few lines:
 
