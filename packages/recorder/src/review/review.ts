@@ -199,12 +199,12 @@ function checkRendered(timeline: Timeline): ReviewItem {
  * Is what the clip points at actually on screen?
  *
  * A highlight is drawn at the rectangle the driver measured, and a locator
- * below the fold measures perfectly well: `demos measure` reported the example
- * app's status line at y 928 in an 800-pixel viewport without comment, and the
- * clip that rings it has been drawing that ring off the bottom of the frame
- * since it was written. Nothing said so — not `record`, which succeeded, not
- * `review`, which had no clause for it, and not the video, which simply lacks
- * the ring it was supposed to end on.
+ * below the fold measures perfectly well: `versioncam measure` reported the
+ * example app's status line at y 928 in an 800-pixel viewport without comment,
+ * and the clip that rings it has been drawing that ring off the bottom of the
+ * frame since it was written. Nothing said so — not `record`, which succeeded,
+ * not `review`, which had no clause for it, and not the video, which simply
+ * lacks the ring it was supposed to end on.
  *
  * A warning rather than a failure: the camera can legitimately be somewhere
  * else entirely by the time a highlight runs, and only the renderer knows for

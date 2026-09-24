@@ -9,5 +9,5 @@
     "outDir": ".types",
     "tsBuildInfoFile": "./node_modules/.tmp/example.tsbuildinfo"
   },
-  "include": ["src", "recorder.config.ts", "demos"]
+  "include": ["src", "versioncam.config.ts", "demos"]
 }

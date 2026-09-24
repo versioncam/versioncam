@@ -80,8 +80,8 @@ export type ReviewConfig = {
    * Ten seconds is the shape of a feature clip and the default, but it is a
    * house style rather than a law: an app whose clips are one crisp
    * interaction each should say five, and an app demonstrating a workflow may
-   * want twenty. `demos review` enforces whatever is here, the authoring loop
-   * aims at it, and `--min`/`--max` override it for one run.
+   * want twenty. `versioncam review` enforces whatever is here, the authoring
+   * loop aims at it, and `--min`/`--max` override it for one run.
    */
   minSeconds?: number;
   maxSeconds?: number;
@@ -141,7 +141,7 @@ export type RecorderConfig = {
   motion?: Partial<Motion>;
   /** Module whose default export is `Record<string, Scene>`. */
   scenes?: string;
-  /** Clip ids, in order, for `demos render --sequence`. */
+  /** Clip ids, in order, for `versioncam render --sequence`. */
   sequence?: string[];
 };
 
@@ -252,7 +252,7 @@ export function resolveConfig(
   }
 
   const abs = (p: string) => (isAbsolute(p) ? p : resolve(root, p));
-  const outDir = abs(config.outDir ?? ".demos");
+  const outDir = abs(config.outDir ?? ".versioncam");
   const outputWidth = config.output?.width ?? 1920;
   positiveInt(outputWidth, "output.width");
 

@@ -30,7 +30,7 @@ async function filesUnder(dir: string): Promise<string[]> {
 /**
  * Copy the authoring skill and its agents into this repository's `.claude/`.
  *
- * `claude --plugin-dir node_modules/@living-demos/recorder/plugin` loads the
+ * `claude --plugin-dir node_modules/versioncam/plugin` loads the
  * same files without copying anything, and is the better default. This exists
  * for the other case: prompts are the part of this package people most want to
  * change, and a copy in `.claude/` is a file they can edit, diff and commit
@@ -54,7 +54,7 @@ export async function init(argv: string[]): Promise<number> {
 
   if (values.claude !== true) {
     process.stderr.write(
-      "Usage: demos init --claude\n" +
+      "Usage: versioncam init --claude\n" +
         "Copies the authoring skill and agents into .claude/ for Claude Code.\n",
     );
     return 1;
@@ -63,7 +63,7 @@ export async function init(argv: string[]): Promise<number> {
   if (!existsSync(PLUGIN_DIR)) {
     process.stderr.write(
       `No plugin directory at ${PLUGIN_DIR}.\n` +
-        "Reinstall @living-demos/recorder, or run this from an installed copy.\n",
+        "Reinstall versioncam, or run this from an installed copy.\n",
     );
     return 1;
   }
@@ -105,7 +105,7 @@ export async function init(argv: string[]): Promise<number> {
   }
 
   process.stdout.write(
-    `\nRestart Claude Code, then run /demos-author "<what the clip should show>".\n`,
+    `\nRestart Claude Code, then run /versioncam "<what the clip should show>".\n`,
   );
   return 0;
 }

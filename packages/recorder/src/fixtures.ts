@@ -7,7 +7,7 @@
  * that wants a function and no browser at all. Importing the main entry there
  * drags a bundler into a jsdom environment, where it does not run.
  *
- *     import { sseBody } from "@living-demos/recorder/fixtures";
+ *     import { sseBody } from "versioncam/fixtures";
  */
 export { sseBody } from "./core/sse.js";
 export type { SseFixtureEvent } from "./core/sse.js";

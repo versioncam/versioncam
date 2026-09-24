@@ -23,7 +23,9 @@ export async function frame(argv: string[]): Promise<number> {
   const [id, nth] = positionals as string[];
   const byTime = values.t as string | undefined;
   if (!id || (nth === undefined && byTime === undefined)) {
-    process.stderr.write("Usage: demos frame <id> <n>  (or --t <seconds>)\n");
+    process.stderr.write(
+      "Usage: versioncam frame <id> <n>  (or --t <seconds>)\n",
+    );
     return 1;
   }
 
@@ -31,7 +33,7 @@ export async function frame(argv: string[]): Promise<number> {
   const dir = join(config.recordingsDir, id);
   if (!existsSync(join(dir, "timeline.json"))) {
     process.stderr.write(
-      `No recording for "${id}". Run \`demos record ${id}\` first.\n`,
+      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
     );
     return 1;
   }

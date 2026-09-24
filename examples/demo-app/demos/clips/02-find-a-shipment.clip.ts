@@ -1,4 +1,4 @@
-import { clip } from "@living-demos/recorder";
+import { clip } from "versioncam";
 
 /**
  * Narrowing a list by typing.

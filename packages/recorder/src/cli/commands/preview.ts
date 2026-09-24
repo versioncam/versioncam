@@ -30,7 +30,7 @@ export async function preview(argv: string[]): Promise<number> {
   const sceneId = values.scene as string | undefined;
   const id = sceneId ?? (positionals[0] as string | undefined);
   if (!id) {
-    process.stderr.write("Usage: demos preview <id> | --scene <id>\n");
+    process.stderr.write("Usage: versioncam preview <id> | --scene <id>\n");
     return 1;
   }
 

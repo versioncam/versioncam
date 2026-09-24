@@ -16,34 +16,34 @@ import { render } from "./commands/render.js";
 import { review } from "./commands/review.js";
 import { sheet } from "./commands/sheet.js";
 
-const USAGE = `demos — record and render demo clips of a real app
+const USAGE = `versioncam — record and render demo clips of a real app
 
-  demos record [id…]            drive the app and capture frames
-      --draft                     15fps at CSS scale: cheap, for writing clips
-  demos render [id…]            composite and encode what has been recorded
-      --scene <id>                render a designed scene (repeatable)
-      --sequence                  stitch the results into one piece
-  demos check [id…]             record everything; non-zero if any clip breaks
-  demos sheet <id>              an eight-frame contact sheet
-      --at-marks                  sample the beats instead of even spacing
-  demos frame <id> <n>          one frame at output size, to a png
-      --t <seconds>               pick the frame by time instead
-  demos preview <id>            open the scrubber in a real browser
-      --scene <id>                preview a scene instead
-      --frame <n>                 start at this frame
-  demos review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
-      --beats <file>              [{ label, expect }] the clip promised
-      --min <s> --max <s>         duration bounds (default 9–11)
-  demos inspect <path>          what is on a page, and what a clip can click
-      --json                      machine-readable
-  demos measure <path> <sel>    where the matches of a selector are
-  demos dsl                     the clip DSL, every method, one line each
-  demos login                   sign in once and save the browser session
-  demos doctor                  check this machine can record, and the app is up
-  demos init --claude           copy the authoring skill and agents into .claude/
-      --force                     overwrite files that are already there
+  versioncam record [id…]            drive the app and capture frames
+      --draft                        15fps at CSS scale: cheap, for writing clips
+  versioncam render [id…]            composite and encode what has been recorded
+      --scene <id>                   render a designed scene (repeatable)
+      --sequence                     stitch the results into one piece
+  versioncam check [id…]             record everything; non-zero if any clip breaks
+  versioncam sheet <id>              an eight-frame contact sheet
+      --at-marks                     sample the beats instead of even spacing
+  versioncam frame <id> <n>          one frame at output size, to a png
+      --t <seconds>                  pick the frame by time instead
+  versioncam preview <id>            open the scrubber in a real browser
+      --scene <id>                   preview a scene instead
+      --frame <n>                    start at this frame
+  versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
+      --beats <file>                 [{ label, expect }] the clip promised
+      --min <s> --max <s>            duration bounds (default 9–11)
+  versioncam inspect <path>          what is on a page, and what a clip can click
+      --json                         machine-readable
+  versioncam measure <path> <sel>    where the matches of a selector are
+  versioncam dsl                     the clip DSL, every method, one line each
+  versioncam login                   sign in once and save the browser session
+  versioncam doctor                  check this machine can record, and the app is up
+  versioncam init --claude           copy the authoring skill and agents into .claude/
+      --force                        overwrite files that are already there
 
-Run from a directory containing recorder.config.ts.
+Run from a directory containing versioncam.config.ts.
 `;
 
 type Command = (argv: string[]) => Promise<number>;

@@ -1,4 +1,4 @@
-# @living-demos/recorder
+# versioncam
 
 Record demo clips of a real web app: scripted, deterministic, regenerated on
 deploy.
@@ -19,16 +19,16 @@ so a consumer installs it from the checkout:
 npm --prefix packages/recorder link
 
 # then in the app that wants clips
-npm link @living-demos/recorder
+npm link versioncam
 npx playwright install chromium
-npx demos doctor          # node, chromium, ffmpeg, your config, and the app
+npx versioncam doctor          # node, chromium, ffmpeg, your config, and the app
 ```
 
 A `file:` dependency works too and survives `npm ci`, which a link does not:
 
 ```jsonc
 // package.json in the app
-{ "devDependencies": { "@living-demos/recorder": "file:../living-demos/packages/recorder" } }
+{ "devDependencies": { "versioncam": "file:../versioncam/packages/recorder" } }
 ```
 
 Publishing is a decision rather than a task: drop `private`, pick a registry,
@@ -41,10 +41,10 @@ neither, but it does not include ffprobe.
 
 ## Configure
 
-`recorder.config.ts`, beside your clips:
+`versioncam.config.ts`, beside your clips:
 
 ```ts
-import { defineRecorder } from "@living-demos/recorder";
+import { defineRecorder } from "versioncam";
 
 export default defineRecorder({
   baseUrl: process.env.DEMOS_BASE_URL ?? "http://localhost:5173",
@@ -52,7 +52,7 @@ export default defineRecorder({
   clips: "demos/clips/**/*.clip.ts",
 
   // Either a saved browser session…
-  auth: { storageState: ".demos/auth.json" },
+  auth: { storageState: ".versioncam/auth.json" },
   // …or a hook, if signing in needs steps.
   // auth: { login: async (page) => { … } },
 
@@ -70,7 +70,7 @@ a reason to fork.
 ## Write a clip
 
 ```ts
-import { clip } from "@living-demos/recorder";
+import { clip } from "versioncam";
 
 export default clip("02-find-a-shipment", { title: "Find a shipment" }, async (s) => {
   await s.open("/");
@@ -96,7 +96,7 @@ for a straight one, `s.lasso` for a closed loop) are authored in fractions of a
 target's box for the same reason: a clip built from locators survives a layout
 change.
 
-`npx demos dsl` prints the whole surface, generated from the code, and a test
+`npx versioncam dsl` prints the whole surface, generated from the code, and a test
 asserts that list and the session agree. That is worth more than it sounds:
 this README promised an `s.drag` for months while there was none, and a clip
 that needed one clicked instead — on a d3 brush, where a click sets a selection
@@ -107,61 +107,61 @@ nothing, for months, and no check caught it.
 controls that are conditional, renamed, or not rendered at all:
 
 ```bash
-npx demos inspect /shipments          # what is on the page and what it is called
-npx demos measure / '.marker'         # where the matches are, as fractions
+npx versioncam inspect /shipments          # what is on the page and what it is called
+npx versioncam measure / '.marker'         # where the matches are, as fractions
 ```
 
 ## Commands
 
 ```
-demos record [id…]            drive the app and capture frames
-    --draft                     15fps at CSS scale: cheap, for writing clips
-demos render [id…]            composite and encode
-    --scene <id>                render a designed scene
-    --sequence                  stitch the results into one piece
-demos check [id…]             record everything; non-zero if any clip breaks
-demos sheet <id>              an eight-frame contact sheet
-    --at-marks                  sample the beats instead of even spacing
-demos frame <id> <n>          one frame at output size, to a png
-    --t <seconds>               pick the frame by time instead
-demos preview <id>            open the scrubber in a real browser
-demos review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
-    --beats <file>              [{ label, expect }] the clip promised
-    --min <s> --max <s>         duration bounds (default 9–11)
-demos inspect <path>          what a clip can click
-demos measure <path> <sel>    where the matches of a selector are
-demos dsl                     the clip DSL, every method, one line each
-demos login                   sign in once and save the session
-demos doctor                  check this machine can record, and the app is up
-demos init --claude           copy the authoring skill and agents into .claude/
-    --force                     overwrite files that are already there
+versioncam record [id…]            drive the app and capture frames
+    --draft                        15fps at CSS scale: cheap, for writing clips
+versioncam render [id…]            composite and encode
+    --scene <id>                   render a designed scene
+    --sequence                     stitch the results into one piece
+versioncam check [id…]             record everything; non-zero if any clip breaks
+versioncam sheet <id>              an eight-frame contact sheet
+    --at-marks                     sample the beats instead of even spacing
+versioncam frame <id> <n>          one frame at output size, to a png
+    --t <seconds>                  pick the frame by time instead
+versioncam preview <id>            open the scrubber in a real browser
+versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
+    --beats <file>                 [{ label, expect }] the clip promised
+    --min <s> --max <s>            duration bounds (default 9–11)
+versioncam inspect <path>          what a clip can click
+versioncam measure <path> <sel>    where the matches of a selector are
+versioncam dsl                     the clip DSL, every method, one line each
+versioncam login                   sign in once and save the session
+versioncam doctor                  check this machine can record, and the app is up
+versioncam init --claude           copy the authoring skill and agents into .claude/
+    --force                        overwrite files that are already there
 ```
 
-`demos check` is the CI command. It does not render: a demo that no longer
+`versioncam check` is the CI command. It does not render: a demo that no longer
 matches the app fails while being recorded, at the step that no longer exists,
 and encoding a video of the wreckage helps nobody.
 
 ## What a recording leaves behind
 
-In `.demos/recordings/<id>/`: `timeline.json`, the `states/` it indexes, and
+In `.versioncam/recordings/<id>/`: `timeline.json`, the `states/` it indexes, and
 `settles.json` — every wait, what it was still blocked on, and how long it
 really took. A clip that fails also leaves `failure.png`, the page at the
 moment it gave up, and `failure.json` with the message, the frame and the
 authored second.
 
 The timeline's `marks` are the clip's beats: one per labelled `settle()`, at
-the first frame that shows what the wait was for. `demos sheet --at-marks`
+the first frame that shows what the wait was for. `versioncam sheet --at-marks`
 samples those frames instead of eight even ones, which is the difference
 between a sheet that shows what the clip is about and one that happens to miss
 it.
 
-`demos review <id> --beats beats.json` is the half of reviewing a clip that
+`versioncam review <id> --beats beats.json` is the half of reviewing a clip that
 needs no eyes, and no browser: is it the right length, did a wait give up, does
 every beat in the sheet have a mark, did the screen actually change between one
 beat and the next, and did the clip end on a camera move with no frames left to
 show it. It prints a line per clause and exits 0 or 1. What needs eyes — is
 this legible, is the cursor in the way, does the frame show what the beat
-claimed — is what the contact sheet and `demos frame` are for.
+claimed — is what the contact sheet and `versioncam frame` are for.
 
 ## How it works
 
@@ -182,7 +182,7 @@ durations, a dwell before each click, all seeded — so it never looks
 metronomic and never differs between runs.
 
 **Rendering needs nothing running.** The page, the recording, the config and
-your scenes are served from an in-memory route table, so `demos render` works
+your scenes are served from an in-memory route table, so `versioncam render` works
 from a recording on disk and a browser.
 
 **Output follows the viewport.** Record at 1440×900 and the video is 16:10;
@@ -218,7 +218,7 @@ export default clip("03-the-map", { title: "The map", capture: { forceCaptureEve
 instead of device scale, into the same place a real recording goes.
 
 ```bash
-npx demos record --draft 02-find-a-shipment   # then render and look
+npx versioncam record --draft 02-find-a-shipment   # then render and look
 ```
 
 It deliberately does not change the page: same viewport, same device pixel
@@ -228,7 +228,7 @@ own `fps`, because the point is to be cheap. Its duration can land up to 1/15 s
 from the full capture's, so a draft is for looking at, not for comparing
 against.
 
-`demos record` prints where the time went, which is how you tell whether the
+`versioncam record` prints where the time went, which is how you tell whether the
 next second would come from the frames or from somewhere else:
 
 ```
@@ -243,34 +243,34 @@ is why both are named.
 ## Authoring
 
 A clip is a script, and writing one is a loop: look at the page, write, record,
-look at what you got, fix. `@living-demos/recorder` ships that loop as a Claude
+look at what you got, fix. `versioncam` ships that loop as a Claude
 Code plugin — a skill that orchestrates it and two agents that do the work.
 There is no API key and no SDK: the model is whichever Claude Code session runs
 the skill, and it reads contact sheets with the same tool it reads files with.
 
 ```bash
-npx demos init --claude          # copy the skill and agents into .claude/
+npx versioncam init --claude          # copy the skill and agents into .claude/
 # or, without copying anything:
-claude --plugin-dir node_modules/@living-demos/recorder/plugin
+claude --plugin-dir node_modules/versioncam/plugin
 ```
 
 Then, with the app running:
 
 ```
-/demos-author "Find a shipment by filtering the list, and show how many matched"
+/versioncam "Find a shipment by filtering the list, and show how many matched"
 ```
 
 **What happens.** The skill checks the app is up, inspects the start page, and
 hands that to a `demo-author` agent along with the intent. The author reads
-`demos dsl` and your existing clips, writes a beat sheet, writes the clip, and
-records it in draft until `demos review` passes. The skill then renders a
+`versioncam dsl` and your existing clips, writes a beat sheet, writes the clip, and
+records it in draft until `versioncam review` passes. The skill then renders a
 contact sheet sampled *at the beats* and spawns a `demo-reviewer` — a fresh one
 every round, which sees the picture, the beats and a five-item checklist, and
 nothing of how the clip was written. A reviewer that has read the author's
 reasoning agrees with it. Its verdict goes back to the same author, which keeps
 what it learned about the page. Six rounds at most, then it stops and says why.
 
-**What you get**, under `.demos/author/<id>/`: the beat sheet, a `summary.json`,
+**What you get**, under `.versioncam/author/<id>/`: the beat sheet, a `summary.json`,
 the final sheet, and per round the author's report, its beats and the reviewer's
 verdict. The clip itself goes in your clips directory, which is the part worth
 reading and committing.
@@ -281,7 +281,7 @@ instant; it is, however, unattended.
 
 **What it is not.** The author cannot sign your app in — if `open()` lands on a
 sign-in screen it stops and says so, because that is `auth` in your config and
-`demos login` is interactive. It does not run `git`. And `demos review` only
+`versioncam login` is interactive. It does not run `git`. And `versioncam review` only
 checks what needs no eyes: duration, that every beat left a mark, that each beat
 changed the screen, that nothing was written after the last frame. Whether the
 clip is *good* is the reviewer's job, and after that, yours.
@@ -303,7 +303,7 @@ baseline was recorded on, and compares the timeline everywhere.
 Regenerate that baseline deliberately, never reflexively:
 
 ```bash
-UPDATE_FIXTURE=1 npm run test:integration -w @living-demos/recorder
+UPDATE_FIXTURE=1 npm run test:integration -w versioncam
 ```
 
 If a byte-identity test fails, something outside the authored clock leaked
@@ -319,8 +319,8 @@ first failure looks like a recorder bug.
 Before assuming it is one, record the clip twice the same way:
 
 ```bash
-npx demos record 02-find-a-shipment && cp -r .demos/recordings/02-find-a-shipment /tmp/a
-npx demos record 02-find-a-shipment && diff -r /tmp/a .demos/recordings/02-find-a-shipment
+npx versioncam record 02-find-a-shipment && cp -r .versioncam/recordings/02-find-a-shipment /tmp/a
+npx versioncam record 02-find-a-shipment && diff -r /tmp/a .versioncam/recordings/02-find-a-shipment
 ```
 
 If those two differ, nothing about the recorder is implicated yet — something

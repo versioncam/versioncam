@@ -67,10 +67,11 @@ export type Caption = { t0: number; t1: number; text: string };
  *
  * The frame recorded is the first one *after* the settle, because a settle
  * captures nothing — so the earliest picture of what a beat produced is the
- * next frame, and that is the frame a reviewer should be shown. `demos review`
- * checks a clip's beats against these and `demos sheet --at-marks` samples
- * them, which is how the moments a clip was written around reach a reader
- * instead of eight frames spread evenly through it.
+ * next frame, and that is the frame a reviewer should be shown.
+ * `versioncam review` checks a clip's beats against these and
+ * `versioncam sheet --at-marks` samples them, which is how the moments a clip
+ * was written around reach a reader instead of eight frames spread evenly
+ * through it.
  */
 export type Mark = { frame: number; label: string };
 

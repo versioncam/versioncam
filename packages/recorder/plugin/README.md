@@ -1,6 +1,6 @@
 # The authoring loop, as a Claude Code plugin
 
-`/demos-author "<what the clip should show>"` writes a clip of your running
+`/versioncam "<what the clip should show>"` writes a clip of your running
 app, records it, looks at the result, and fixes what it finds — until a
 reviewer passes it or it runs out of rounds.
 
@@ -14,35 +14,35 @@ edit them.
 The plugin ships inside the recorder's npm package. Point Claude Code at it:
 
 ```bash
-claude --plugin-dir node_modules/@living-demos/recorder/plugin
+claude --plugin-dir node_modules/versioncam/plugin
 ```
 
 Or copy the skill and the agents into your repository, if you would rather
 have files you can edit and commit:
 
 ```bash
-npx demos init --claude      # writes .claude/agents/ and .claude/skills/
+npx versioncam init --claude      # writes .claude/agents/ and .claude/skills/
 ```
 
 `init` refuses to overwrite a file that already exists; `--force` overwrites.
-Either way, the skill needs `@living-demos/recorder` installed,
-`recorder.config.ts` in the working directory, and **the app running** at the
+Either way, the skill needs `versioncam` installed,
+`versioncam.config.ts` in the working directory, and **the app running** at the
 config's `baseUrl`.
 
 ## Run it
 
 ```
-/demos-author "Create a shipment for a new recipient and show it appearing in the list"
-/demos-author "Find a shipment by filtering the list" --id 02-find --max-rounds 4
+/versioncam "Create a shipment for a new recipient and show it appearing in the list"
+/versioncam "Find a shipment by filtering the list" --id 02-find --max-rounds 4
 ```
 
 ## What the loop does
 
-1. `demos doctor`, and stops if the app is unreachable.
-2. Spawns **`demo-author`**, with the intent and a fresh `demos inspect` of the
-   start page. It reads `demos dsl` and your existing clips, writes a beat
+1. `versioncam doctor`, and stops if the app is unreachable.
+2. Spawns **`demo-author`**, with the intent and a fresh `versioncam inspect` of the
+   start page. It reads `versioncam dsl` and your existing clips, writes a beat
    sheet, writes the clip, records it in draft, runs the deterministic checks
-   in `demos review`, and repairs what fails. Three recordings at most before
+   in `versioncam review`, and repairs what fails. Three recordings at most before
    it hands back what it has.
 3. Renders an eight-tile contact sheet at the beats, and spawns a **fresh
    `demo-reviewer`** on it — one picture, a five-item checklist, a JSON
@@ -59,7 +59,7 @@ file, for you to read and commit yourself.
 ## What it leaves behind
 
 ```
-.demos/author/<id>/
+.versioncam/author/<id>/
   beats.json              the beat sheet: { label, expect } per beat
   summary.json            { id, rounds, passed, wallMs }
   round-1/
@@ -69,7 +69,7 @@ file, for you to read and commit yourself.
   round-2/ …
 ```
 
-`.demos/` is a build product and is gitignored. Keep the clip; the transcripts
+`.versioncam/` is a build product and is gitignored. Keep the clip; the transcripts
 are for reading when something goes wrong, and for finding the next thing to
 fix in the recorder — the `author.md` paragraph on awkward tooling is there
 because the first agent to write one produced a list that became a work

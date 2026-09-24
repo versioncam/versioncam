@@ -18,7 +18,7 @@ export async function login(): Promise<number> {
 
   if (!auth?.storageState) {
     process.stderr.write(
-      '`demos login` needs `auth: { storageState: "..." }` in the config.\n' +
+      '`versioncam login` needs `auth: { storageState: "..." }` in the config.\n' +
         "An app that signs in with a `login` hook does not need this command.\n",
     );
     return 1;

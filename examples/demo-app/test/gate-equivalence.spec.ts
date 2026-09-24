@@ -2,13 +2,8 @@ import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  launchBrowser,
-  loadClips,
-  loadConfig,
-  runClip,
-} from "@living-demos/recorder";
-import type { RunClipResult } from "@living-demos/recorder";
+import { launchBrowser, loadClips, loadConfig, runClip } from "versioncam";
+import type { RunClipResult } from "versioncam";
 
 /**
  * The capture gate, against a real app rather than a fixture.

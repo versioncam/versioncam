@@ -20,7 +20,7 @@ export const FIXTURE_ORIGIN = "http://fixture.local";
 export function testConfig(
   overrides: Partial<RecorderConfig> = {},
 ): ResolvedConfig {
-  const root = mkdtempSync(join(tmpdir(), "living-demos-"));
+  const root = mkdtempSync(join(tmpdir(), "versioncam-"));
   return resolveConfig(
     {
       baseUrl: FIXTURE_ORIGIN,

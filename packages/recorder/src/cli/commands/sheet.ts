@@ -15,7 +15,7 @@ export async function sheet(argv: string[]): Promise<number> {
   });
   const id = positionals[0] as string | undefined;
   if (!id) {
-    process.stderr.write("Usage: demos sheet <id> [--at-marks]\n");
+    process.stderr.write("Usage: versioncam sheet <id> [--at-marks]\n");
     return 1;
   }
 

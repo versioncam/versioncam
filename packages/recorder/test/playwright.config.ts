@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
  *
  * No `webServer`: every page these tests drive is served from the route table
  * the recorder installs, so the suite runs on a clean checkout with nothing
- * else started. That is the point — it is also how a consumer's `demos render`
- * works.
+ * else started. That is the point — it is also how a consumer's
+ * `versioncam render` works.
  */
 export default defineConfig({
   testDir: dirname(fileURLToPath(import.meta.url)),

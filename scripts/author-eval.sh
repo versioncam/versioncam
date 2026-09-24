@@ -71,9 +71,9 @@ for i in "${!IDS[@]}"; do
   started=$(date +%s)
 
   # `--permission-mode bypassPermissions` because the loop spawns subagents that
-  # run `npx demos …` and write a clip file, and a prompt nobody is there to
+  # run `npx versioncam …` and write a clip file, and a prompt nobody is there to
   # answer stalls the run. Everything it touches is inside this repository.
-  ( cd "$APP" && claude -p "/demos-author \"$intent\"" \
+  ( cd "$APP" && claude -p "/versioncam \"$intent\"" \
       --plugin-dir "$PLUGIN" \
       --output-format json \
       --permission-mode bypassPermissions \

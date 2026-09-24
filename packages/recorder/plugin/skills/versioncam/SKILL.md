@@ -1,6 +1,6 @@
 ---
-name: demos-author
-description: Write a demo clip of the running app from a sentence of intent, then iterate until it records cleanly and a reviewer passes it from the contact sheet. Use in a repository that has recorder.config.ts and @living-demos/recorder, when someone asks for a demo clip, a screencast or a short video of a feature. The app must be running at the config's baseUrl.
+name: versioncam
+description: Write a demo clip of the running app from a sentence of intent, then iterate until it records cleanly and a reviewer passes it from the contact sheet. Use in a repository that has versioncam.config.ts and the versioncam package, when someone asks for a demo clip, a screencast or a short video of a feature. The app must be running at the config's baseUrl.
 user-invocable: true
 argument-hint: "\"<what the clip should show>\" [--id <slug>] [--max-rounds 6]"
 allowed-tools:
@@ -8,7 +8,7 @@ allowed-tools:
   - Read
   - Write
   - SendMessage
-  - Bash(npx demos *)
+  - Bash(npx versioncam *)
   - Bash(mkdir *)
   - Bash(cp *)
 ---
@@ -32,8 +32,8 @@ names the clip; without it, derive a slug from the intent — lowercase, hyphens
 at most 40 characters, no trailing hyphen. `--max-rounds <n>` defaults to 6.
 
 ```bash
-mkdir -p .demos/author/<id>
-npx demos doctor
+mkdir -p .versioncam/author/<id>
+npx versioncam doctor
 ```
 
 `doctor` reports node, chromium, ffmpeg, the config and whether the app answers
@@ -44,7 +44,7 @@ that. If a check other than the app fails, print it and stop too.
 Then capture the start page once, for the author's opening context:
 
 ```bash
-npx demos inspect /
+npx versioncam inspect /
 ```
 
 ## 1. Round 1 — spawn the author
@@ -53,12 +53,12 @@ Spawn the `demo-author` agent. Give it, in the prompt:
 
 - the intent, verbatim;
 - the clip id;
-- the clips directory (from `recorder.config.ts` — the `clips` glob);
-- the full output of `npx demos inspect /`, inline, not a path;
-- the beats path it must write: `.demos/author/<id>/beats.json`.
+- the clips directory (from `versioncam.config.ts` — the `clips` glob);
+- the full output of `npx versioncam inspect /`, inline, not a path;
+- the beats path it must write: `.versioncam/author/<id>/beats.json`.
 
-Tell it to work until `npx demos record --draft <id>` succeeds **and**
-`npx demos review <id> --beats .demos/author/<id>/beats.json` passes, then
+Tell it to work until `npx versioncam record --draft <id>` succeeds **and**
+`npx versioncam review <id> --beats .versioncam/author/<id>/beats.json` passes, then
 return.
 
 **Keep the agent id it returns.** That id is how you continue this same author
@@ -69,18 +69,18 @@ repeat the same three recordings.
 When it returns, copy its work into the round directory:
 
 ```bash
-mkdir -p .demos/author/<id>/round-1
-cp .demos/author/<id>/beats.json .demos/author/<id>/round-1/
+mkdir -p .versioncam/author/<id>/round-1
+cp .versioncam/author/<id>/beats.json .versioncam/author/<id>/round-1/
 ```
 
-Save the author's returned text as `.demos/author/<id>/round-1/author.md`,
+Save the author's returned text as `.versioncam/author/<id>/round-1/author.md`,
 including its paragraph on what was awkward about the tools. That paragraph is
 the point of keeping these directories; do not summarise it away.
 
 ## 2. Every round — the sheet, then a fresh reviewer
 
 ```bash
-npx demos sheet <id> --at-marks
+npx versioncam sheet <id> --at-marks
 ```
 
 `--at-marks` samples frame 0, each beat's settle mark, and the last frame,
@@ -92,8 +92,8 @@ Spawn a **new** `demo-reviewer` for this round. Give it only:
 
 - the sheet path,
 - **the frame numbers `sheet --at-marks` just printed**, in order, one per tile,
-- the contents of `.demos/author/<id>/beats.json`,
-- the clip id (so it can call `npx demos frame <id> <n>`).
+- the contents of `.versioncam/author/<id>/beats.json`,
+- the clip id (so it can call `npx versioncam frame <id> <n>`).
 
 The frame numbers are not optional. A reviewer given only the id assumed tile
 *n* was frame *n*, pulled frames 1 to 16 — every one of them before the beat
@@ -106,7 +106,7 @@ the author's reasoning, its earlier verdict, or how hard the clip was to get
 working — only this round's picture. Never continue a reviewer, and never pass
 it the author's report.
 
-Save its JSON verbatim as `.demos/author/<id>/round-N/verdict.json`.
+Save its JSON verbatim as `.versioncam/author/<id>/round-N/verdict.json`.
 
 ## 2a. If you think the verdict is wrong
 
@@ -131,13 +131,13 @@ A third is shopping for the answer you wanted.
 Take the real recording and render it:
 
 ```bash
-npx demos record <id>
-npx demos render <id>
-npx demos sheet <id> --at-marks
+npx versioncam record <id>
+npx versioncam render <id>
+npx versioncam sheet <id> --at-marks
 ```
 
-Copy that final sheet into `.demos/author/<id>/`. Write
-`.demos/author/<id>/summary.json`:
+Copy that final sheet into `.versioncam/author/<id>/`. Write
+`.versioncam/author/<id>/summary.json`:
 
 ```json
 { "id": "<id>", "rounds": 3, "passed": true, "wallMs": 812000 }
@@ -161,19 +161,19 @@ Send the author a message — the same author, by the agent id you kept — with
 
 - the verdict JSON **verbatim**, not summarised, not reordered, not softened;
 - the instruction: fix the failing items, re-record in draft, run
-  `npx demos review`, and return.
+  `npx versioncam review`, and return.
 
 Do not add your own opinion of the clip. You have not seen it; the reviewer
 has, and the author trusts the verdict because it is a reviewer's and not a
 relayed impression.
 
-Increment N, make `.demos/author/<id>/round-N/`, copy the author's new report
+Increment N, make `.versioncam/author/<id>/round-N/`, copy the author's new report
 and beats into it, and go back to step 2.
 
 ## What this leaves behind
 
 ```
-.demos/author/<id>/
+.versioncam/author/<id>/
   beats.json
   summary.json
   <id>-sheet.png            the final sheet
@@ -181,6 +181,6 @@ and beats into it, and go back to step 2.
   round-2/  …
 ```
 
-`.demos/` is gitignored — it is a build product, and none of it should be
+`.versioncam/` is gitignored — it is a build product, and none of it should be
 committed. The clip file the author wrote is not: it lives in the clips
 directory and is the thing worth reviewing and keeping.

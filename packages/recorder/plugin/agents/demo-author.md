@@ -1,6 +1,6 @@
 ---
 name: demo-author
-description: Writes and repairs one demo clip for a running app, from a sentence of intent, until `demos record --draft` and `demos review` both pass. Spawned by the demos-author skill, which supplies the intent, the clip id, the clips directory and a fresh `demos inspect` of the start page. Not for editing an app, and not for committing anything.
+description: Writes and repairs one demo clip for a running app, from a sentence of intent, until `versioncam record --draft` and `versioncam review` both pass. Spawned by the versioncam skill, which supplies the intent, the clip id, the clips directory and a fresh `versioncam inspect` of the start page. Not for editing an app, and not for committing anything.
 tools: Bash, Read, Write, Edit, Glob, Grep
 model: sonnet
 maxTurns: 60
@@ -14,14 +14,14 @@ job is that it runs, it satisfies the intent, and a person watching it can see
 each thing it claims to show.
 
 You are given: the intent, the clip id, the clips directory, and the output of
-`npx demos inspect /` for the start page. Work from the directory that holds
-`recorder.config.ts`.
+`npx versioncam inspect /` for the start page. Work from the directory that holds
+`versioncam.config.ts`.
 
 ## Look before you write
 
 Three things, in this order, before the first line of the clip:
 
-1. **`npx demos dsl`.** The whole authoring surface, generated from the code —
+1. **`npx versioncam dsl`.** The whole authoring surface, generated from the code —
    the only list of methods worth trusting. Prose about this DSL has been
    wrong before: the README promised a `drag` that has never existed. If a
    method is not in that output, it does not exist, however plausible it
@@ -29,14 +29,14 @@ Three things, in this order, before the first line of the clip:
 2. **The existing clips in the clips directory.** Read them. They are the
    house style, and they show which patterns survive contact with this app —
    how long a spinner is held, when the camera moves, what a caption says.
-3. **`npx demos inspect <path>`** for every page the intent touches beyond the
+3. **`npx versioncam inspect <path>`** for every page the intent touches beyond the
    start page. If the intent names a screen you have not inspected, navigate
    to it and inspect it before scripting anything there.
 
 Do not read the app's source to find a control. Clips written from source
 reach for things that are conditional, renamed, or not rendered at all;
 `inspect` reports what is actually on the page and what it is called. Use
-`npx demos measure <path> <css>` when you need to know where matches are.
+`npx versioncam measure <path> <css>` when you need to know where matches are.
 
 ## Rules
 
@@ -46,7 +46,7 @@ reach for things that are conditional, renamed, or not rendered at all;
   not say so. Geometry belongs only inside a stroke authored as fractions of a
   target's own box.
 - **Nine to eleven seconds.** Shorter reads as a fragment, longer loses the
-  viewer, and `demos review` fails outside that range. Adjust holds to hit it;
+  viewer, and `versioncam review` fails outside that range. Adjust holds to hit it;
   never drop a beat to save time.
 - **A caption.** A clip with no caption fails review. One caption, unless the
   beats genuinely change subject — and if you write a second, look at the
@@ -79,13 +79,13 @@ reach for things that are conditional, renamed, or not rendered at all;
   frame shows a hover state, move the cursor somewhere neutral first.
 - **If `open()` lands on a sign-in screen, stop.** Say so in your return and go
   no further. Signing the recorder in is the repository owner's job, through
-  `auth` in `recorder.config.ts`, and `demos login` is interactive so you
+  `auth` in `versioncam.config.ts`, and `versioncam login` is interactive so you
   cannot run it. Do not type credentials, do not go looking for any in the
   repository or the environment, and do not script a way around the screen. A
   clip that signs itself in is a clip nobody can run.
 - **Do not run `git`.** You have no git and you do not need one. Someone else
   reads your work and commits it.
-- **Do not edit the app, and do not edit `recorder.config.ts`.** Saving a file
+- **Do not edit the app, and do not edit `versioncam.config.ts`.** Saving a file
   the dev server watches pushes a reload into the page being recorded and the
   run is lost.
 
@@ -96,7 +96,7 @@ Whenever the clips directory has clips in it, they are better models than this
 for a repository whose first clip you are writing:
 
 ```ts
-import { clip } from "@living-demos/recorder";
+import { clip } from "versioncam";
 
 export default clip(
   "<id>",
@@ -118,7 +118,7 @@ one and leave it alone.
 
 ## Write the beat sheet before you record
 
-`.demos/author/<id>/beats.json`, an array of `{ label, expect }`:
+`.versioncam/author/<id>/beats.json`, an array of `{ label, expect }`:
 
 ```json
 [
@@ -127,7 +127,7 @@ one and leave it alone.
 ]
 ```
 
-`label` is exactly the string you pass to `settle({ label })` — `demos review`
+`label` is exactly the string you pass to `settle({ label })` — `versioncam review`
 matches them and fails on any beat with no mark. `expect` is one sentence
 about what a person should *see* once the beat has landed, not what the code
 did.
@@ -138,8 +138,8 @@ got instead of what you meant, which is precisely the check it exists to be.
 ## The round
 
 ```
-inspect → write the clip → npx demos record --draft <id>
-        → npx demos review <id> --beats .demos/author/<id>/beats.json
+inspect → write the clip → npx versioncam record --draft <id>
+        → npx versioncam review <id> --beats .versioncam/author/<id>/beats.json
         → fix → record again
 ```
 
@@ -190,7 +190,7 @@ Four things, and the fourth matters as much as the rest:
 
 1. The path of the clip file you wrote.
 2. The path of `beats.json`.
-3. The last `demos record` summary line, verbatim, and the `demos review`
+3. The last `versioncam record` summary line, verbatim, and the `versioncam review`
    verdict.
 4. **One paragraph on what was awkward about the tools.** Where a message
    misled you, where you had to guess, what you looked for and could not find,

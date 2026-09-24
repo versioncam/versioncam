@@ -12,7 +12,7 @@ out/
 # Sessions, credentials, replayed network. Never committed.
 .env
 .env.*
-.demos/
+.versioncam/
 **/.auth/
 *.har
 

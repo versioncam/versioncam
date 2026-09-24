@@ -88,13 +88,12 @@ async function runAsync(
  * resolve, when the specifier is the bare package name.
  */
 function appDir(baseUrl = "http://example.test"): string {
-  const dir = mkdtempSync(join(tmpdir(), "living-demos-cli-"));
-  const scope = join(dir, "node_modules", "@living-demos");
-  mkdirSync(scope, { recursive: true });
-  symlinkSync(PACKAGE, join(scope, "recorder"), "dir");
+  const dir = mkdtempSync(join(tmpdir(), "versioncam-cli-"));
+  mkdirSync(join(dir, "node_modules"), { recursive: true });
+  symlinkSync(PACKAGE, join(dir, "node_modules", "versioncam"), "dir");
   writeFileSync(
-    join(dir, "recorder.config.ts"),
-    `import { defineRecorder } from "@living-demos/recorder";\n` +
+    join(dir, "versioncam.config.ts"),
+    `import { defineRecorder } from "versioncam";\n` +
       `export default defineRecorder({ baseUrl: "${baseUrl}" });\n`,
   );
   return dir;
@@ -112,7 +111,7 @@ function appDirWithRecording(
   marks: { frame: number; label: string }[],
 ): string {
   const dir = appDir();
-  const recording = join(dir, ".demos", "recordings", "buttons");
+  const recording = join(dir, ".versioncam", "recordings", "buttons");
   mkdirSync(dirname(recording), { recursive: true });
   cpSync(FIXTURE_RECORDING, recording, { recursive: true });
   const file = join(recording, "timeline.json");
@@ -140,7 +139,7 @@ async function servedDir(
   };
 }
 
-test.describe("the demos CLI", () => {
+test.describe("the versioncam CLI", () => {
   test("lists its commands", () => {
     const { status, stdout } = run(["--help"], PACKAGE);
     expect(status).toBe(0);
@@ -158,7 +157,7 @@ test.describe("the demos CLI", () => {
       "login",
       "doctor",
     ]) {
-      expect(stdout).toContain(`demos ${command}`);
+      expect(stdout).toContain(`versioncam ${command}`);
     }
   });
 
@@ -209,10 +208,10 @@ test.describe("the demos CLI", () => {
   });
 
   test("doctor reports a missing config rather than crashing", () => {
-    const empty = mkdtempSync(join(tmpdir(), "living-demos-empty-"));
+    const empty = mkdtempSync(join(tmpdir(), "versioncam-empty-"));
     const { status, stdout } = run(["doctor"], empty);
     expect(stdout).toContain("✗ config");
-    expect(stdout).toContain("recorder.config.ts");
+    expect(stdout).toContain("versioncam.config.ts");
     expect(status).toBe(1);
   });
 
@@ -226,7 +225,7 @@ test.describe("the demos CLI", () => {
   test("says to record first when there is nothing to render", () => {
     const { status, stderr } = run(["render"], appDir());
     expect(status).toBe(1);
-    expect(stderr).toContain("demos record");
+    expect(stderr).toContain("versioncam record");
   });
 
   test("a failure names the picture of it", async () => {
@@ -240,7 +239,7 @@ test.describe("the demos CLI", () => {
       writeFileSync(
         join(dir, "demos", "broken.clip.ts"),
         [
-          'import { clip } from "@living-demos/recorder";',
+          'import { clip } from "versioncam";',
           'export default clip("broken", { title: "Broken" }, async (s) => {',
           '  await s.open("/");',
           '  await s.click(s.byTestId("no-such-control"));',
@@ -258,7 +257,9 @@ test.describe("the demos CLI", () => {
       expect(stderr).toContain("the page when it gave up");
       expect(stderr).toContain("failure.png");
       expect(
-        existsSync(join(dir, ".demos", "recordings", "broken", "failure.png")),
+        existsSync(
+          join(dir, ".versioncam", "recordings", "broken", "failure.png"),
+        ),
       ).toBe(true);
     } finally {
       await close();
@@ -379,7 +380,7 @@ test.describe("the demos CLI", () => {
    * a file someone has edited.
    */
   test("init --claude installs the plugin's prompts, and will not clobber them", () => {
-    const dir = mkdtempSync(join(tmpdir(), "living-demos-init-"));
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-init-"));
     const agent = join(dir, ".claude", "agents", "demo-author.md");
 
     // It needs no config: a repository can install the prompts before it has
@@ -391,7 +392,7 @@ test.describe("the demos CLI", () => {
     expect(first.status).toBe(0);
     expect(first.stdout).toContain(join(".claude", "agents", "demo-author.md"));
     expect(first.stdout).toContain(
-      join(".claude", "skills", "demos-author", "SKILL.md"),
+      join(".claude", "skills", "versioncam", "SKILL.md"),
     );
     expect(existsSync(join(dir, ".claude", "agents", "demo-reviewer.md"))).toBe(
       true,

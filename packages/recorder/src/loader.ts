@@ -45,12 +45,7 @@ export async function bundleModule(
     // instance the CLI is running, and the same Playwright.
     external:
       platform === "node"
-        ? [
-            "@living-demos/recorder",
-            "@living-demos/recorder/*",
-            "playwright",
-            "node:*",
-          ]
+        ? ["versioncam", "versioncam/*", "playwright", "node:*"]
         : [],
   });
 
@@ -64,9 +59,9 @@ export async function importFresh<T>(file: string): Promise<T> {
 }
 
 const CONFIG_NAMES = [
-  "recorder.config.ts",
-  "recorder.config.js",
-  "recorder.config.mjs",
+  "versioncam.config.ts",
+  "versioncam.config.js",
+  "versioncam.config.mjs",
 ];
 
 export function findConfigFile(cwd: string): string | null {
@@ -81,12 +76,12 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
   const file = findConfigFile(cwd);
   if (!file) {
     throw new Error(
-      `No recorder config in ${cwd}. Create recorder.config.ts with a default export from defineRecorder().`,
+      `No versioncam.config.ts in ${cwd}. Create one with a default export from defineRecorder().`,
     );
   }
   // The cache directory comes from the config we have not read yet, so the
   // bundle goes next to the config until we know better.
-  const bootstrapCache = resolve(dirname(file), ".demos", ".cache");
+  const bootstrapCache = resolve(dirname(file), ".versioncam", ".cache");
   const bundle = await bundleModule(file, "node", bootstrapCache);
   const module = await importFresh<{ default?: RecorderConfig }>(bundle);
   if (!module.default) {
@@ -100,8 +95,9 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
 /**
  * Every clip the config points at, in file order.
  *
- * `only` filters by substring against the clip id, which is how `demos record
- * 05` works: an id is long and nobody wants to type one in full.
+ * `only` filters by substring against the clip id, which is how
+ * `versioncam record 05` works: an id is long and nobody wants to type one in
+ * full.
  */
 export async function loadClips(
   config: ResolvedConfig,

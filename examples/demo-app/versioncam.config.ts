@@ -1,4 +1,4 @@
-import { defineRecorder } from "@living-demos/recorder";
+import { defineRecorder } from "versioncam";
 
 /**
  * How this app describes itself to the recorder.

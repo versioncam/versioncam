@@ -40,7 +40,7 @@ naming the count — narrow it rather than reaching for the first match.
 - `settle(options?)` — wait for the page to stop working: DOM quiet, no
   requests in flight, fonts loaded, and whatever `settle.ready` adds. Advances
   the page's clock without capturing, so the wait never reaches the video.
-  `{ label }` is what `demos review` checks a beat sheet against, and what
+  `{ label }` is what `versioncam review` checks a beat sheet against, and what
   `--at-marks` samples, so give every beat one. Also takes `{ quietMs,
   timeoutMs, yieldMs, hook }`.
 - `offCamera(fn)` — run raw Playwright with nothing captured and no time spent:
@@ -71,7 +71,7 @@ naming the count — narrow it rather than reaching for the first match.
 - `lasso(target, planner, options?)` — press, follow a smoothed closed loop,
   release. The planner comes from `loop([[0.3, 0.3], …])`, exported beside the
   session, and is written in fractions of the target's box, so the stroke
-  survives a layout change. Measure first: `demos measure <path> <selector>`.
+  survives a layout change. Measure first: `versioncam measure <path> <selector>`.
   `{ duration, modifiers }`.
   A frame taken partway through the stroke looks wrong, and is not: the
   smoothing curves outside the points it passes through, so a half-drawn loop
@@ -97,10 +97,10 @@ None of these spends clip time. Each needs frames after it.
   target does not fill the frame as a result — at 1440 wide, `zoom(x, 1.7)`
   still shows about 850 pixels of page, which for a 310-pixel card reads as
   barely zoomed at all. If you want the target to dominate the shot, pass a
-  rect from `demos measure` to `camera.to` instead.
+  rect from `versioncam measure` to `camera.to` instead.
 - `camera.to(rect, options?)` — frame an exact rectangle in viewport pixels.
 - `camera.reset(options?)` — back to the whole viewport. Ending a clip on this
-  and nothing else is the classic mistake: `demos review` warns about it.
+  and nothing else is the classic mistake: `versioncam review` warns about it.
 - `highlight(target, style, options?)` — `"ring"` around it or `"spotlight"` on
   it, drawn in post at output resolution. `{ for }` in milliseconds.
 - `caption(text, options?)` — a line of text from now until the next caption or

@@ -26,7 +26,7 @@ async function appReachable(cwd: string): Promise<Check> {
       name: "app",
       ok: false,
       detail: `config did not load: ${(error as Error).message}`,
-      fix: "Fix recorder.config.ts; every other command loads it too.",
+      fix: "Fix versioncam.config.ts; every other command loads it too.",
     };
   }
 
@@ -99,8 +99,8 @@ export async function doctor(): Promise<number> {
   checks.push({
     name: "config",
     ok: config !== null,
-    detail: config ?? `no recorder.config.ts in ${process.cwd()}`,
-    fix: "Create recorder.config.ts with a default export from defineRecorder().",
+    detail: config ?? `no versioncam.config.ts in ${process.cwd()}`,
+    fix: "Create versioncam.config.ts with a default export from defineRecorder().",
   });
 
   // Only with a config: without one there is no `baseUrl` to try, and saying

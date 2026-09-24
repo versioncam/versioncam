@@ -30,7 +30,7 @@ import {
  *
  * Regenerate deliberately, never reflexively:
  *
- *     UPDATE_FIXTURE=1 npm run test:integration -w @living-demos/recorder
+ *     UPDATE_FIXTURE=1 npm run test:integration -w versioncam
  *
  * The baseline was regenerated once during the extraction. The recording
  * inherited from the prototype had been made before two later changes to that

@@ -1,4 +1,4 @@
-import { clip } from "@living-demos/recorder";
+import { clip } from "versioncam";
 
 /**
  * A destructive action behind a confirmation.
@@ -30,8 +30,8 @@ export default clip(
 
     // The list, not the status line under it: `list-status` measures at y 928
     // in an 800-pixel viewport, so a ring around it is drawn below the fold and
-    // appears in no frame. `demos review` warns about that now; it did not when
-    // this clip was written, and the ring had been invisible ever since.
+    // appears in no frame. `versioncam review` warns about that now; it did not
+    // when this clip was written, and the ring had been invisible ever since.
     await s.highlight(s.byTestId("shipments"), "ring", { for: 1500 });
     await s.hold(1600);
   },

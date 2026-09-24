@@ -16,7 +16,7 @@ import type { RenderConfig } from "../config.js";
  * The origin is fake. Nothing resolves it; every request for it is answered
  * here.
  */
-export const RENDER_ORIGIN = "http://living-demos.local";
+export const RENDER_ORIGIN = "http://versioncam.local";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",

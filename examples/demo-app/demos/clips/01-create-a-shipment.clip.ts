@@ -1,4 +1,4 @@
-import { clip } from "@living-demos/recorder";
+import { clip } from "versioncam";
 
 /**
  * Filling in a form and waiting for the result.

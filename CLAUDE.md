@@ -26,7 +26,7 @@ npx playwright install chromium && npm run test:integration
 
 All five gates green before any push; CI runs the same five plus the example
 app's `check`, `test:gate` and `render --sequence`. In the example app the
-CLI is `npx versioncam …` (until WP6 Part I lands it is still `npx demos …`).
+CLI is `npx versioncam …`.
 
 ## Conventions
 
@@ -46,10 +46,13 @@ CLI is `npx versioncam …` (until WP6 Part I lands it is still `npx demos …`)
   public method on `RecordingSession` goes into `dsl.md` or into that test's
   exclusion list, deliberately.
 - Recordings, renders, transcripts and sessions are build products:
-  `.demos/` → `.versioncam/` after WP6, `.env*`, `**/.auth/`, `*.har` are
-  gitignored and stay that way.
+  `.versioncam/`, `.env*`, `**/.auth/`, `*.har` are gitignored and stay that
+  way.
 - The shell on the development machine is **zsh**: quote globs
   (`grep --include='*.md'`), or `zsh` expands them before `grep` sees them.
+  And zsh does not word-split an unquoted `$VAR`, so `sed -i '' … $FILES`
+  hands sed one argument with newlines in it and changes nothing; pipe
+  `git grep -lz …` into `xargs -0` instead.
 
 ## The eval harness
 
@@ -57,7 +60,7 @@ CLI is `npx versioncam …` (until WP6 Part I lands it is still `npx demos …`)
 Claude Code session**, so a person runs the evals from a plain terminal and a
 session cannot — a plan that needs them says so and stops there. Results go
 to `docs/evals/<date>/`; the per-round transcripts land in the app's
-`.versioncam/author/<id>/` (`.demos/…` before WP6).
+`.versioncam/author/<id>/`.
 
 ## PathGen, the first consumer
 
@@ -66,11 +69,11 @@ a workspace that consumes this package by `npm link`, on PathGen's branch
 `feat/demos-package`. That repository has its own rules (`AGENTS.md` there),
 and the ones that bind work from here: **no commit without Peter's explicit
 approval of that commit; never `git add -A`; never read values from or touch
-its `.env*` files; never commit `.demos/`, `.versioncam/` or
-`.env.recording`; `make start` runs the stack and one client per DuckDB
-session — a stale `.wal` makes the next connection fail with
-`Table with name "samples" already exists`; never edit files while a
-recording runs** (Vite reloads the page being recorded).
+its `.env*` files; never commit `.versioncam/` or `.env.recording`;
+`make start` runs the stack and one client per DuckDB session — a stale
+`.wal` makes the next connection fail with `Table with name "samples"
+already exists`; never edit files while a recording runs** (Vite reloads the
+page being recorded).
 
 ## Git identity on Peter's machine
 

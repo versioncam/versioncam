@@ -1,5 +1,5 @@
 {
-  "name": "living-demos",
+  "name": "versioncam",
   "description": "Write a demo clip of a running app from a sentence of intent: an authoring skill that drives the recorder's command line and reviews the result from a contact sheet.",
   "version": "0.1.0",
   "author": {

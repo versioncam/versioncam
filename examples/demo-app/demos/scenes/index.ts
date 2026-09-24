@@ -1,4 +1,4 @@
-import type { Scene } from "@living-demos/recorder/scene";
+import type { Scene } from "versioncam/scene";
 
 /**
  * A designed panel: frames drawn rather than captured.

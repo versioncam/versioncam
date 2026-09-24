@@ -42,7 +42,7 @@ jobs:
 
       - name: Check the example's clips still match it
         working-directory: examples/demo-app
-        run: npx demos check
+        run: npx versioncam check
 
       # The gate decides not to take screenshots. This is the check that it
       # never changes what the recording shows — on a real app, not a fixture.
@@ -52,11 +52,11 @@ jobs:
 
       - name: Render the example's clips
         working-directory: examples/demo-app
-        run: npx demos render --sequence
+        run: npx versioncam render --sequence
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: example-demos
-          path: examples/demo-app/.demos/out
+          path: examples/demo-app/.versioncam/out
           if-no-files-found: warn

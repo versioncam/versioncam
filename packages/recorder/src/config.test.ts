@@ -22,10 +22,10 @@ describe("resolveConfig", () => {
 
   it("puts everything it writes under one ignorable directory", () => {
     const c = resolveConfig({ baseUrl: "http://x" }, ROOT);
-    expect(c.outDir).toBe("/tmp/app/.demos");
-    expect(c.recordingsDir).toBe("/tmp/app/.demos/recordings");
-    expect(c.outputDir).toBe("/tmp/app/.demos/out");
-    expect(c.cacheDir).toBe("/tmp/app/.demos/.cache");
+    expect(c.outDir).toBe("/tmp/app/.versioncam");
+    expect(c.recordingsDir).toBe("/tmp/app/.versioncam/recordings");
+    expect(c.outputDir).toBe("/tmp/app/.versioncam/out");
+    expect(c.cacheDir).toBe("/tmp/app/.versioncam/.cache");
   });
 
   it("resolves relative paths against the config's own directory", () => {

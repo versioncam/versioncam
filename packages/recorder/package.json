@@ -1,11 +1,11 @@
 {
-  "name": "@living-demos/recorder",
+  "name": "versioncam",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Record demo clips of a real web app: scripted, deterministic, regenerated on deploy.",
   "bin": {
-    "demos": "./bin/demos.js"
+    "versioncam": "./bin/versioncam.js"
   },
   "exports": {
     ".": {

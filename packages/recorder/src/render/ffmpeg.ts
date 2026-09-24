@@ -57,7 +57,7 @@ export function ffprobeSync(args: string[]): string {
   return execFileSync(ffprobePath(), args, { encoding: "utf8" });
 }
 
-/** For `demos doctor`: report rather than throw. */
+/** For `versioncam doctor`: report rather than throw. */
 export function ffmpegStatus(): {
   ffmpeg: string | null;
   ffprobe: string | null;

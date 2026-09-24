@@ -9,7 +9,7 @@ export default defineConfig([
   globalIgnores([
     "**/dist/**",
     "**/.types/**",
-    "**/.demos/**",
+    "**/.versioncam/**",
     "**/recordings/**",
     "**/out/**",
     "**/node_modules/**",
