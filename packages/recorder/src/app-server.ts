@@ -250,7 +250,7 @@ async function start(
   let stopping: Promise<void> | null = null;
   const stop = (): Promise<void> =>
     (stopping ??= (async () => {
-      await stopGroup(pid, exited);
+      const outcome = await stopGroup(pid, exited);
       stopped = true;
       for (const signal of signals) process.off(signal, onSignal);
       process.off("exit", onExit);
@@ -260,6 +260,19 @@ async function start(
       child.stdout.destroy();
       child.stderr.destroy();
       child.unref();
+      log.write(`--- ${outcome}\n`);
+      // Whether the group is gone is a question about processes. Whether the
+      // app is gone is a question about the port, and it is the one the next
+      // command will trip over — a container, say, that the start command
+      // handed the work to and that no signal to the group reaches.
+      const after = await probe(server.url, 1_000);
+      if (after.up) {
+        const warning =
+          `webServer: stopped "${server.command}", but ${server.url} still ` +
+          "answers: something it started is outside its process group and still running.";
+        log.write(`--- ${warning}\n`);
+        process.stderr.write(`${warning}\n`);
+      }
       // Flushed before this resolves, so whoever reads the log next — a person
       // after a failed start, a test — reads all of it.
       await new Promise<void>((resolve) => log.end(resolve));
@@ -334,11 +347,15 @@ function within(promise: Promise<unknown>, ms: number): Promise<void> {
 }
 
 /**
- * Signal every process in the group. False when there is no such group.
+ * Signal every process in the group. False when nothing in it can be.
  *
- * Anything but "no such process" is reported rather than thrown: this runs in
- * `finally` blocks and signal handlers, where throwing would bury the error
- * that got us there.
+ * "Nothing" has two spellings. ESRCH is the group being gone. EPERM, on macOS,
+ * is the group still existing with only zombies in it — processes that have
+ * exited and are waiting for launchd to reap them — because the kernel skips
+ * zombies and then reports that it found no process it was allowed to signal.
+ * Neither holds a port. Anything else is reported rather than thrown: this
+ * runs in `finally` blocks and signal handlers, where throwing would bury the
+ * error that got us there.
  */
 function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
   try {
@@ -346,9 +363,9 @@ function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
     return true;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code !== "ESRCH") {
+    if (code !== "ESRCH" && code !== "EPERM") {
       process.stderr.write(
-        `webServer: could not signal process group ${pid} (${code}); it may still be running.\n`,
+        `webServer: could not signal process group ${pid} (${code}).\n`,
       );
     }
     return false;
@@ -356,18 +373,28 @@ function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
 }
 
 /**
- * SIGTERM, up to `GRACE_MS` for the group to go, then SIGKILL.
+ * SIGTERM, up to `GRACE_MS` for the group to go, then SIGKILL. Returns what
+ * happened, for the log: whether a server needed killing is exactly what a
+ * database left in a bad state makes you want to know.
  *
  * "Gone" is the group, not the shell at its top: the shell exits at once and
  * its children — the actual server — are what hold the port. Waiting for the
- * shell's exit as well lets Node reap it, since a reaped-but-unwaited child is
- * still a member of the group as far as `kill(-pid, 0)` is concerned.
+ * shell's own exit too lets Node reap it, since an exited-but-unreaped child
+ * is still a member of the group as far as `kill(-pid, 0)` is concerned.
  */
-async function stopGroup(pid: number, exited: Promise<void>): Promise<void> {
-  if (!signalGroup(pid, "SIGTERM")) return;
-  if (await groupGone(pid, exited, GRACE_MS)) return;
+async function stopGroup(pid: number, exited: Promise<void>): Promise<string> {
+  const began = Date.now();
+  if (!signalGroup(pid, "SIGTERM")) return "stopped: it had already exited";
+  if (await groupGone(pid, exited, GRACE_MS)) {
+    return `stopped: SIGTERM, all of it gone after ${seconds(Date.now() - began)}`;
+  }
   signalGroup(pid, "SIGKILL");
-  await groupGone(pid, exited, 2_000);
+  if (await groupGone(pid, exited, 2_000)) {
+    return `stopped: still running ${seconds(GRACE_MS)} after SIGTERM, so SIGKILL`;
+  }
+  const warning = `webServer: process group ${pid} is still there after SIGKILL.`;
+  process.stderr.write(`${warning}\n`);
+  return warning;
 }
 
 async function groupGone(

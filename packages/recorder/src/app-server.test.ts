@@ -173,6 +173,55 @@ describe("ensureApp", () => {
     const log = readFileSync(join(config.outDir, "webserver.log"), "utf8");
     expect(log).toContain("hello from the dev server");
     expect(log).toContain(nodeServer(port, "hello from the dev server"));
+    // And how it ended: whether it needed a SIGKILL is the first question
+    // when a database it held comes back in a bad state.
+    expect(log).toMatch(/stopped: SIGTERM, all of it gone after/);
+  }, 20_000);
+
+  it("says so when the app outlives its process group", async () => {
+    // The case that no signal to the group can fix: the start command hands
+    // the server to something outside it — here a detached grandchild, in
+    // life a container runtime — and exits. The port is what tells.
+    const port = await freePort();
+    // The command needs the config's directory, so it is filled in second.
+    const config = configFor(port, { command: "true" });
+    const launcher = join(config.root, "launcher.cjs");
+    writeFileSync(
+      launcher,
+      [
+        "const { spawn } = require('node:child_process');",
+        `const server = "require('node:http').createServer((q, s) => s.end('ok')).listen(${port}, '127.0.0.1')";`,
+        "const child = spawn(process.execPath, ['-e', server], { detached: true, stdio: 'ignore' });",
+        "console.log('escaped ' + child.pid);",
+        "child.unref();",
+        "setInterval(() => {}, 1000);",
+      ].join("\n"),
+    );
+    config.webServer = {
+      ...config.webServer!,
+      command: `"${process.execPath}" "${launcher}"`,
+    };
+
+    const warnings: string[] = [];
+    const write = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string) => {
+      warnings.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    let escaped = 0;
+    try {
+      const app = await ensureApp(config);
+      expect(app.started).toBe(true);
+      await app.stop();
+      const log = readFileSync(join(config.outDir, "webserver.log"), "utf8");
+      escaped = Number(/escaped (\d+)/.exec(log)?.[1]);
+      expect(warnings.join("")).toContain("still answers");
+      expect(log).toContain("still answers");
+      expect(await refuses(port)).toBe(false);
+    } finally {
+      process.stderr.write = write;
+      if (escaped > 0) process.kill(escaped, "SIGTERM");
+    }
   }, 20_000);
   it("does not hand the app what the recorder loaded for itself", async () => {
     // `.env.recording` holds the recorder's sign-in. The dev server gets the

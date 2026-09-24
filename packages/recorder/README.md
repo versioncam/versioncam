@@ -79,15 +79,20 @@ that drives the app — `record`, `check`, `inspect`, `measure`, `login`,
 afterwards; with `CI` set it is refused instead, because on a runner a server
 that was up before the job started is not the build under test
 (`reuseExistingServer: true` allows it). Silence means the command starts
-`command` through a shell, with the shell's environment plus `env` — not
-what the recorder loaded from `.env.recording` for itself — waits for an
-answer, and writes what it prints to `.versioncam/webserver.log`. Whatever it
-started, it stops when it finishes — normally, on an error, or on Ctrl-C — by
+`command` through a shell, with the shell's environment plus `env` — not what
+the recorder loaded from `.env.recording` for itself — waits for an answer,
+and writes what it prints to `.versioncam/webserver.log`. Whatever it started,
+it stops when it finishes — normally, on an error, or on Ctrl-C — by
 signalling the command's whole process group: SIGTERM, five seconds' grace,
-then SIGKILL. Something the start command hands off to outside that group,
-such as a container runtime, is out of its reach, and so is worth starting
-yourself. So is any stack with a slow cold start: every command reuses what
-is already running.
+then SIGKILL, and the log says which it took. Something the start command
+hands off to outside that group, such as a container runtime, is out of its
+reach — the command warns when the port still answers after the stop — and so
+is worth starting yourself. So is any stack with a slow cold start: every
+command reuses what is already running.
+
+For a stack of several services, point `url` at the one that is ready last,
+not at the page: a dev server answers seconds before the API behind it, and a
+clip that opens then meets a sign-in form with nothing to sign in to.
 
 ## Write a clip
 
