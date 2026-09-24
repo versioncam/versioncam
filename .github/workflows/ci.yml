@@ -46,13 +46,16 @@ jobs:
         run: npm run test:gate
 
       # When two recordings differ, the tests attach the pictures behind the
-      # first differing frame. On a runner nobody can log into, that is the
-      # only way to see what differed.
+      # first differing frame, and the stability runs are kept whole — two
+      # timelines and their states, enough to compare any frame. On a runner
+      # nobody can log into, that is the only way to see what differed.
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: example-test-results
-          path: examples/demo-app/test-results
+          path: |
+            examples/demo-app/test-results
+            examples/demo-app/.versioncam/recordings/__stability
           if-no-files-found: ignore
 
       - name: Render the example's clips
