@@ -34,6 +34,8 @@ const NOT_AUTHORING_SURFACE = new Set([
   "pushCameraKey",
   "pushHold",
   "boxOf",
+  "untilVisible",
+  "whileTicking",
   "whyLocatorFailed",
   "resolvePoint",
   "resolveSize",

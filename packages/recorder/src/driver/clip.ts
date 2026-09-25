@@ -76,8 +76,8 @@ export type RunClipResult = {
 /**
  * Record one clip.
  *
- * A fresh context each time, with the fake clock installed before any
- * navigation so the app's own boot timers are fake from the first tick.
+ * A fresh context each time, with the fake clock paused before any navigation
+ * so the app's own boot timers are fake from the first tick.
  */
 export type RunClipOptions = {
   /**
@@ -125,7 +125,15 @@ export async function runClip(
 
   await page.addInitScript(MUTATION_COUNTER_SCRIPT);
   await page.addInitScript(FREEZE_CSS_SCRIPT);
-  await page.clock.install({ time: config.clock.time });
+  // Paused, not just installed. `clock.install()` leaves Playwright's fake
+  // clock running on real time between the driver's own `runFor` calls, so
+  // every screenshot, every probe and every stall of the machine reached the
+  // page as time: on the Linux runner one slow frame moved the page's clock
+  // 840 ms instead of 67, and the example app's 800 ms timer fired seven
+  // frames early. Paused, it moves only when the driver moves it — 1/fps a
+  // frame, a tick at a time while it waits — and it starts at exactly
+  // `clock.time` instead of that plus however long the navigation took.
+  await page.clock.pauseAt(config.clock.time);
 
   // A dev server broadcasts a full page reload to every connected client when
   // it cannot hot-update a changed module, including a page being recorded.

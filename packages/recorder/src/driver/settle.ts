@@ -25,7 +25,8 @@ export type SettleReport = {
   lastBlocker: string;
 };
 
-const TICK_MS = 16;
+/** One step of the page's clock whenever the recorder waits on the page. */
+export const TICK_MS = 16;
 const DEFAULT_YIELD_MS = 20;
 
 /**

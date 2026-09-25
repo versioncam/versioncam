@@ -45,7 +45,9 @@ naming the count — narrow it rather than reaching for the first match.
   timeoutMs, yieldMs, hook }`.
 - `offCamera(fn)` — run raw Playwright with nothing captured and no time spent:
   mocking an API, seeding data, priming a conversation. `fn` is given the
-  Playwright `Page`, which is also `s.page` if you need it directly.
+  Playwright `Page`, which is also `s.page` if you need it directly. No time
+  on the page's clock either: what the app needs time to finish after `fn`,
+  a `settle` gives it.
 
 ## Navigation
 

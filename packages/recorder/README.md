@@ -413,6 +413,12 @@ in the app does not depend on authored time. What we have found doing this:
   Linux, where text has LCD antialiasing: one pixel of one frame, in about half
   of all runs. Side by side the two pictures look identical; subtracting one
   from the other finds it.
+- A **timer firing early**, via the recorder's own fault, since fixed: the
+  page's fake clock was installed but left running on real time between
+  frames, so a slow screenshot reached the page as time. One stalled frame on
+  a CI runner moved the clock 840 ms instead of 67 and the example app's
+  shipment appeared seven frames early. The clock is paused now and moves only
+  when the driver moves it.
 
 If the two recordings match and something else does not, the next question is
 what changed between them — the gate (`capture: { gate: false }` turns it off)

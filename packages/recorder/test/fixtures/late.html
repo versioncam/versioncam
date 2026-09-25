@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Something that arrives late</title>
+    <style>
+      body { margin: 0; background: #fff; font: 16px Arial, Helvetica, sans-serif; }
+      button { position: absolute; left: 120px; top: 120px; padding: 12px 20px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      A control the app shows from its own timer, 300 ms after load, the way
+      a menu opens after a delay or results land behind a debounce. The page is
+      quiet before then, so a settle can finish first — and the page's clock
+      is paused, so nothing arrives unless the recorder moves it.
+
+      The click writes down when it happened on the page's clock, which is the
+      thing the test compares between runs.
+    -->
+    <button data-testid="late" hidden>Arrived</button>
+    <script>
+      const late = document.querySelector('[data-testid="late"]');
+      late.addEventListener("click", () => {
+        document.body.dataset.clickedAt = String(performance.now());
+      });
+      setTimeout(() => {
+        late.hidden = false;
+      }, 300);
+    </script>
+  </body>
+</html>

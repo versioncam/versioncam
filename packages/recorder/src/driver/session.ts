@@ -2,6 +2,7 @@ import type { Locator, Page } from "playwright";
 import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   cursorEnd,
   evalCursor,
@@ -22,7 +23,7 @@ import {
 import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline.js";
 import { emptyTiming } from "../core/timing.js";
 import type { RecordingTiming } from "../core/timing.js";
-import { settlePage } from "./settle.js";
+import { TICK_MS, settlePage } from "./settle.js";
 import type { SettleOptions, SettleReport } from "./settle.js";
 import { FRAME_PROBE } from "./page-hooks.js";
 import type { FrameProbe } from "./page-hooks.js";
@@ -205,6 +206,9 @@ export class RecordingSession {
    * Run raw Playwright without capturing or advancing authored time. For
    * setup that should not appear in the clip: seeding cohorts, warming tiles,
    * priming a chat conversation.
+   *
+   * The page's clock does not move either, however long `fn` takes: time the
+   * app needs to finish what `fn` started is what the next `settle()` is for.
    */
   async offCamera<T>(fn: (page: Page) => Promise<T>): Promise<T> {
     return fn(this.page);
@@ -275,8 +279,14 @@ export class RecordingSession {
     const startedAt = performance.now();
     await this.page.goto(url, { waitUntil: "domcontentloaded" });
 
+    // Signing in is the one stretch where the page is in someone else's hands
+    // and the recorder cannot know what the app is waiting for — a redirect
+    // on a timer, a debounced field — so the page's clock runs alongside real
+    // time for it, as it would in any browser. Nothing is filmed until the
+    // settle below has had its say.
     const auth = this.options.config.auth;
-    if (auth?.login) await auth.login(this.page);
+    const login = auth?.login;
+    if (login) await this.whileTicking(() => login(this.page));
     this.timing.openMs += performance.now() - startedAt;
 
     await this.settle({
@@ -619,9 +629,7 @@ export class RecordingSession {
    * as to which step it was on. Fifteen seconds and a named failure instead.
    */
   private async boxOf(locator: Locator, timeoutMs = 15_000): Promise<Rect> {
-    try {
-      await locator.waitFor({ state: "visible", timeout: timeoutMs });
-    } catch {
+    if (!(await this.untilVisible(locator, timeoutMs))) {
       throw new Error(await this.whyLocatorFailed(locator, timeoutMs));
     }
     const box = await locator.boundingBox();
@@ -631,6 +639,63 @@ export class RecordingSession {
       );
     }
     return { x: box.x, y: box.y, w: box.width, h: box.height };
+  }
+
+  /**
+   * Wait for a target to be on screen, advancing the page's clock a tick at a
+   * time while it is not.
+   *
+   * The clock is paused, so a target the app shows from its own timer — a menu
+   * that opens after a delay, results behind a debounce — would never arrive
+   * if this only waited. Ticking as `settle()` does brings it in the same
+   * number of ticks every run, and costs nothing in the usual case: a target
+   * already on screen is one round trip and no page time at all.
+   */
+  private async untilVisible(
+    locator: Locator,
+    timeoutMs: number,
+  ): Promise<boolean> {
+    const deadline = performance.now() + timeoutMs;
+    for (;;) {
+      try {
+        if (await locator.isVisible()) return true;
+      } catch {
+        // Almost always a locator that matched more than one element, which
+        // no amount of waiting fixes; the caller says which failure it was.
+        return false;
+      }
+      if (performance.now() > deadline) return false;
+      await this.page.clock.runFor(TICK_MS);
+      await sleep(TICK_MS);
+    }
+  }
+
+  /**
+   * Run `fn` with the page's clock ticking alongside real time, the way it
+   * runs in a browser nobody is driving.
+   *
+   * Only for code the recorder hands the page to and cannot see into, and
+   * never while a frame is being made: the ticks land wherever the machine's
+   * speed puts them, which is exactly what the frames must not depend on.
+   */
+  private async whileTicking<T>(fn: () => Promise<T>): Promise<T> {
+    let done = false;
+    const ticking = (async () => {
+      while (!done) {
+        await sleep(TICK_MS);
+        if (done) break;
+        // One of the app's timers throwing is the app's business, as it
+        // would be in any browser, and not a reason to fail the sign-in it
+        // happened during.
+        await this.page.clock.runFor(TICK_MS).catch(() => undefined);
+      }
+    })();
+    try {
+      return await fn();
+    } finally {
+      done = true;
+      await ticking;
+    }
   }
 
   /**
