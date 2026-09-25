@@ -406,6 +406,13 @@ in the app does not depend on authored time. What we have found doing this:
   cancelling the animation the driver had just scrubbed. Worth knowing because
   the symptom was six pixels in one frame of three hundred, which reads as
   noise rather than as a bug.
+- A **typed letter's edge**, via the recorder's own fault, since fixed: a
+  draft's screenshot has Chromium paint the page again at CSS scale, and it
+  repainted only the rectangle the page reported as changed, which at that
+  scale could stop a pixel short of a new glyph's antialiased edge. Only on
+  Linux, where text has LCD antialiasing: one pixel of one frame, in about half
+  of all runs. Side by side the two pictures look identical; subtracting one
+  from the other finds it.
 
 If the two recordings match and something else does not, the next question is
 what changed between them — the gate (`capture: { gate: false }` turns it off)
