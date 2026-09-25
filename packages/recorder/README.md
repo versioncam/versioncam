@@ -11,10 +11,11 @@ the second it gave up — instead of quietly producing a video that is wrong.
 
 ## Install
 
-Once published, three steps, and the third is a sentence:
+Three commands, then a sentence:
 
 ```bash
 npm i -D versioncam
+npx versioncam install       # the Chromium this version records with
 npx versioncam init          # installs the authoring skill into .claude/
 ```
 
@@ -26,29 +27,37 @@ The first run of the skill sets the repository up: it writes
 `versioncam.config.ts` from what it finds, proves the app starts and records
 the same way twice, and only then writes the clip. See *Authoring*.
 
-This package is not published yet — it is `private: true` and on no registry —
-so until it is, a consumer installs it from the checkout:
+`npx versioncam doctor` checks the rest — Node 22 or later, Chromium, ffmpeg,
+your config, and whether the app starts. ffmpeg and ffprobe come from the
+system (`brew install ffmpeg`, `apt install ffmpeg`); the optional
+`ffmpeg-static` covers images that have neither, but it does not include
+ffprobe. It is tested on macOS and Linux; Windows is untested.
 
-```bash
-# once, in this repository
-npm --prefix packages/recorder link
+`install` rather than `npx playwright install`, because versioncam pins its
+Playwright exactly — a new Chromium changes every captured pixel — and your
+app may have a Playwright of its own, at another version, whose Chromium is
+the one `npx playwright install` fetches.
 
-# then in the app that wants clips
-npm link versioncam
-npx playwright install chromium
-npx versioncam doctor          # node, chromium, ffmpeg, your config, and the app
+### In CI
+
+The same install, then `check`, which records every clip and fails the job on
+the first one that no longer matches the app:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 22
+- run: npm ci
+- run: npx versioncam install --with-deps
+- run: npx versioncam check
 ```
 
-A `file:` dependency works too and survives `npm ci`, which a link does not:
-
-```jsonc
-// package.json in the app
-{ "devDependencies": { "versioncam": "file:../versioncam/packages/recorder" } }
-```
-
-ffmpeg and ffprobe come from the system (`brew install ffmpeg`,
-`apt install ffmpeg`). The optional `ffmpeg-static` covers images that have
-neither, but it does not include ffprobe.
+`check` records and does not render, so it needs no ffmpeg; a job that also
+runs `render` adds `sudo apt-get install -y ffmpeg`. Two runs on one runner
+image produce the same bytes. To pin everything the pixels depend on — the
+browser build, the fonts, the system libraries — run the job in the Playwright
+image for the version versioncam pins, `mcr.microsoft.com/playwright:v1.59.1-noble`,
+where Chromium and its libraries are already installed.
 
 ## Configure
 
@@ -181,6 +190,8 @@ versioncam measure <path> <sel>    where the matches of a selector are, and what
 versioncam dsl                     the clip DSL, every method, one line each
 versioncam login                   sign in once and save the session
 versioncam doctor                  check this machine can record, and that the app starts
+versioncam install                 the Chromium this version of versioncam records with
+    --with-deps                    and its system libraries (Linux CI)
 versioncam init                    install the authoring skill into .claude/
     --into <dir>                   into <dir>/versioncam/ instead, for another host
     --force                        overwrite files that are already there

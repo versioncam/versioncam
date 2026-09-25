@@ -30,6 +30,12 @@ All five gates green before any push; CI runs the same five plus the example
 app's `check`, `test:gate` and `render --sequence`. In the example app the
 CLI is `npx versioncam …`.
 
+An app elsewhere on this machine that needs a build not yet on npm installs a
+tarball, never a link: `npm pack` in `packages/recorder`, then
+`npm i -D <path>/versioncam-<version>.tgz` in the app. A tarball is exactly
+what npm would deliver; a link resolves the package's dependencies from this
+repository instead, and hides anything `files` leaves out of the tarball.
+
 ## Conventions
 
 - **Comments say why**, at the density of the surrounding code. This code is

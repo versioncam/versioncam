@@ -98,7 +98,7 @@ export async function doctor(): Promise<number> {
     name: "chromium",
     ok: chromiumPath !== "" && existsSync(chromiumPath),
     detail: chromiumPath || "not installed",
-    fix: "npx playwright install chromium",
+    fix: "npx versioncam install",
   });
 
   const { ffmpeg, ffprobe } = ffmpegStatus();
