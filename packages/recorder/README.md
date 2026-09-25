@@ -432,3 +432,13 @@ but the run is lost either way.
 
 Record one clip at a time against a given app session. The CLI already does;
 the thing to avoid is leaving a browser tab open on the same session.
+
+## Licence
+
+Versioncam is under the Functional Source License, version 1.1, with Apache
+2.0 as its future licence (`FSL-1.1-ALv2`). Use it on your own apps and in your
+own CI, commercial work included, and change it as you need; what the licence
+does not allow is making it available to others in a product or service that
+competes with it. Two years after each version is released, that version is
+also available under Apache 2.0. This is a summary; `LICENSE.md` is the
+licence.

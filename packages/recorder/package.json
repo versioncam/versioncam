@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Record demo clips of a real web app: scripted, deterministic, regenerated on deploy.",
+  "license": "FSL-1.1-ALv2",
   "bin": {
     "versioncam": "./bin/versioncam.js"
   },
