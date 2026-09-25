@@ -15,8 +15,8 @@ directory that holds `versioncam.config.ts`.
 
 Three things, in this order, before the first line of the clip:
 
-1. **`npx versioncam dsl`.** The whole authoring surface, generated from the
-   code — the only list of methods worth trusting. Prose about this DSL has
+1. **`npx versioncam dsl`.** The whole authoring surface, held to the code by
+   a test — the only list of methods worth trusting. Prose about this DSL has
    been wrong before, and a clip written against a method that did not exist
    quietly did something else for months. If a method is not in that output,
    it does not exist, however plausible it sounds.
