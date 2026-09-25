@@ -21,7 +21,7 @@
     "access": "public"
   },
   "bin": {
-    "versioncam": "./bin/versioncam.js"
+    "versioncam": "bin/versioncam.js"
   },
   "exports": {
     ".": {
@@ -39,6 +39,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.test.*",
     "bin",
     "dsl.md",
     "plugin",
