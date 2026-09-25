@@ -5,8 +5,10 @@ script in the consuming app's repository; the recorder drives a real browser
 through it on an authored clock, a reviewer judges the result from a contact
 sheet, and CI re-records every clip so a demo that no longer matches the app
 fails instead of quietly lying. The master plan is [`docs/plan.md`](docs/plan.md);
-each work package has its own execution record, `docs/wp*.md`. Read the
-plan's sections 1–3 and the current work package before changing code.
+the product plan — IXO adoption, publishing, the hosted service, revenue — is
+[`docs/product.md`](docs/product.md); each work package has its own execution
+record, `docs/wp*.md`. Read the plan's sections 1–3 and the current work
+package before changing code.
 
 ## Layout
 
