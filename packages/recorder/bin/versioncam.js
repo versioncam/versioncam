@@ -20,7 +20,8 @@ const entry = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "cli",
 if (!existsSync(entry)) {
   process.stderr.write(
     "versioncam has not been built: no dist/cli/main.js.\n" +
-      "Run `npm run build` in the package (or reinstall a published version).\n",
+      "Reinstall it — a published version always includes the build — or,\n" +
+      "in a checkout of its source, run `npm run build`.\n",
   );
   process.exit(1);
 }

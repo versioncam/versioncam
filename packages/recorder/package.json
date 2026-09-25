@@ -1,10 +1,25 @@
 {
   "name": "versioncam",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Record demo clips of a real web app: scripted, deterministic, regenerated on deploy.",
   "license": "FSL-1.1-ALv2",
+  "author": "Peter Bulovec",
+  "homepage": "https://version.cam",
+  "bugs": "https://github.com/versioncam/versioncam/issues",
+  "keywords": [
+    "demo",
+    "video",
+    "screen-recording",
+    "playwright",
+    "docs",
+    "ci",
+    "deterministic",
+    "agent-skill"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "versioncam": "./bin/versioncam.js"
   },
@@ -26,7 +41,8 @@
     "dist",
     "bin",
     "dsl.md",
-    "plugin"
+    "plugin",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22"
