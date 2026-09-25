@@ -133,7 +133,7 @@ export async function init(argv: string[]): Promise<number> {
 
   process.stdout.write(
     `\nInstalled. Ask your agent: /versioncam "<what the clip should show>"\n` +
-      "The first run sets this repository up.\n",
+      "The first run sets this repository up. Documentation: https://version.cam\n",
   );
   return 0;
 }

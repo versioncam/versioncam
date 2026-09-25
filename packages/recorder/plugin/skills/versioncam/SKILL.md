@@ -37,9 +37,11 @@ when a step says to.
 First, check versioncam is installed where Node will find it:
 `ls -d node_modules/versioncam`, then the same in each parent directory up to
 the repository root (`../node_modules/versioncam`, …) — a workspace hoists it.
-If none has it, **stop** and say it must be installed first. Every step below
-runs `npx versioncam`, and `npx` with nothing installed downloads whatever is
-published under that name.
+If none has it, **stop** and say it must be installed first
+(`npm i -D versioncam`, then `npx versioncam install`). Every step below runs
+`npx versioncam`, and `npx` with nothing installed downloads the latest
+published version — not necessarily the one this repository will pin, and
+with no Chromium to record with.
 
 Then: is there a `versioncam.config.ts` (or `.js`, `.mjs`) in the working
 directory?

@@ -143,8 +143,8 @@ for a straight one, `s.lasso` for a closed loop) are authored in fractions of a
 target's box for the same reason: a clip built from locators survives a layout
 change.
 
-`npx versioncam dsl` prints the whole surface, generated from the code, and a test
-asserts that list and the session agree. That is worth more than it sounds:
+`npx versioncam dsl` prints the whole surface, and a test asserts that list and
+the session agree. That is worth more than it sounds:
 this README promised an `s.drag` for months while there was none, and a clip
 that needed one clicked instead — on a d3 brush, where a click sets a selection
 of zero width and so *clears* the filter. It recorded cleanly and showed
@@ -169,8 +169,8 @@ can quote the status line it is waiting for rather than guess at it.
 ```
 versioncam record [id…]            drive the app and capture frames
     --draft                        15fps at CSS scale: cheap, for writing clips
-versioncam render [id…]            composite and encode
-    --scene <id>                   render a designed scene
+versioncam render [id…]            composite and encode what has been recorded
+    --scene <id>                   render a designed scene (repeatable)
     --sequence                     stitch the results into one piece
 versioncam check [id…]             record everything; non-zero if any clip breaks
 versioncam stability [id…]         record each clip twice the same way; stable or not
@@ -182,13 +182,16 @@ versioncam frame <id> <n>          one frame at output size, to a png
     --t <seconds>                  pick the frame by time instead
     --at <label>                   or by the beat it shows
 versioncam preview <id>            open the scrubber in a real browser
+    --scene <id>                   preview a scene instead
+    --frame <n>                    start at this frame
 versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
     --beats <file>                 [{ label, expect }] the clip promised
     --min <s> --max <s>            duration bounds (default 9–11)
 versioncam inspect <path>          what a clip can click, and where each name came from
+    --json                         machine-readable
 versioncam measure <path> <sel>    where the matches of a selector are, and what they say
 versioncam dsl                     the clip DSL, every method, one line each
-versioncam login                   sign in once and save the session
+versioncam login                   sign in once and save the browser session
 versioncam doctor                  check this machine can record, and that the app starts
 versioncam install                 the Chromium this version of versioncam records with
     --with-deps                    and its system libraries (Linux CI)
@@ -358,27 +361,23 @@ screen, that nothing was written after the last frame. Whether the clip is
 
 ## Determinism
 
-Two runs of a clip on one machine produce the same bytes. The package's own
-tests assert it for capture and for rendering, and a golden-file check pins the
-capture path against unintended change.
+Two runs of a clip on one machine produce the same bytes, draft and full. The
+package's own tests assert it for capture and for rendering on every change,
+on macOS and on Linux, and a golden recording pins the capture path against
+changes nobody meant to make.
 
 Across machines the claim is narrower, and worth stating precisely: the
 **timeline** is identical — it is what the driver decided, and nothing in it
-depends on the host. The captured **pixels** are not, because macOS and Linux
-rasterise text differently, so the same page in the same state is the same
-picture and a different file. Byte-identity is a property of a fixed rendering
-environment; the golden-file check compares bytes only on the platform its
-baseline was recorded on, and compares the timeline everywhere.
+depends on the host. The captured **pixels** are identical only where the
+rendering environment is: macOS and Linux rasterise text differently, so the
+same page in the same state is the same picture and a different file.
+Byte-identity is a property of a fixed environment, which in CI means one
+runner image — the Playwright container for the version versioncam pins is
+the simplest (see *In CI*).
 
-Regenerate that baseline deliberately, never reflexively:
-
-```bash
-UPDATE_FIXTURE=1 npm run test:integration -w versioncam
-```
-
-If a byte-identity test fails, something outside the authored clock leaked
-into a frame — an unwarmed resource, a real timer, a font that had not
-finished loading. Fix the cause, not the assertion.
+If two recordings of your clip on one machine differ, something outside the
+authored clock reached a frame — an unwarmed resource, a real timer, a font
+that had not finished loading. Find the cause; the next section is how.
 
 ### When a clip will not reproduce
 
@@ -407,8 +406,9 @@ no id it checks every clip, and it exits 0 only when every pair matched —
 which makes it the first thing to run in a repository before writing a clip
 for it, and what the authoring skill does on a first run.
 
-If the runs differ, nothing about the recorder is implicated yet — something
-in the app does not depend on authored time. What we have found doing this:
+If the runs differ, something on the page did not run on authored time. Look
+at the app first, but not only there: of the four causes found so far, the
+recorder was two. What we have found doing this:
 
 - An **autosizing text field** that settles a frame later depending on how the
   browser scheduled the layout. The clips that typed diverged; the clips that
@@ -443,6 +443,14 @@ but the run is lost either way.
 
 Record one clip at a time against a given app session. The CLI already does;
 the thing to avoid is leaving a browser tab open on the same session.
+
+## Help
+
+This README is also the documentation at [version.cam](https://version.cam).
+Bugs, questions, and apps it cannot record go to the issue tracker at
+[github.com/versioncam/versioncam](https://github.com/versioncam/versioncam/issues)
+— a clip that will not reproduce is easiest to help with alongside the two
+pictures `versioncam stability` saves.
 
 ## Licence
 
