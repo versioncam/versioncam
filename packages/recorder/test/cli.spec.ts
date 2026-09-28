@@ -345,7 +345,7 @@ test.describe("the versioncam CLI", () => {
     const { dir, port } = await startableDir();
     writeOpenClip(dir);
     const { status, stdout } = await runAsync(["stability", "open"], dir);
-    expect(stdout).toMatch(/open: run 1 vs run 2 — (\d+) frames, \1 identical/);
+    expect(stdout).toMatch(/open: run 1 vs run 2 · (\d+) frames, \1 identical/);
     expect(stdout.trim().split("\n").at(-1)).toBe("stable");
     expect(status).toBe(0);
     // Beside the clip's own recording, never over it.
@@ -370,7 +370,7 @@ test.describe("the versioncam CLI", () => {
     const { status, stdout } = await runAsync(["stability", "open"], dir);
     expect(stdout).toContain("first difference at frame 0");
     expect(stdout.trim().split("\n").at(-1)).toBe(
-      "unstable — something on this page does not run on authored time",
+      "unstable: something on this page does not run on authored time",
     );
     expect(status).toBe(1);
     // The two pictures, named by frame and run, with the extension the

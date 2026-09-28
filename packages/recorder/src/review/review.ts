@@ -103,7 +103,7 @@ function checkBeats(timeline: Timeline, beats: Beat[]): ReviewItem {
       missing.length === 0
         ? `${beats.length} beats, each with a mark`
         : `no settle labelled ${missing.map((b) => `"${b.label}"`).join(", ")}` +
-          ` — the clip has ${[...labels].map((l) => `"${l}"`).join(", ") || "none"}`,
+          ` (the clip has ${[...labels].map((l) => `"${l}"`).join(", ") || "none"})`,
   };
 }
 
@@ -189,7 +189,7 @@ function checkRendered(timeline: Timeline): ReviewItem {
     pass: false,
     warning: true,
     detail:
-      `${unseen.join(", ")} — the clip ends at frame ${lastFrame} ` +
+      `${unseen.join(", ")}: the clip ends at frame ${lastFrame} ` +
       `(${seconds(timeline.durationFrames / timeline.fps)}), so nothing renders them. ` +
       "A track write costs no time; give it a `hold` to be seen in.",
   };
@@ -258,7 +258,7 @@ function checkOnScreen(timeline: Timeline): ReviewItem {
     warning: true,
     detail:
       `${offscreen.length} highlight(s) outside what the camera is showing ` +
-      `(${where}) — drawn where no frame can show them`,
+      `(${where}), so no frame can show them`,
   };
 }
 

@@ -1,9 +1,10 @@
 # The versioncam skill
 
-`/versioncam "<what the clip should show>"` records a clip of your web app: it
+`/versioncam "<what the clip should show>"` records a clip of your web app. It
 writes the script, records it, has a reviewer look at the result, and fixes
-what the reviewer finds — until the reviewer passes it or the rounds run out.
-The first time it runs in a repository, it sets the repository up first.
+what the reviewer finds. It stops when the reviewer passes the clip or the
+rounds run out. The first time it runs in a repository, it sets the
+repository up first.
 
 Nothing here calls an API. The model is whichever agent session runs the
 skill, and the vision step is that session's file reader opening a contact
@@ -17,11 +18,11 @@ The skill ships inside the `versioncam` npm package:
 npx versioncam init        # .claude/skills/versioncam/ and .claude/agents/versioncam-reviewer.md
 ```
 
-`init` installs the skill and nothing else — no config: the first run writes
-that. It refuses to overwrite a file that is already there, and refuses the
-whole install if any one is; `--force` overwrites. For an agent host that reads
-skills from somewhere other than `.claude/`, `--into <dir>` puts the skill
-directory at `<dir>/versioncam/`, with the reviewer inside it.
+`init` installs the skill and nothing else, not even a config: the first run
+writes that. It refuses to overwrite a file that is already there, and
+refuses the whole install if any one is. `--force` overwrites. For an agent
+host that reads skills from somewhere other than `.claude/`, `--into <dir>`
+puts the skill directory at `<dir>/versioncam/`, with the reviewer inside it.
 
 Or, without copying anything, load the plugin directory as it is:
 
@@ -38,40 +39,45 @@ claude --plugin-dir node_modules/versioncam/plugin
 
 ## What it does
 
-**The first run** — no `versioncam.config.ts` in the directory — sets the
-repository up (`skills/versioncam/onboarding.md`): it works out how the app
-starts and where it is served, from `package.json`, the framework's config and
-the README, and asks when there is more than one plausible answer; asks whether
-the app signs in and how you want that handled; writes the config, with a
-`webServer` so every command starts the app itself; runs `doctor` and
-`inspect` to prove the app starts and settles; and records a three-second clip
-twice with `stability`, to prove the app records the same way twice before a
-clip is written for it. Nothing is committed.
+**The first run**, in a directory with no `versioncam.config.ts`, sets the
+repository up (`skills/versioncam/onboarding.md`):
 
-**Every run** then (`skills/versioncam/SKILL.md`):
+1. It works out how the app starts and where it is served, from
+   `package.json`, the framework's config and the README. When there is more
+   than one plausible answer, it asks.
+2. It asks whether the app signs in, and how you want that handled.
+3. It writes the config, with a `webServer` so every command starts the app
+   itself.
+4. It runs `doctor` and `inspect` to prove the app starts and settles.
+5. It records a three-second clip twice with `stability`, to prove the app
+   records the same way twice before a clip is written for it.
 
-1. `versioncam doctor` — which starts the app — and `inspect /`.
+Nothing is committed.
+
+**Every run** then goes like this (`skills/versioncam/SKILL.md`):
+
+1. `versioncam doctor`, which starts the app, and `inspect /`.
 2. The session writes the clip itself, following
-   `skills/versioncam/authoring.md`: it reads `versioncam dsl` and the existing
-   clips, writes a beat sheet, writes the clip, records it in draft, and runs
-   the deterministic checks in `versioncam review`. Three recordings at most,
-   then on. On a page too big to hold in context, it hands this to a subagent
-   and keeps that subagent for later rounds.
-3. A contact sheet sampled at the beats, and a **fresh reviewer** on it — one
-   picture, a five-item checklist, a JSON verdict. Fresh every round,
-   deliberately: it sees the clip, never the argument for it.
-4. On a pass, a full-quality record and render. Otherwise the fixes the verdict
-   names, and another round.
+   `skills/versioncam/authoring.md`. It reads `versioncam dsl` and the
+   existing clips, writes a beat sheet, writes the clip, records it in draft,
+   and runs the checks in `versioncam review`. Three recordings at most, then
+   it moves on. On a page too big to hold in context, it hands this step to a
+   subagent and keeps that subagent for later rounds.
+3. A contact sheet sampled at the beats, and a **fresh reviewer** on it: one
+   picture, a five-item checklist, a JSON verdict. The reviewer is new every
+   round, on purpose. It sees the clip, never the argument for it.
+4. On a pass, a full-quality record and render. Otherwise the fixes the
+   verdict names, and another round.
 
-The reviewer is `agents/versioncam-reviewer.md`, one file used three ways:
-registered as an agent, which is what Claude Code does with it; as the prompt
-of a plain subagent, on a host that cannot register agents; or as a checklist
-the session applies to its own sheet, on a host with no subagents at all. The
-verdict records which, as `"reviewer": "restricted"`, `"unrestricted"` or
-`"self"` — a clip passed by its own author is a weaker claim, and says so.
+The reviewer is `agents/versioncam-reviewer.md`, one file used three ways.
+Claude Code registers it as an agent. A host that cannot register agents uses
+it as a plain subagent's prompt. A host with no subagents at all applies it as
+a checklist to the session's own sheet. The verdict records which, as
+`"reviewer": "restricted"`, `"unrestricted"` or `"self"`. A clip passed by its
+own author is a weaker claim, and says so.
 
-The skill never runs `git`. The clip it writes lands in your clips directory as
-an ordinary file, for you to read and commit yourself.
+The skill never runs `git`. The clip it writes lands in your clips directory
+as an ordinary file, for you to read and commit yourself.
 
 ## What it leaves behind
 
@@ -87,19 +93,19 @@ an ordinary file, for you to read and commit yourself.
   round-2/ …
 ```
 
-`.versioncam/` is a build product and is gitignored. Keep the clip; the
+`.versioncam/` is a build product and is gitignored. Keep the clip. The
 transcripts are for reading when something goes wrong, and for finding the
-next thing to fix in the recorder — the paragraph on awkward tooling is there
+next thing to fix in the recorder. The paragraph on awkward tooling is there
 because the first agent to write one produced a list that became a work
 package.
 
 ## What it costs
 
-On the example app, headless, with an earlier two-agent version of this loop:
-one clip took between six and twelve minutes, in one or two rounds, and all six
+On the example app, headless, with an earlier two-agent version of this loop,
+one clip took between six and twelve minutes, in one or two rounds. All six
 intents across two apps passed. Most of the time is model latency rather than
-the recorder: a round is a handful of recordings of a few seconds each, and a
+the recorder. A round is a handful of recordings of a few seconds each, and a
 reviewer's single look at a single picture still takes a minute or two end to
-end. It runs on a subscription rather than a metered key, so the setup cost is
-close to zero; for anything higher-volume the prompts in these files are what
-would move to a direct SDK loop, unchanged.
+end. It runs on a subscription rather than a metered key, so the setup cost
+is close to zero. For anything higher-volume, the prompts in these files are
+what would move to a direct SDK loop, unchanged.

@@ -124,7 +124,7 @@ export function frameAtMark(
   if (marks.length === 0) {
     return {
       error:
-        "This recording has no beats to go by — no labelled settle(), or it " +
+        "This recording has no beats to go by: it has no labelled settle(), or it " +
         "was made before marks existed. Ask for a frame number or --t instead.",
     };
   }

@@ -44,12 +44,12 @@ async function appCheck(cwd: string): Promise<Check> {
       ? {
           name: "app",
           ok: true,
-          detail: `already serving at ${config.baseUrl} — HTTP ${answer.status}`,
+          detail: `already serving at ${config.baseUrl} (HTTP ${answer.status})`,
         }
       : {
           name: "app",
           ok: false,
-          detail: `${config.baseUrl} — ${answer.reason}`,
+          detail: `${config.baseUrl}: ${answer.reason}`,
           fix: NOT_SERVING,
         };
   }

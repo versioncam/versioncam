@@ -63,10 +63,11 @@ async function recordAll(
         // gets slower to record, which makes guessing worse than useless.
         const plays = (timeline.durationFrames / timeline.fps).toFixed(1);
         const took = ((Date.now() - started) / 1000).toFixed(1);
+        const cuts = `${timeline.cuts.length} cut${timeline.cuts.length === 1 ? "" : "s"}`;
         process.stdout.write(
           `  ${clip.id}${draft ? " (draft)" : ""}: ${timeline.durationFrames} frames, ` +
-            `${timeline.states.length} states, ${timeline.cuts.length} cuts ` +
-            `— plays ${plays}s · took ${took}s\n` +
+            `${timeline.states.length} states, ${cuts} ` +
+            `· plays ${plays}s · took ${took}s\n` +
             `    ${formatTiming(cost)}\n`,
         );
       } catch (error) {

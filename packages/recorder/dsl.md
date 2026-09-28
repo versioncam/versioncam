@@ -1,120 +1,258 @@
 # The clip DSL
 
-Everything a clip body can call on its session, `s`. `test/dsl.spec.ts`
-asserts that this list and `RecordingSession` name exactly the same members, so
-a method here exists and a method that exists is here. The README promised an
-`s.drag` for months while there was none; there is one now, because a clip that
-needed it had been silently doing nothing instead.
+Everything a clip body can call on its session, `s`, with every option and its
+default. A test holds this page and the session's code to the same list: a
+method here exists, and a method that exists is here.
 
-Three rules the whole surface follows:
+Three rules hold across the whole surface:
 
 - **Every `await` spends clip time and captures frames.** `hold`, `click`,
   `type` and the rest advance the authored clock.
-- **A track write spends none.** `camera.*`, `highlight` and `caption` write at
-  the current instant and return immediately, so each one needs frames after it
-  — a `hold` or the next action — or it is never seen.
-- **Target by role or test id, never by coordinates.** A clip built from
-  locators survives a layout change; one built from points does not.
+- **A track write spends none.** `camera.*`, `highlight` and `caption` write
+  at the current instant and return at once. Each needs frames after it, from
+  a `hold` or the next action, or it is never seen.
+- **Target by test id or role, never by coordinates.** A clip built from
+  locators survives a layout change. One built from points does not.
+
+Durations are in milliseconds, except a caption's, which are in seconds. A
+point is `[x, y]` in viewport pixels, and a rect is `{ x, y, w, h }`.
 
 ## Locators
 
-They resolve when used, not when written, and wait up to 15 seconds for the
-element to be visible. A locator that matches several elements is an error
-naming the count — narrow it rather than reaching for the first match.
+A locator resolves when it is used, not when it is written. It waits up to 15
+seconds for its element to be visible. A locator that matches several
+elements is an error that names the count: narrow it rather than reaching for
+the first match.
 
-- `byTestId(testId)` → `Locator` — first choice: `data-testid` is the only
-  handle an app can promise a clip.
-- `byRole(role, options?)` → `Locator` — second choice: `byRole("button", { name: "Save" })`
-  is how a person would describe it.
-- `byLabel(text)` → `Locator` — a form field, by its label.
-- `byPlaceholder(text)` → `Locator` — a field with no label but a placeholder.
-- `byText(text)` → `Locator` — content, not controls, and the one most likely
-  to match twice.
-- `css(selector)` → `Locator` — the escape hatch; a CSS selector is a claim
-  about markup, which is the thing most likely to change.
+### `byTestId(testId)`
+
+First choice. `data-testid` is the only handle an app can promise a clip.
+
+### `byRole(role, options?)`
+
+Second choice, and how a person would describe the control:
+`byRole("button", { name: "Save" })`. The options are Playwright's for
+`getByRole`.
+
+### `byLabel(text)`
+
+A form field, by its label or its `aria-label`.
+
+### `byPlaceholder(text)`
+
+A field with no label but a placeholder.
+
+### `byText(text)`
+
+Content rather than a control, by a string or a regular expression. The
+locator most likely to match twice.
+
+### `css(selector)`
+
+The escape hatch. A CSS selector is a claim about markup, which is the thing
+most likely to change.
 
 ## Time
 
-- `hold(ms)` — stay still and keep capturing. The pause that makes a beat
-  readable, and what a track write needs after it.
-- `settle(options?)` — wait for the page to stop working: DOM quiet, no
-  requests in flight, fonts loaded, and whatever `settle.ready` adds. Advances
-  the page's clock without capturing, so the wait never reaches the video.
-  `{ label }` is what `versioncam review` checks a beat sheet against, and what
-  `--at-marks` samples, so give every beat one. Also takes `{ quietMs,
-  timeoutMs, yieldMs, hook }`.
-- `offCamera(fn)` — run raw Playwright with nothing captured and no time spent:
-  mocking an API, seeding data, priming a conversation. `fn` is given the
-  Playwright `Page`, which is also `s.page` if you need it directly. No time
-  on the page's clock either: what the app needs time to finish after `fn`,
-  a `settle` gives it.
+### `hold(ms)`
+
+Stay still and keep capturing. It is the pause that makes a beat readable,
+and what a track write needs after it.
+
+### `settle(options?)`
+
+Wait for the page to stop working: the DOM quiet, no requests in flight, the
+fonts loaded, and whatever `settle.ready` in the config adds. It advances the
+page's clock without capturing, so the wait never reaches the video.
+
+Give every beat a `label`. `versioncam review` checks a beat sheet against the
+labels, and `sheet --at-marks` samples the frames they mark. A settle that
+reaches `timeoutMs` warns and carries on, so the clip still records, and
+`review` fails it.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `label` | none | The beat this wait marks. |
+| `quietMs` | the config's, `150` | How long the page must stay quiet, on its own clock. |
+| `timeoutMs` | the config's, `15000` | Real time to wait before giving up. |
+| `yieldMs` | the config's, `20` | Real time yielded per tick, so the network and the renderer can work. |
+| `hook` | the config's `settle.ready` | `() => Promise<boolean>`, one more condition, for this wait only. |
+
+### `offCamera(fn)`
+
+Run raw Playwright with nothing captured and no time spent: mocking an API,
+seeding data, priming a conversation. `fn` gets the Playwright `Page`, which
+is also `s.page`, and `offCamera` returns what `fn` returns. The page's clock
+does not move either. Whatever the app needs time to finish after `fn`, a
+`settle` gives it.
 
 ## Navigation
 
-- `open(path, options?)` — go to `baseUrl + path`, sign in if the config says
-  how, settle, and capture frame 0. Every clip starts here. `{ settleTimeoutMs }`
-  for an app that boots slowly; the default is 90 seconds.
+### `open(path, options?)`
+
+Go to `baseUrl` plus `path`, or to `path` itself when it is a full URL. Then
+sign in, if the config's `auth` has a `login` hook, settle, and capture frame
+0. Every clip starts here.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `settleTimeoutMs` | `90000` | How long the first settle may take, for an app that boots slowly. |
 
 ## Pointer
 
-- `moveTo(target, options?)` — glide to a locator or a point, `[x, y]` in
-  viewport pixels, without pressing.
-  `{ duration }` overrides the Fitts-law timing.
-- `hover(target, options?)` — move there and stay, the way a person does before
-  reading a tooltip. `{ dwell, duration }`.
-- `click(target?, options?)` — approach, dwell, press, release. Called with no
-  target it clicks where the cursor already is. `{ dwell }`.
-- `drag(target, from, to, options?)` — press, draw a straight stroke, release.
-  `from` and `to` are fractions of the target's own box, so the drag survives a
-  layout change: `{ x: 0.18, y: 0.5 }` to `{ x: 0.36, y: 0.5 }` crosses the
-  middle. For a control that answers a stroke and ignores a click — a brush, a
-  slider, a range handle. Mind the edges: a chart's axis labels live inside its
-  own box, and a drag starting at x 0.08 selects that text instead of the
-  control. `{ duration, modifiers }`.
-- `lasso(target, planner, options?)` — press, follow a smoothed closed loop,
-  release. The planner comes from `loop([[0.3, 0.3], …])`, exported beside the
-  session, and is written in fractions of the target's box, so the stroke
-  survives a layout change. Measure first: `versioncam measure <path> <selector>`.
-  `{ duration, modifiers }`.
-  A frame taken partway through the stroke looks wrong, and is not: the
-  smoothing curves outside the points it passes through, so a half-drawn loop
-  swings wide of the thing it is about to enclose before coming back. Judge the
-  selection from a frame after the loop closes, not from the middle of it.
+A target is a locator or a point. The cursor travels to it along a curved
+path, timed by Fitts's law: longer for a far or small target.
+
+### `moveTo(target, options?)`
+
+Glide to a locator or a point without pressing.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `duration` | from distance and size | How long the move takes. |
+
+### `hover(target, options?)`
+
+Move there and stay, the way a person does before reading a tooltip.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `dwell` | `220` | How long to stay once there. |
+| `duration` | from distance and size | How long the move takes. |
+
+### `click(target?, options?)`
+
+Approach, dwell, press, release. With no target it clicks where the cursor
+already is. The press lasts 70 to 100 milliseconds, seeded.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `dwell` | `80` to `150`, seeded | How long to rest on the target before pressing. |
+
+### `drag(target, from, to, options?)`
+
+Press, draw a straight stroke, release. For a control that answers a stroke
+and ignores a click: a brush, a slider, a range handle. `target` is a locator
+or a rect. `from` and `to` are fractions of its box, written `{ x, y }`, so
+the drag survives a layout change: `{ x: 0.18, y: 0.5 }` to
+`{ x: 0.36, y: 0.5 }` crosses the middle.
+
+Mind the edges. A chart's axis labels live inside its own box, and a drag
+that starts at x 0.08 selects that text instead of the control.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `duration` | `1400` | How long the stroke takes, from press to release. |
+| `modifiers` | none | Keys held through the stroke: `["Shift"]`, `["Alt"]`, or both. |
+
+### `lasso(target, planner, options?)`
+
+Press, follow a smoothed closed loop, release. The planner comes from
+`loop([[0.3, 0.3], …])`, exported beside `clip`, and its points are fractions
+of the target's box, so the stroke survives a layout change. Find the
+fractions with `versioncam measure <path> <selector>`.
+
+A frame from partway through the stroke looks wrong, and is not. The
+smoothing curves outside the points it passes through, so a half-drawn loop
+swings wide of what it is about to enclose before it comes back. Judge the
+selection from a frame after the loop closes.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `duration` | `1400` | How long the stroke takes, from press to release. |
+| `modifiers` | none | Keys held through the stroke: `["Shift"]`, `["Alt"]`, or both. |
 
 ## Keyboard
 
-- `typeInto(target, text)` — click the field, then type. What you want almost
-  always: without the click the keystrokes go wherever focus happens to be.
-- `type(text)` — type at a human cadence into whatever has focus.
-- `press(key)` — one key, immediately. `"Enter"`, `"Escape"`, `"Meta+a"`.
+### `typeInto(target, text)`
+
+Click the field, then type. This is almost always what you want: without the
+click, the keystrokes go wherever focus happens to be.
+
+### `type(text)`
+
+Type into whatever has focus, at a human cadence: about 55 milliseconds a key,
+varied, with a longer pause after a space or punctuation.
+
+### `press(key)`
+
+One key, at once: `"Enter"`, `"Escape"`, `"Meta+a"`.
 
 ## Camera, highlight, caption
 
-None of these spends clip time. Each needs frames after it.
+None of these spends clip time, so each needs frames after it.
 
-- `camera.zoom(target, scale?, options?)` — frame a locator or a rect, padded,
-  keeping the target inside the frame even at the edge of the page.
-  `scale` is a **ceiling, not a multiplier**: it caps how far in the camera may
-  go (the frame is never narrower than `viewport.width / scale`), and the
-  default cap of 1.65 exists so a captured pixel is never upscaled. A small
-  target does not fill the frame as a result — at 1440 wide, `zoom(x, 1.7)`
-  still shows about 850 pixels of page, which for a 310-pixel card reads as
-  barely zoomed at all. If you want the target to dominate the shot, pass a
-  rect from `versioncam measure` to `camera.to` instead.
-- `camera.to(rect, options?)` — frame an exact rectangle in viewport pixels.
-- `camera.reset(options?)` — back to the whole viewport. Ending a clip on this
-  and nothing else is the classic mistake: `versioncam review` warns about it.
-- `highlight(target, style, options?)` — `"ring"` around it or `"spotlight"` on
-  it, drawn in post at output resolution. `{ for }` in milliseconds.
-- `caption(text, options?)` — a line of text from now until the next caption or
-  the end of the clip. It starts where it is written, so a second caption
-  mid-clip replaces the first rather than doubling over it. `{ from, to }` in
-  seconds to place it by hand.
+### `camera.zoom(target, scale?, options?)`
+
+Frame a locator or a rect, padded by 12% of its size on each side, and keep
+the frame inside the page even at its edge.
+
+`scale` is a **ceiling, not a multiplier**. It caps how far in the camera may
+go: the frame is never narrower than `viewport.width / scale`. So a small
+target does not fill the frame. At 1440 wide, `zoom(x, 1.7)` still shows
+about 850 pixels of page, which for a 310-pixel card reads as barely zoomed.
+For a target that dominates the shot, pass a rect from `versioncam measure` to
+`camera.to` instead.
+
+The default, 1.5, is as far in as the camera goes before captured pixels are
+upscaled, for a 1440-wide page captured at 2× into a 1920-wide video. Past
+it, the zoom softens.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `scale` | `1.5` | The most the camera may magnify. |
+| `duration` | `1100` | How long the camera takes to get there. |
+
+### `camera.to(rect, options?)`
+
+Frame an exact rectangle, in viewport pixels.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `duration` | `1100` | How long the camera takes to get there. |
+
+### `camera.reset(options?)`
+
+Back to the whole viewport. Ending a clip on this and nothing after it is the
+classic mistake, and `versioncam review` warns about it.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `duration` | `1100` | How long the camera takes to get there. |
+
+### `highlight(target, style, options?)`
+
+A `"ring"` around a locator or a rect, or a `"spotlight"` on it, drawn at
+output resolution. A locator is measured once, when the line runs: the
+highlight stays where the element was.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `for` | `1800` | How long the highlight stays up. |
+
+### `caption(text, options?)`
+
+A line of text from now until the next caption, or the end of the clip. It
+starts where it is written, so a second caption mid-clip replaces the first
+rather than doubling over it.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `from` | now | When the caption appears, in seconds. |
+| `to` | the next caption | When it goes, in seconds. |
 
 ## What the runner reads
 
-Not for clips; the CLI reports them.
+These are for the CLI, not for clips.
 
-- `cost` — where the wall-clock time of this recording went.
-- `settles` — every settle so far, as written to `settles.json`.
-- `at` — how far the clip has got, as `{ frame, t }`.
+### `cost`
+
+Where the wall-clock time of this recording went.
+
+### `settles`
+
+Every settle so far, as written to `settles.json`.
+
+### `at`
+
+How far the clip has got, as `{ frame, t }`.

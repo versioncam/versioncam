@@ -5,8 +5,8 @@ import { clip } from "versioncam";
  *
  * The app takes 800ms to create a shipment and shows a spinner while it does.
  * Neither appears in the clip as a wait: `settle()` advances the page's clock
- * without capturing, so the eight hundred milliseconds never reach the video —
- * which is the whole point of authoring time rather than measuring it.
+ * without capturing, so the eight hundred milliseconds never reach the video.
+ * That is the whole point of authoring time rather than measuring it.
  */
 export default clip(
   "01-create-a-shipment",

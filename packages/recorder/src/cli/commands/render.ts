@@ -40,7 +40,7 @@ export async function render(argv: string[]): Promise<number> {
 
   if (recordings.length === 0 && sceneIds.length === 0) {
     process.stderr.write(
-      `Nothing to render. Run \`versioncam record\` first — recordings live in ${config.recordingsDir}.\n`,
+      `Nothing to render. Run \`versioncam record\` first; recordings live in ${config.recordingsDir}.\n`,
     );
     return 1;
   }

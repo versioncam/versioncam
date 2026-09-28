@@ -202,7 +202,7 @@ const MAX_PRINTED_CONTROLS = 60;
 /** The inventory as something a person reads in a terminal. */
 export function formatInventory(inventory: Inventory): string {
   const lines: string[] = [
-    `${inventory.title} — ${inventory.url}`,
+    `${inventory.title} · ${inventory.url}`,
     `viewport ${inventory.viewport.width}x${inventory.viewport.height}`,
     "",
     // The bracket after a name is where it came from; the second is the test

@@ -126,7 +126,7 @@ export async function init(argv: string[]): Promise<number> {
   const old = OLD_INSTALL.filter((path) => existsSync(join(cwd, path)));
   if (old.length > 0) {
     process.stdout.write(
-      `\nAn older install is still here, and replaced by this one — remove it:\n` +
+      `\nAn older install is still here, and this one replaces it. Remove it:\n` +
         old.map((path) => `  ${path}\n`).join(""),
     );
   }

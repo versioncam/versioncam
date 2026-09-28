@@ -11,7 +11,10 @@ import type { SettleReport } from "./settle.js";
 import { RecordingSession } from "./session.js";
 
 export type ClipOptions = {
-  /** Shown as the clip's caption, unless the body sets its own. */
+  /**
+   * The clip's name, kept in its timeline. Not a caption: nothing draws it,
+   * and a body that wants words on screen writes `s.caption`.
+   */
   title: string;
   /** Per-clip overrides of the config, for a clip that needs a different shape. */
   viewport?: { width: number; height: number };

@@ -85,7 +85,7 @@ async function compareRuns(
           recordings.push({ dir, timeline });
         } catch (error) {
           process.stdout.write(
-            `${clip.id}: run ${run} did not record — ${(error as Error).message}\n`,
+            `${clip.id}: run ${run} did not record: ${(error as Error).message}\n`,
           );
           return 1;
         }
@@ -97,14 +97,14 @@ async function compareRuns(
         const pair = `${clip.id}: run ${run} vs run ${run + 1}`;
         if (result.firstDifference === null) {
           process.stdout.write(
-            `${pair} — ${result.frames} frames, ${result.identical} identical\n`,
+            `${pair} · ${result.frames} frames, ${result.identical} identical\n`,
           );
           continue;
         }
         stable = false;
         const frame = result.firstDifference;
         process.stdout.write(
-          `${pair} — ${result.frames} frames, ${result.identical} identical, ` +
+          `${pair} · ${result.frames} frames, ${result.identical} identical, ` +
             `first difference at frame ${frame}\n`,
         );
         // The two pictures behind that frame, side by side on disk: what
@@ -133,7 +133,7 @@ async function compareRuns(
   process.stdout.write(
     stable
       ? "stable\n"
-      : "unstable — something on this page does not run on authored time\n",
+      : "unstable: something on this page does not run on authored time\n",
   );
   return stable ? 0 : 1;
 }

@@ -122,13 +122,13 @@ export async function ensureApp(config: ResolvedConfig): Promise<AppHandle> {
       throw new Error(
         `Something is already serving ${server.url} (port ${portOf(server.url)}), ` +
           `and webServer.reuseExistingServer is false` +
-          (process.env.CI ? " — the default when CI is set" : "") +
+          (process.env.CI ? " (the default when CI is set)" : "") +
           ". It is not ours to replace: stop it, or allow reusing it.",
       );
     }
     return {
       started: false,
-      detail: `already serving at ${server.url} — HTTP ${found.status}`,
+      detail: `already serving at ${server.url} (HTTP ${found.status})`,
       stop: async () => {},
     };
   }

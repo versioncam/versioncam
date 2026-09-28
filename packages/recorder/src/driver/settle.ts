@@ -99,8 +99,8 @@ export async function settlePage(
       // it gets noticed.
       console.warn(
         `[recorder] ${label} gave up waiting after ${timeoutMs}ms ` +
-          `(still ${lastBlocker}) and carried on — what follows may show a ` +
-          `half-loaded page`,
+          `(still ${lastBlocker}) and carried on. What follows may show a ` +
+          `half-loaded page.`,
       );
       return {
         label,

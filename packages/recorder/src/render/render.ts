@@ -64,7 +64,7 @@ export async function openRenderPage(
     await context.close();
     throw new Error(
       `The render page did not load (${response?.status() ?? "no response"}). ` +
-        `Expected it at ${distPageDir()} — run \`npm run build\` in the recorder package.`,
+        `Expected it at ${distPageDir()}. Run \`npm run build\` in the recorder package.`,
     );
   }
 

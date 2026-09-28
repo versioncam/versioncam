@@ -1,47 +1,48 @@
 # versioncam
 
-Record demo clips of a real web app: scripted, deterministic, regenerated on
-deploy.
+Record demo clips of a real web app: scripted, deterministic, re-recorded on
+every push.
 
-A clip is a script in your repository. It drives the shipped UI through its own
-controls, captures it, composites a cursor and a camera over the result, and
-encodes it. Run it again after every deploy. When the UI changes in a way the
-clip depends on, the clip *fails* — naming the control it could not find and
-the second it gave up — instead of quietly producing a video that is wrong.
+A clip is a script in your repository. It drives your app through its own
+controls in a real browser and captures what the page shows. Then it draws a
+cursor and a camera over the frames and encodes a video. Record it again on
+every push. When the app changes under a clip, the clip *fails*: it names the
+control it could not find and the second it gave up. It never turns into a
+video that is quietly wrong.
 
 ## Install
 
-Three commands, then a sentence:
+Three commands, then one sentence to your agent:
 
 ```bash
 npm i -D versioncam
 npx versioncam install       # the Chromium this version records with
-npx versioncam init          # installs the authoring skill into .claude/
+npx versioncam init          # the authoring skill, into .claude/
 ```
 
 ```
 /versioncam "Show a user filtering the list down to one shipment"
 ```
 
-The first run of the skill sets the repository up: it writes
+The first run of the skill sets the repository up. It writes
 `versioncam.config.ts` from what it finds, proves the app starts and records
 the same way twice, and only then writes the clip. See *Authoring*.
 
-`npx versioncam doctor` checks the rest — Node 22 or later, Chromium, ffmpeg,
+`npx versioncam doctor` checks the rest: Node 22 or later, Chromium, ffmpeg,
 your config, and whether the app starts. ffmpeg and ffprobe come from the
-system (`brew install ffmpeg`, `apt install ffmpeg`); the optional
-`ffmpeg-static` covers images that have neither, but it does not include
-ffprobe. It is tested on macOS and Linux; Windows is untested.
+system (`brew install ffmpeg`, `apt install ffmpeg`). The optional
+`ffmpeg-static` package covers a machine that has neither, but it has no
+ffprobe. versioncam is tested on macOS and Linux. Windows is untested.
 
-`install` rather than `npx playwright install`, because versioncam pins its
-Playwright exactly — a new Chromium changes every captured pixel — and your
-app may have a Playwright of its own, at another version, whose Chromium is
-the one `npx playwright install` fetches.
+Use `versioncam install`, not `npx playwright install`. versioncam pins its
+Playwright exactly, because a new Chromium changes every captured pixel. Your
+app may have a Playwright of its own at another version, and
+`npx playwright install` fetches that one's Chromium.
 
 ### In CI
 
-The same install, then `check`, which records every clip and fails the job on
-the first one that no longer matches the app:
+The same install, then `check`. It records every clip and fails the job on the
+first one that no longer matches the app.
 
 ```yaml
 - uses: actions/setup-node@v4
@@ -52,16 +53,19 @@ the first one that no longer matches the app:
 - run: npx versioncam check
 ```
 
-`check` records and does not render, so it needs no ffmpeg; a job that also
-runs `render` adds `sudo apt-get install -y ffmpeg`. Two runs on one runner
-image produce the same bytes. To pin everything the pixels depend on — the
-browser build, the fonts, the system libraries — run the job in the Playwright
-image for the version versioncam pins, `mcr.microsoft.com/playwright:v1.59.1-noble`,
-where Chromium and its libraries are already installed.
+`check` records and does not render, so it needs no ffmpeg. A job that also
+runs `render` adds `sudo apt-get install -y ffmpeg`.
+
+Two runs on one runner image produce the same bytes. To pin everything the
+pixels depend on (the browser build, the fonts, the system libraries), run the
+job in the Playwright image for the version versioncam pins,
+`mcr.microsoft.com/playwright:v1.59.1-noble`. Chromium and its libraries are
+already installed there.
 
 ## Configure
 
-`versioncam.config.ts`, beside your clips:
+`versioncam.config.ts` sits beside your clips. It is the one place your app
+describes itself to the recorder.
 
 ```ts
 import { defineRecorder } from "versioncam";
@@ -86,35 +90,73 @@ export default defineRecorder({
 });
 ```
 
-Everything app-specific goes through this object. If the recorder needs to know
-something about your app that this cannot express, that is a missing field, not
-a reason to fork.
+If the recorder needs to know something about your app that this object
+cannot say, that is a missing field. It is not a reason to fork.
 
-**The app starts itself.** `webServer` is Playwright's, field for field:
-`command`, `url` (default `baseUrl`), `cwd` (default the config's directory),
-`timeoutMs` (default two minutes), `reuseExistingServer`, `env`. Every command
-that drives the app — `record`, `check`, `stability`, `inspect`, `measure`,
-`login`, `doctor` — first asks `url` whether anything is serving. Any answer
-counts, a 401 included, and a server that answers is used as it is and left
-running afterwards; with `CI` set it is refused instead, because on a runner a
-server that was up before the job started is not the build under test
-(`reuseExistingServer: true` allows it). Silence means the command starts
-`command` through a shell, with the shell's environment plus `env` — not what
-the recorder loaded from `.env.recording` for itself — waits for an answer,
-and writes what it prints to `.versioncam/webserver.log`. Whatever it started,
-it stops when it finishes — normally, on an error, or on Ctrl-C — by
-signalling the command's whole process group: SIGTERM, five seconds' grace,
-then SIGKILL, and the log says which it took. Something the start command
-hands off to outside that group, such as a container runtime, is out of its
-reach — the command warns when the port still answers after the stop — and so
-is worth starting yourself. So is any stack with a slow cold start: every
-command reuses what is already running.
+| Field | Default | What it sets |
+|---|---|---|
+| `baseUrl` | required | Where the app is served. |
+| `webServer` | none | How to start the app when nothing is serving it. See *Starting the app*. |
+| `clips` | `"demos/**/*.clip.ts"` | Where the clips are: a glob, or a list of them, relative to the config. |
+| `viewport` | `{ width: 1440, height: 900 }` | The page's size. The video has the same shape. |
+| `dpr` | `2` | Device pixel ratio, from 1 to 3. At 2, a zoom shows real pixels. |
+| `fps` | `60` | Frames per second, from 10 to 120. |
+| `output` | `{ width: 1920 }` | The video's width. Its height follows the viewport. |
+| `auth` | none | How the app signs in: a saved session, `{ storageState }`, or a hook, `{ login }`. |
+| `settle` | `quietMs: 150`, `timeoutMs: 15000`, `yieldMs: 20` | When a page counts as done. `ready` adds a condition of your own. |
+| `capture` | `gate: true`, `forceCaptureEvery: 30` | Which frames get a screenshot. See *Speed*. |
+| `review` | `minSeconds: 9`, `maxSeconds: 11` | How long a clip should run. `versioncam review` holds clips to it. |
+| `cursorStart` | `{ x: 0.72, y: 0.28 }` | Where the cursor rests in the first frame, as fractions of the viewport. |
+| `clock` | `time: "2026-09-01T09:00:00Z"`, `timezoneId: "UTC"`, `locale: "en-GB"` | The instant, time zone and locale the app sees. |
+| `theme` | `accent: "#2f6fed"`, `cursorScale: 2.1` | The colour of ripples and rings, the cursor's size, and an optional `presentation`. |
+| `motion` | `MOTION` | Dwells, strokes and camera timing. `MOTION` is exported, with the reason for each number beside it. |
+| `outDir` | `".versioncam"` | Where everything the recorder writes goes. Gitignore it. |
+| `scenes` | none | A module whose default export is `Record<string, Scene>`. |
+| `sequence` | none | Clip ids, in order, for `versioncam render --sequence`. |
+
+### Starting the app
+
+`webServer` is Playwright's, field for field:
+
+| Field | Default | What it sets |
+|---|---|---|
+| `command` | required | Run through a shell to start the app. |
+| `url` | `baseUrl` | What to ask whether the app is up. |
+| `cwd` | the config's directory | Where `command` runs. |
+| `timeoutMs` | `120000` | How long to wait for `url` to answer. |
+| `reuseExistingServer` | `true`, and `false` when `CI` is set | Use a server that already answers instead of starting one. |
+| `env` | `{}` | Added to the shell's environment, for the server only. |
+
+Every command that drives the app (`record`, `check`, `stability`, `inspect`,
+`measure`, `login` and `doctor`) goes through the same steps:
+
+1. It asks `url` whether anything is serving. Any answer counts, a 401
+   included.
+2. If something answers, it uses that server as it is and leaves it running.
+   With `CI` set it refuses instead: on a runner, a server that was up before
+   the job started is not the build under test. `reuseExistingServer: true`
+   allows it.
+3. If nothing answers, it runs `command` with the shell's environment plus
+   `env`. It does not pass on what the recorder loaded from `.env.recording`
+   for itself. It waits for `url` to answer and writes the server's output to
+   `.versioncam/webserver.log`.
+4. When it finishes, normally, on an error or on Ctrl-C, it stops what it
+   started. It signals the command's whole process group: SIGTERM, then
+   SIGKILL after five seconds. The log says which one it took.
+
+A process the start command hands off to outside its group, such as a
+container runtime, is out of reach. The command warns when the port still
+answers after the stop. Start a stack like that yourself, and any stack with a
+slow cold start: every command reuses what is already running.
 
 For a stack of several services, point `url` at the one that is ready last,
-not at the page: a dev server answers seconds before the API behind it, and a
-clip that opens then meets a sign-in form with nothing to sign in to.
+not at the page. A dev server answers seconds before the API behind it, and a
+clip that opens too early meets a sign-in form with nothing to sign in to.
 
 ## Write a clip
+
+A clip is a file that default-exports `clip(id, options, body)`. The body
+drives the app through `s`, its session.
 
 ```ts
 import { clip } from "versioncam";
@@ -133,169 +175,236 @@ export default clip("02-find-a-shipment", { title: "Find a shipment" }, async (s
 });
 ```
 
-Every `await` advances the clip's time and captures as it goes. `s.camera.*`,
-`s.highlight` and `s.caption` write to tracks at the current instant and cost
-no time. `s.offCamera(page => …)` runs raw Playwright with nothing captured —
-for setup that should not appear, such as mocking an API.
+Every `await` advances the clip's time and captures frames as it goes.
+`s.camera.*`, `s.highlight` and `s.caption` write to tracks at the current
+instant and cost no time. `s.offCamera(page => …)` runs raw Playwright with
+nothing captured, for setup that should not appear, such as mocking an API.
 
-Target elements by role or test id, never by coordinates. Strokes (`s.drag`
-for a straight one, `s.lasso` for a closed loop) are authored in fractions of a
-target's box for the same reason: a clip built from locators survives a layout
+Target elements by test id or role, never by coordinates. Strokes (`s.drag`
+for a straight one, `s.lasso` for a closed loop) are written in fractions of a
+target's box for the same reason. A clip built from locators survives a layout
 change.
 
-`npx versioncam dsl` prints the whole surface, and a test asserts that list and
-the session agree. That is worth more than it sounds:
-this README promised an `s.drag` for months while there was none, and a clip
-that needed one clicked instead — on a d3 brush, where a click sets a selection
-of zero width and so *clears* the filter. It recorded cleanly and showed
-nothing, for months, and no check caught it.
+`npx versioncam dsl` prints every method with its options and defaults, and a
+test holds that list to the session's code. The same reference is
+*The clip DSL*.
 
-**Look before you write.** Clips written from an app's source reach for
-controls that are conditional, renamed, or not rendered at all:
+| Option | Default | What it sets |
+|---|---|---|
+| `title` | required | The clip's name, kept in its timeline. It is not drawn: write a caption with `s.caption`. |
+| `seed` | `1` | Seeds the jitter in cursor paths, dwells and typing. A new seed is a new take of the same script. |
+| `viewport`, `dpr`, `fps` | the config's | For a clip that needs a different shape. |
+| `capture` | the config's | A clip that films a canvas sets `{ forceCaptureEvery: 1 }` here. |
+
+### Look before you write
+
+A clip written from an app's source reaches for controls that are
+conditional, renamed, or not rendered at all. Ask the page instead:
 
 ```bash
 npx versioncam inspect /shipments          # what is on the page and what it is called
 npx versioncam measure / '.marker'         # where the matches are, as fractions
 ```
 
-`inspect` says where each name came from — `[aria-label]`, `[label]`,
-`[placeholder]`, `[text]` or `[name]` — because that decides the locator:
-`byLabel` finds the first two and not a placeholder, which `byPlaceholder`
-finds instead. `measure` prints what each match says, so a beat's `expect`
-can quote the status line it is waiting for rather than guess at it.
+`inspect` says where each name came from: `[aria-label]`, `[label]`,
+`[placeholder]`, `[text]` or `[name]`. That decides the locator. `byLabel`
+finds the first two but not a placeholder; `byPlaceholder` finds that.
+`measure` prints what each match says, so a beat's `expect` can quote the
+status line it waits for instead of guessing at it.
 
 ## Commands
 
+Every command runs from the directory that holds `versioncam.config.ts`.
+`npx versioncam --help` prints the same list.
+
+### Set up
+
+Once per machine, and once per repository.
+
 ```
-versioncam record [id…]            drive the app and capture frames
-    --draft                        15fps at CSS scale: cheap, for writing clips
-versioncam render [id…]            composite and encode what has been recorded
-    --scene <id>                   render a designed scene (repeatable)
-    --sequence                     stitch the results into one piece
-versioncam check [id…]             record everything; non-zero if any clip breaks
-versioncam stability [id…]         record each clip twice the same way; stable or not
-    --runs <n>                     how many times (default 2)
-    --full                         at full quality rather than draft
-versioncam sheet <id>              an eight-frame contact sheet
-    --at-marks                     sample the beats instead of even spacing
-versioncam frame <id> <n>          one frame at output size, to a png
-    --t <seconds>                  pick the frame by time instead
-    --at <label>                   or by the beat it shows
-versioncam preview <id>            open the scrubber in a real browser
-    --scene <id>                   preview a scene instead
-    --frame <n>                    start at this frame
-versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
-    --beats <file>                 [{ label, expect }] the clip promised
-    --min <s> --max <s>            duration bounds (default 9–11)
-versioncam inspect <path>          what a clip can click, and where each name came from
-    --json                         machine-readable
-versioncam measure <path> <sel>    where the matches of a selector are, and what they say
-versioncam dsl                     the clip DSL, every method, one line each
-versioncam login                   sign in once and save the browser session
-versioncam doctor                  check this machine can record, and that the app starts
 versioncam install                 the Chromium this version of versioncam records with
     --with-deps                    and its system libraries (Linux CI)
 versioncam init                    install the authoring skill into .claude/
     --into <dir>                   into <dir>/versioncam/ instead, for another host
     --force                        overwrite files that are already there
+versioncam doctor                  check this machine can record, and that the app starts
+versioncam login                   sign in once and save the browser session
 ```
 
-`versioncam check` is the CI command. It does not render: a demo that no longer
-matches the app fails while being recorded, at the step that no longer exists,
-and encoding a video of the wreckage helps nobody.
+### Write
+
+Look at the page before writing against it.
+
+```
+versioncam inspect <path>          what a clip can click, and where each name came from
+    --json                         machine-readable
+versioncam measure <path> <sel>    where a selector's matches are, and what they say
+versioncam dsl                     the clip DSL: every method, its options and defaults
+```
+
+### Record
+
+`check` is the CI command. It does not render: a clip that no longer matches
+the app fails while it records, at the step that no longer exists. A video of
+the wreckage would help nobody.
+
+```
+versioncam record [id…]            drive the app and capture frames
+    --draft                        15fps at CSS scale: cheap, for writing clips
+versioncam check [id…]             record every clip; exit 1 if any breaks
+versioncam stability [id…]         record each clip twice the same way; stable or not
+    --runs <n>                     how many times (default 2)
+    --full                         at full quality rather than draft
+```
+
+### Review
+
+Look at what a recording shows, and check what needs no eyes.
+
+```
+versioncam sheet <id>              an eight-frame contact sheet
+    --at-marks                     sample the beats instead of even spacing
+versioncam frame <id> <n>          one frame at output size, to a png
+    --t <seconds>                  pick the frame by time instead
+    --at <label>                   or by the beat it shows
+versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
+    --beats <file>                 [{ label, expect }] the clip promised
+    --min <s> --max <s>            duration bounds (default 9 and 11)
+versioncam preview <id>            open the scrubber in a real browser
+    --scene <id>                   preview a scene instead
+    --frame <n>                    start at this frame
+```
+
+### Output
+
+Turn recordings into video.
+
+```
+versioncam render [id…]            composite and encode what has been recorded
+    --scene <id>                   render a designed scene (repeatable)
+    --sequence                     stitch the results into one piece
+```
 
 ## What a recording leaves behind
 
-In `.versioncam/recordings/<id>/`: `timeline.json`, the `states/` it indexes, and
-`settles.json` — every wait, what it was still blocked on, and how long it
-really took. A clip that fails also leaves `failure.png`, the page at the
-moment it gave up, and `failure.json` with the message, the frame and the
-authored second.
+`versioncam record` writes each clip to `.versioncam/recordings/<id>/`.
 
-The timeline's `marks` are the clip's beats: one per labelled `settle()`, at
-the first frame that shows what the wait was for. `versioncam sheet --at-marks`
-samples those frames instead of eight even ones, which is the difference
-between a sheet that shows what the clip is about and one that happens to miss
-it.
+| File | What it holds |
+|---|---|
+| `timeline.json` | Everything the renderer needs, and everything a reviewer can check. |
+| `states/` | The page states the timeline indexes, one image each. |
+| `settles.json` | Every wait: what it was still blocked on, and how long it really took. |
+| `failure.png` | Only after a failure: the page at the moment the clip gave up. |
+| `failure.json` | Only after a failure: the message, the frame and the authored second. |
 
-`versioncam review <id> --beats beats.json` is the half of reviewing a clip that
-needs no eyes, and no browser: is it the right length, did a wait give up, does
-every beat in the sheet have a mark, did the screen actually change between one
-beat and the next, and did the clip end on a camera move with no frames left to
-show it. It prints a line per clause and exits 0 or 1. What needs eyes — is
-this legible, is the cursor in the way, does the frame show what the beat
-claimed — is what the contact sheet and `versioncam frame` are for.
+The timeline's `frames` say which state each frame shows. Beside them are the
+tracks the renderer draws: `cursor`, `pointer`, `camera`, `highlights` and
+`captions`. Three more fields are there for reading:
+
+- **`marks`** are the clip's beats: one per labelled `settle()`, at the first
+  frame that shows what the wait was for. `versioncam sheet --at-marks`
+  samples those frames instead of eight even ones. That is the difference
+  between a sheet that shows what the clip is about and one that happens to
+  miss it.
+- **`steps`** are the script's calls, in order, each with the frame it began
+  on: `{ "frame": 212, "call": "typeInto" }`. There is one per line of the
+  script. `typeInto` is one step, not also the click it makes, and a locator
+  is an argument, not a step. A track write spends no time, so it shares a
+  frame with the line after it. New in 0.1.3.
+- **`meta`** says where the recording came from: `title`, `appCommit`,
+  `baseUrl` and `recordedAt`. `recorder` is the versioncam version that made
+  it (new in 0.1.3). `captured` is how many frames got a screenshot, and
+  `draft` is set on a draft.
+
+### Checks that need no eyes
+
+`versioncam review <id> --beats beats.json` is the half of reviewing a clip
+that needs no eyes and no browser. It prints a line per check and exits 0 or 1:
+
+- **duration**: the clip runs as long as `review` in the config says.
+- **settles**: no wait gave up.
+- **beats**: every beat in the beat sheet has a mark.
+- **progress**: the screen changed between one beat and the next.
+- **rendered**: nothing was written after the last frame, where no frame
+  would show it. A warning, not a failure.
+- **onscreen**: every highlight is inside what the camera shows. Also a
+  warning.
+
+What needs eyes is what the contact sheet and `versioncam frame` are for. Is
+it legible? Is the cursor in the way? Does the frame show what the beat
+claimed?
 
 ## How it works
 
-**Time is authored, not measured.** The script declares the timeline; the
-driver steps the app through it one output frame at a time, advancing the
-page's fake clock by exactly 1/fps and capturing. Anything slow — a query, a
-tile, a model — happens inside a `settle()` that advances the clock but
-captures nothing, so it never reaches the video.
+Five decisions make a recording repeatable.
+
+**Time is authored, not measured.** The script declares the timeline. The
+driver steps the app through it one output frame at a time: it advances the
+page's fake clock by exactly 1/fps, then captures. Anything slow, such as a
+query, a map tile or a model, happens inside a `settle()`. A settle advances
+the clock but captures nothing, so the wait never reaches the video.
 
 **The cursor is real input with a synthetic glyph.** Headless Chrome draws no
-pointer, so the driver moves the *real* mouse along a planned path — hover and
-press states genuinely fire in the captured frames — and records that path as
-data. The glyph, the press and the ripple are drawn afterwards at output
-resolution, which means the look can change without re-recording.
+pointer. So the driver moves the *real* mouse along a planned path, and hover
+and press states really fire in the captured frames. It records that path as
+data. The glyph, the press and the ripple are drawn later at output
+resolution, so the look can change without recording again.
 
 **Motion is modelled.** Minimum-jerk profiles, slight Bézier arcs, Fitts-law
-durations, a dwell before each click, all seeded — so it never looks
-metronomic and never differs between runs.
+durations and a dwell before each click. All of it is seeded, so it never
+looks metronomic and never differs between runs.
 
 **Rendering needs nothing running.** The page, the recording, the config and
-your scenes are served from an in-memory route table, so `versioncam render` works
-from a recording on disk and a browser.
+your scenes are served from an in-memory route table. `versioncam render`
+needs only a recording on disk and a browser.
 
-**Output follows the viewport.** Record at 1440×900 and the video is 16:10;
-want 16:9, record at 1600×900. Nothing is letterboxed or cropped. A backdrop,
-device frame and padding are available via `theme.presentation`, off by
-default.
+**Output follows the viewport.** Record at 1440×900 and the video is 16:10.
+For 16:9, record at 1600×900. Nothing is letterboxed or cropped. A backdrop, a
+device frame and padding are available through `theme.presentation`, and are
+off by default.
 
 ## Speed
 
-Writing a clip means running it, looking at it, and changing a line — so what
-matters is how long that loop takes.
+Writing a clip is a loop: run it, look at it, change a line. What matters is
+how long that loop takes.
 
 **Most frames are not photographed.** A clip is mostly frames in which nothing
-moved, and the screenshot is by far the most expensive thing a frame does: 25 ms
+moved. The screenshot is by far the most expensive thing a frame does: 25 ms,
 against half a millisecond for everything else. So the driver takes one only
-when the page can have changed — the DOM mutated, the element under the cursor
-changed, an animation is running, input was just sent, or `forceCaptureEvery`
-frames have gone by. On the example app that skips 81% to 95% of frames, and
-the recording is identical either way. A test records every clip both ways on
-every push and compares the bytes, because the failure mode is not a crash but
-a video that is quietly wrong.
+when the page can have changed. That is when the DOM mutated, the element
+under the cursor changed, an animation is running, input was just sent, or
+`forceCaptureEvery` frames have gone by. On the example app that skips 81% to
+95% of frames, and the recording is identical either way. A test records every
+clip both ways on every push and compares the bytes. The failure it guards
+against is not a crash but a video that is quietly wrong.
 
-The one thing it cannot see is a surface that redraws itself: a canvas, a WebGL
-view, a video. None of them touches the DOM. `capture.forceCaptureEvery`
-(default 30) is the floor under that; a clip whose subject *is* a canvas should
-set it to 1 and pay full price:
+The one thing the gate cannot see is a surface that redraws itself: a canvas,
+a WebGL view, a video. None of them touches the DOM. `forceCaptureEvery`
+(default 30) is the floor under that. A clip whose subject *is* a canvas
+should set it to 1 and pay full price:
 
 ```ts
 export default clip("03-the-map", { title: "The map", capture: { forceCaptureEvery: 1 } }, …);
 ```
 
 **`--draft` for the loop.** Fifteen frames a second, captured at CSS scale
-instead of device scale, into the same place a real recording goes.
+instead of device scale, into the same place a full recording goes.
 
 ```bash
 npx versioncam record --draft 02-find-a-shipment   # then render and look
 ```
 
-It deliberately does not change the page: same viewport, same device pixel
-ratio, same layout, same code. A draft that reduced the DPR could pass while
-the capture it stands in for fails on a media query. It does ignore a clip's
-own `fps`, because the point is to be cheap. Its duration can land up to 1/15 s
-from the full capture's, so a draft is for looking at, not for comparing
-against.
+A draft does not change the page: same viewport, same device pixel ratio,
+same layout, same code. A draft that lowered the DPR could pass while the
+capture it stands in for fails on a media query. It does ignore a clip's own
+`fps`, because the point is to be cheap. Its length can land up to 1/15 s from
+the full capture's, so a draft is for looking at, not for comparing against.
 
-`versioncam record` prints where the time went, which is how you tell whether the
+`versioncam record` prints where the time went. That tells you whether the
 next second would come from the frames or from somewhere else:
 
 ```
-  01-create-a-shipment: 425 frames, 63 states, 1 cuts — plays 7.1s · took 6.3s
+  01-create-a-shipment: 425 frames, 63 states, 1 cut · plays 7.1s · took 6.3s
     open 0.0s · settles 0.5s · frames 5.7s (79 captured, 346 skipped) · write 0.0s
 ```
 
@@ -305,10 +414,11 @@ is why both are named.
 
 ## Authoring
 
-A clip is a script, and writing one is a loop: look at the page, write, record,
-look at what you got, fix. `versioncam` ships that loop as one agent skill.
-There is no API key and no SDK: the model is whichever agent session runs the
-skill, and it reads contact sheets with the same tool it reads files with.
+A clip is a script, and writing one is a loop: look at the page, write,
+record, look at what you got, fix. versioncam ships that loop as one agent
+skill. There is no API key and no SDK. The model is whichever agent session
+runs the skill, and it reads contact sheets with the same tool it reads files
+with.
 
 ```bash
 npx versioncam init          # .claude/skills/versioncam/ and .claude/agents/versioncam-reviewer.md
@@ -317,123 +427,130 @@ claude --plugin-dir node_modules/versioncam/plugin
 ```
 
 `init --into <dir>` puts the skill directory somewhere else, for a host that
-reads skills from elsewhere. Then:
+reads skills from another place. Then ask for a clip:
 
 ```
 /versioncam "Find a shipment by filtering the list, and show how many matched"
 ```
 
-**The first run** — in a directory with no `versioncam.config.ts` — sets the
-repository up before anything else: how the app starts and where it is served,
-from its scripts and its framework's config; whether it signs in, which it
-asks you about; a config with a `webServer`, so nothing has to be running;
-`doctor` and `inspect` to prove the app starts and settles; and `stability`
-on a three-second clip, so no clip is written against an app that does not
-record the same way twice. It commits nothing.
+**The first run** in a directory with no `versioncam.config.ts` sets the
+repository up before anything else:
 
-**Every run.** The session inspects the start page and writes the clip itself:
-it reads `versioncam dsl` and your existing clips, writes a beat sheet, writes
+1. It works out how the app starts and where it is served, from its scripts
+   and its framework's config.
+2. It asks you whether the app signs in, and how you want that handled.
+3. It writes a config with a `webServer`, so nothing has to be running.
+4. It runs `doctor` and `inspect` to prove the app starts and settles.
+5. It records a three-second clip twice with `stability`, so no clip is
+   written against an app that does not record the same way twice.
+
+It commits nothing.
+
+**Every run** then goes the same way. The session inspects the start page and
+reads `versioncam dsl` and your existing clips. It writes a beat sheet, then
 the clip, and records it in draft until `versioncam review` passes, three
-recordings at most. Then a contact sheet sampled *at the beats*, and a fresh
-reviewer every round — `versioncam-reviewer`, which sees the picture, the
-beats and a five-item checklist, and nothing of how the clip was written. A
-reviewer that has read the author's reasoning agrees with it. Its verdict comes
-back as fixes to make, and the round repeats; six rounds at most, then it stops
-and says why. On a host that cannot register the reviewer as an agent, the same
-file is a subagent's prompt, or — with no subagents at all — a checklist the
-session applies to its own sheet, and the verdict says which.
+recordings at most. Then comes a contact sheet sampled *at the beats*, and a
+fresh reviewer.
 
-**What you get**, under `.versioncam/author/<id>/`: the beat sheet, a
-`summary.json`, the final sheet, and per round what the author found, its
-beats and the reviewer's verdict. The clip itself goes in your clips
-directory, which is the part worth reading and committing.
+**The reviewer** is `versioncam-reviewer`, new every round. It sees the
+picture, the beats and a five-item checklist, and nothing of how the clip was
+written: a reviewer that has read the author's reasoning agrees with it. Its
+verdict comes back as fixes to make, and the round repeats. After six rounds
+at most it stops and says why. On a host that cannot register the reviewer as
+an agent, the same file is a subagent's prompt. On a host with no subagents at
+all, it is a checklist the session applies to its own sheet, and the verdict
+says which.
+
+**What you get** is under `.versioncam/author/<id>/`: the beat sheet, a
+`summary.json`, the final sheet, and for each round what the author found,
+its beats and the reviewer's verdict. The clip itself goes in your clips
+directory. That is the part worth reading and committing.
 
 **What it costs.** Six to twelve minutes and one or two rounds for a clip on
 the example app, most of it model latency rather than the recorder. It is not
-cheap and it is not instant; it is, however, unattended.
+cheap and it is not instant. It is, however, unattended.
 
-**What it is not.** The skill cannot sign your app in for you — it asks how
-you want that handled, and `versioncam login` is yours to run because it waits
-for you. It does not run `git`. And `versioncam review` only checks what needs
-no eyes: duration, that every beat left a mark, that each beat changed the
-screen, that nothing was written after the last frame. Whether the clip is
-*good* is the reviewer's job, and after that, yours.
+**What it is not.** The skill cannot sign your app in for you. It asks how you
+want that handled, and `versioncam login` is yours to run because it waits
+for you. It does not run `git`. And `versioncam review` only checks what
+needs no eyes. Whether the clip is *good* is the reviewer's job, and after
+that, yours.
 
 ## Determinism
 
 Two runs of a clip on one machine produce the same bytes, draft and full. The
 package's own tests assert it for capture and for rendering on every change,
-on macOS and on Linux, and a golden recording pins the capture path against
+on macOS and on Linux. A golden recording pins the capture path against
 changes nobody meant to make.
 
-Across machines the claim is narrower, and worth stating precisely: the
-**timeline** is identical — it is what the driver decided, and nothing in it
-depends on the host. The captured **pixels** are identical only where the
-rendering environment is: macOS and Linux rasterise text differently, so the
-same page in the same state is the same picture and a different file.
-Byte-identity is a property of a fixed environment, which in CI means one
-runner image — the Playwright container for the version versioncam pins is
-the simplest (see *In CI*).
+Across machines the claim is narrower. The **timeline** is identical: it is
+what the driver decided, and nothing in it depends on the host. The captured
+**pixels** are identical only where the rendering environment is. macOS and
+Linux rasterise text differently, so the same page in the same state is the
+same picture and a different file. Byte-identity belongs to a fixed
+environment. In CI that means one runner image, and the Playwright container
+for the version versioncam pins is the simplest (see *In CI*).
 
 If two recordings of your clip on one machine differ, something outside the
-authored clock reached a frame — an unwarmed resource, a real timer, a font
-that had not finished loading. Find the cause; the next section is how.
+authored clock reached a frame: an unwarmed resource, a real timer, a font
+that had not finished loading. Find the cause. The next section is how.
 
 ### When a clip will not reproduce
 
-The recorder can only be as deterministic as the app it is filming, and an app
-that is *nearly* deterministic is the hard case: it reproduces most runs, so the
+The recorder can only be as deterministic as the app it films. An app that is
+*nearly* deterministic is the hard case: it reproduces on most runs, so the
 first failure looks like a recorder bug.
 
-Before assuming it is one, record the clip twice the same way — which is
-what `stability` does, frame by frame, by what each frame shows:
+Before assuming it is one, record the clip twice the same way. `stability`
+does exactly that, and compares the runs frame by frame, by what each frame
+shows:
 
 ```bash
 npx versioncam stability 02-find-a-shipment          # draft; --full for the real thing
 ```
 
 ```
-02-find-a-shipment: run 1 vs run 2 — 268 frames, 264 identical, first difference at frame 131
+02-find-a-shipment: run 1 vs run 2 · 268 frames, 264 identical, first difference at frame 131
   .versioncam/stability/02-find-a-shipment/frame-131-run1.png
   .versioncam/stability/02-find-a-shipment/frame-131-run2.png
-unstable — something on this page does not run on authored time
+unstable: something on this page does not run on authored time
 ```
 
-The two files are the pictures behind the first frame that differs; what
-differs is usually obvious once they are side by side. Each run records beside
-the clip's own recording, under `recordings/__stability/`, never over it. With
-no id it checks every clip, and it exits 0 only when every pair matched —
-which makes it the first thing to run in a repository before writing a clip
-for it, and what the authoring skill does on a first run.
+The two files are the pictures behind the first frame that differs. Side by
+side, what differs is usually obvious. Each run records beside the clip's own
+recording, under `recordings/__stability/`, never over it. With no id it
+checks every clip, and it exits 0 only when every pair matched. That makes it
+the first thing to run in a repository before writing a clip for it, and it
+is what the authoring skill does on a first run.
 
 If the runs differ, something on the page did not run on authored time. Look
 at the app first, but not only there: of the four causes found so far, the
 recorder was two. What we have found doing this:
 
 - An **autosizing text field** that settles a frame later depending on how the
-  browser scheduled the layout. The clips that typed diverged; the clips that
+  browser scheduled the layout. The clips that typed diverged. The clips that
   did not, did not.
-- A **spinner**, via the recorder's own fault, since fixed: the screenshot was
-  cancelling the animation the driver had just scrubbed. Worth knowing because
-  the symptom was six pixels in one frame of three hundred, which reads as
-  noise rather than as a bug.
-- A **typed letter's edge**, via the recorder's own fault, since fixed: a
-  draft's screenshot has Chromium paint the page again at CSS scale, and it
-  repainted only the rectangle the page reported as changed, which at that
-  scale could stop a pixel short of a new glyph's antialiased edge. Only on
-  Linux, where text has LCD antialiasing: one pixel of one frame, in about half
-  of all runs. Side by side the two pictures look identical; subtracting one
-  from the other finds it.
-- A **timer firing early**, via the recorder's own fault, since fixed: the
-  page's fake clock was installed but left running on real time between
-  frames, so a slow screenshot reached the page as time. One stalled frame on
-  a CI runner moved the clock 840 ms instead of 67 and the example app's
-  shipment appeared seven frames early. The clock is paused now and moves only
-  when the driver moves it.
+- A **spinner**, the recorder's fault and since fixed. The screenshot was
+  cancelling the animation the driver had just scrubbed. The symptom was six
+  pixels in one frame of three hundred, which reads as noise rather than as a
+  bug.
+- A **typed letter's edge**, the recorder's fault and since fixed. A draft's
+  screenshot has Chromium paint the page again at CSS scale. It repainted only
+  the rectangle the page reported as changed, which at that scale could stop
+  a pixel short of a new glyph's antialiased edge. This happened only on
+  Linux, where text has LCD antialiasing: one pixel of one frame, in about
+  half of all runs. Side by side the two pictures look identical; subtracting
+  one from the other finds it.
+- A **timer firing early**, the recorder's fault and since fixed. The page's
+  fake clock was installed but left running on real time between frames, so a
+  slow screenshot reached the page as time. One stalled frame on a CI runner
+  moved the clock 840 ms instead of 67, and the example app's shipment
+  appeared seven frames early. The clock is paused now and moves only when
+  the driver moves it.
 
-If the two recordings match and something else does not, the next question is
-what changed between them — the gate (`capture: { gate: false }` turns it off)
-or the machine.
+If the two recordings match and something else does not, ask what changed
+between them: the gate (`capture: { gate: false }` turns it off), or the
+machine.
 
 ## While recording
 
@@ -441,23 +558,46 @@ Do not edit files. A dev server pushes a full page reload to every connected
 client, including the page being recorded. The driver detects it and says so,
 but the run is lost either way.
 
-Record one clip at a time against a given app session. The CLI already does;
-the thing to avoid is leaving a browser tab open on the same session.
+Record one clip at a time against a given app session. The CLI already does.
+The thing to avoid is a browser tab left open on the same session.
+
+## Glossary
+
+The words these pages use in a particular sense.
+
+| Word | Meaning |
+|---|---|
+| authored time | The clip's own clock. The page's clock moves only when the driver moves it, one frame at a time. |
+| beat | A moment the clip exists to show. A labelled `settle()` marks one. |
+| beat sheet | The beats a clip promises, as `[{ label, expect }]`. `versioncam review --beats` checks a recording against it. |
+| clip | A script, `*.clip.ts`, that drives the app and says what to show. One clip makes one video. |
+| contact sheet | Eight frames of a recording in one image, for judging it at a glance. `versioncam sheet` makes one. |
+| draft | A cheap recording for writing clips: 15 frames a second, captured at CSS scale. |
+| gate | The check that skips a screenshot when nothing on the page can have changed. |
+| mark | Where a beat first shows, in the timeline's `marks`. |
+| recording | What `record` leaves in `.versioncam/recordings/<id>/`: the timeline and the page states it indexes. |
+| render | Drawing the cursor, camera, highlights and captions over a recording, and encoding the video. |
+| reviewer | The fresh agent that judges a contact sheet against the beats and a five-item checklist. |
+| scene | A designed panel: frames drawn in code rather than captured from the app. |
+| settle | A wait that advances the page's clock but captures nothing, so it never reaches the video. |
+| stable | Two recordings of a clip, made the same way on one machine, are identical. |
+| step | One line of the script, as the timeline's `steps` records it. |
+| timeline | `timeline.json`: which state each frame shows, and every track drawn over it. |
+| track write | A call to `camera`, `highlight` or `caption`. It writes at the current instant and spends no time. |
 
 ## Help
 
-This README is also the documentation at [version.cam](https://version.cam).
 Bugs, questions, and apps it cannot record go to the issue tracker at
-[github.com/petbul/versioncam-home](https://github.com/petbul/versioncam-home/issues)
-— a clip that will not reproduce is easiest to help with alongside the two
+[github.com/petbul/versioncam-home](https://github.com/petbul/versioncam-home/issues).
+A clip that will not reproduce is easiest to help with alongside the two
 pictures `versioncam stability` saves.
 
 ## Licence
 
 Versioncam is under the Functional Source License, version 1.1, with Apache
-2.0 as its future licence (`FSL-1.1-ALv2`). Use it on your own apps and in your
-own CI, commercial work included, and change it as you need; what the licence
-does not allow is making it available to others in a product or service that
-competes with it. Two years after each version is released, that version is
-also available under Apache 2.0. This is a summary; `LICENSE.md` is the
-licence.
+2.0 as its future licence (`FSL-1.1-ALv2`). Use it on your own apps and in
+your own CI, commercial work included, and change it as you need. What the
+licence does not allow is making it available to others in a product or
+service that competes with it. Two years after each version is released, that
+version is also available under Apache 2.0. This is a summary; `LICENSE.md`
+is the licence.

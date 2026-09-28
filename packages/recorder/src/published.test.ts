@@ -81,3 +81,27 @@ describe("the published package", () => {
     expect(`"url": "${manifest.repository?.url}",`).toBe(REQUIRED);
   });
 });
+
+/**
+ * The pages version.cam renders, which it reads from the published package:
+ * the README's sections, the DSL reference, the skill's README and the
+ * changelog.
+ */
+const PAGES = ["README.md", "dsl.md", "CHANGELOG.md", "plugin/README.md"];
+
+describe("the pages version.cam renders", () => {
+  // House style for anything a stranger reads: where an aside would go, a
+  // sentence, a colon or a bracket, never a long dash. A page full of them
+  // reads as one long parenthesis, and without a check they come back one
+  // aside at a time.
+  it("use no long dash", () => {
+    const found: string[] = [];
+    for (const file of PAGES) {
+      const lines = readFileSync(join(PACKAGE, file), "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (line.includes("—")) found.push(`${file}:${i + 1}`);
+      });
+    }
+    expect(found).toEqual([]);
+  });
+});

@@ -48,10 +48,10 @@ const NOT_AUTHORING_SURFACE = new Set([
   "captureFrame",
 ]);
 
-/** Every member `dsl.md` documents: the lines that start `- \`name`. */
+/** Every member `dsl.md` documents: its headings of the form ### `name(…)`. */
 function documentedNames(): string[] {
   const reference = readFileSync(DSL_FILE, "utf8");
-  return [...reference.matchAll(/^- `([A-Za-z.]+)[(`]/gm)].map((m) => m[1]);
+  return [...reference.matchAll(/^### `([A-Za-z.]+)[(`]/gm)].map((m) => m[1]);
 }
 
 test("dsl.md documents exactly the session's authoring surface", () => {

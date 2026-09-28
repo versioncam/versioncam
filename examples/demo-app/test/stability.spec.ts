@@ -44,7 +44,7 @@ test("the example app records the same way twice", async () => {
   }
 
   expect(stdout).toMatch(
-    /01-create-a-shipment: run 1 vs run 2 — (\d+) frames, \1 identical/,
+    /01-create-a-shipment: run 1 vs run 2 · (\d+) frames, \1 identical/,
   );
   expect(stdout.trim().split("\n").at(-1)).toBe("stable");
   expect(status).toBe(0);
