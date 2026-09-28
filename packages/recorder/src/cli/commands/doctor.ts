@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { ffmpegStatus } from "../../render/ffmpeg.js";
 import { ensureApp, probe } from "../../app-server.js";
 import type { ResolvedConfig } from "../../config.js";
-import { findConfigFile, loadConfig } from "../../loader.js";
+import { NO_CONFIG, findConfigFile, loadConfig } from "../../loader.js";
 
 type Check = { name: string; ok: boolean; detail: string; fix?: string };
 
@@ -120,7 +120,7 @@ export async function doctor(): Promise<number> {
     name: "config",
     ok: config !== null,
     detail: config ?? `no versioncam.config.ts in ${process.cwd()}`,
-    fix: "Create versioncam.config.ts with a default export from defineRecorder().",
+    fix: NO_CONFIG,
   });
 
   // Only with a config: without one there is no `baseUrl` to try, and saying

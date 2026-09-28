@@ -8,6 +8,14 @@ and its entry here says how.
 
 ## [Unreleased]
 
+### Changed
+
+- Where there is no `versioncam.config.ts`, `doctor` and every other command
+  say how to get one: `npx versioncam init`, then `/versioncam`, whose first
+  run writes it from the repository — or by hand, a default export from
+  `defineRecorder()`. They used to offer only the second, which is the long
+  way round for anyone using the skill.
+
 ## [0.1.0] — 2026-09-25
 
 The first published version. It was built in work packages before it had a

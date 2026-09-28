@@ -64,6 +64,18 @@ const CONFIG_NAMES = [
   "versioncam.config.mjs",
 ];
 
+/**
+ * What to do about a missing config, wherever one is found missing.
+ *
+ * It is the first thing someone new meets — `doctor` in a fresh app, or any
+ * command run before the skill has — and the skill's first run writes a
+ * better config than a person starting from the type would, so that comes
+ * first; by hand is the way for anyone not using the skill.
+ */
+export const NO_CONFIG =
+  "`npx versioncam init`, then `/versioncam`: its first run writes one from the repository.\n" +
+  "Or by hand: a default export from defineRecorder(), as in the README's Configure section.";
+
 export function findConfigFile(cwd: string): string | null {
   for (const name of CONFIG_NAMES) {
     const candidate = resolve(cwd, name);
@@ -75,9 +87,7 @@ export function findConfigFile(cwd: string): string | null {
 export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
   const file = findConfigFile(cwd);
   if (!file) {
-    throw new Error(
-      `No versioncam.config.ts in ${cwd}. Create one with a default export from defineRecorder().`,
-    );
+    throw new Error(`No versioncam.config.ts in ${cwd}.\n${NO_CONFIG}`);
   }
   // The cache directory comes from the config we have not read yet, so the
   // bundle goes next to the config until we know better.

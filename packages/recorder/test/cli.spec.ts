@@ -278,7 +278,19 @@ test.describe("the versioncam CLI", () => {
     const { status, stdout } = run(["doctor"], empty);
     expect(stdout).toContain("✗ config");
     expect(stdout).toContain("versioncam.config.ts");
+    // And says how to get one: in a fresh app this is the first thing a new
+    // user reads, and writing the config by hand is the long way round.
+    expect(stdout).toContain("npx versioncam init");
+    expect(stdout).toContain("defineRecorder()");
     expect(status).toBe(1);
+  });
+
+  test("a command run where there is no config says how to get one", () => {
+    const empty = mkdtempSync(join(tmpdir(), "versioncam-empty-"));
+    const { status, stderr } = run(["check"], empty);
+    expect(stderr).toContain("No versioncam.config.ts");
+    expect(stderr).toContain("npx versioncam init");
+    expect(status).not.toBe(0);
   });
 
   test("doctor starts the app through webServer, and stops it again", async () => {
