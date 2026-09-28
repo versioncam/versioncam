@@ -62,15 +62,6 @@ jobs:
       # says why, on the lines that begin `npm verbose oidc`.
       - run: npm publish -w versioncam --access public --provenance=false --loglevel verbose
 
-      # version.cam's docs are built from the package as npm has it, so a
-      # release is what should rebuild them. Skipped until the site's Pages
-      # deploy hook is in this repository's secrets.
-      - name: Rebuild version.cam from the new release
-        env:
-          HOOK: ${{ secrets.PAGES_DEPLOY_HOOK }}
-        run: |
-          if [ -z "$HOOK" ]; then
-            echo "No PAGES_DEPLOY_HOOK secret yet; the site rebuilds on its next push."
-            exit 0
-          fi
-          curl -fsS -X POST "$HOOK" > /dev/null && echo "Pages rebuild requested."
+      # version.cam's docs are built from the package as npm has it. The site
+      # is a Worker that its own repository redeploys every morning, so a
+      # release reaches the docs within a day with nothing to call from here.
