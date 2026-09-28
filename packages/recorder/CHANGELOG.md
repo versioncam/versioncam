@@ -8,6 +8,10 @@ and its entry here says how.
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-09-28
+
+The first version published by the release workflow rather than by hand.
+
 ### Changed
 
 - Where there is no `versioncam.config.ts`, `doctor` and every other command
