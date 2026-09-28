@@ -19,6 +19,8 @@ The first version published by the release workflow rather than by hand.
   run writes it from the repository — or by hand, a default export from
   `defineRecorder()`. They used to offer only the second, which is the long
   way round for anyone using the skill.
+- The skill's plugin manifest links to version.cam, and no longer to a
+  repository nobody outside can open.
 
 ## [0.1.0] — 2026-09-25
 

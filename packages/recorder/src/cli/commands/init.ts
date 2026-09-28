@@ -18,7 +18,7 @@ const PLUGIN_DIR = resolve(
   "plugin",
 );
 
-/** What WP5's `init --claude` wrote, which the new skill replaces. */
+/** What `init --claude` wrote before the package was published, which the new skill replaces. */
 const OLD_INSTALL = [
   join(".claude", "skills", "demos-author"),
   join(".claude", "agents", "demo-author.md"),

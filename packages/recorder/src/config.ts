@@ -149,10 +149,11 @@ export type RecorderConfig = {
    * viewport. Default `{ x: 0.72, y: 0.28 }`.
    *
    * There is no good default, which is the point of the field. The original
-   * was picked to sit over open map and clear of PathGen's toolbars, and a
-   * reviewer has since failed a clip's opening frame on two different apps for
-   * landing on something: a list row in one, a "Select metrics" input in the
-   * other. `open()` captures frame 0 before a clip body's first line runs, so
+   * was picked to sit over open map and clear of the toolbars of the first app
+   * this recorded, and a reviewer has since failed a clip's opening frame on
+   * two different apps for landing on something: a list row in one, a
+   * "Select metrics" input in the other. `open()` captures frame 0 before a
+   * clip body's first line runs, so
    * no `moveTo` can reach it — an app whose layout puts a control there has to
    * say so here.
    */

@@ -374,11 +374,12 @@ export class RecordingSession {
    *
    * A brush, a slider, a range handle: controls that respond to a stroke and
    * ignore a click. The README promised this method for months before it
-   * existed, and the gap was not academic — PathGen's date-histogram clip
-   * clicks a bar to filter by month, which sets a zero-width d3 brush, which
-   * *clears* the filter rather than applying one. That clip has never shown
-   * the thing its caption claims, and nothing said so: the click lands, the
-   * page changes enough for a pixel diff, and the recording looks fine.
+   * existed, and the gap was not academic — a date-histogram clip on the
+   * first app this recorded clicked a bar to filter by month, which sets a
+   * zero-width d3 brush, which *clears* the filter rather than applying one.
+   * That clip never showed the thing its caption claimed, and nothing said
+   * so: the click lands, the page changes enough for a pixel diff, and the
+   * recording looks fine.
    *
    * Fractions rather than pixels for the same reason `lasso` uses them: a
    * stroke authored against a real box survives the next padding change.

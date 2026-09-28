@@ -42,7 +42,7 @@ const TAIL_LINES = 40;
 /**
  * Between SIGTERM and SIGKILL. A dev server that has not exited five seconds
  * after being asked is not going to, and one that is still flushing a database
- * — PathGen's duckdb-server — needs more than the instant a SIGKILL gives it.
+ * to disk needs more than the instant a SIGKILL gives it.
  */
 const GRACE_MS = 5_000;
 

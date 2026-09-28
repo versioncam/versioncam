@@ -1,12 +1,9 @@
 {
   "name": "versioncam",
   "description": "Record a short, true demo clip of a web app from one sentence: a skill that sets the repository up on its first run, writes the clip, and has a reviewer pass it from a contact sheet.",
-  "version": "0.1.0",
   "author": {
-    "name": "Peter Bulovec",
-    "email": "92371345+petbul@users.noreply.github.com"
+    "name": "Peter Bulovec"
   },
-  "homepage": "https://github.com/petbul/versioncam/tree/main/packages/recorder/plugin",
-  "repository": "https://github.com/petbul/versioncam",
+  "homepage": "https://version.cam",
   "keywords": ["demo", "recording", "playwright", "screencast"]
 }

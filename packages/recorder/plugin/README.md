@@ -95,8 +95,8 @@ package.
 
 ## What it costs
 
-On the example app, headless, with WP5's two-agent version of this loop: one
-clip took between six and twelve minutes, in one or two rounds, and all six
+On the example app, headless, with an earlier two-agent version of this loop:
+one clip took between six and twelve minutes, in one or two rounds, and all six
 intents across two apps passed. Most of the time is model latency rather than
 the recorder: a round is a handful of recordings of a few seconds each, and a
 reviewer's single look at a single picture still takes a minute or two end to
