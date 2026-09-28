@@ -6,7 +6,7 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.1.3 (2026-09-28)
 
 ### Added
 
