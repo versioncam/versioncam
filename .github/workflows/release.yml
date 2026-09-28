@@ -4,6 +4,8 @@ name: Release
 # laptop. npm authorises it by trusted publishing: the package's settings on
 # npmjs.com name this repository and this file, and the job proves who it is
 # with a short-lived OIDC token, so no npm token exists anywhere to leak.
+# npm also requires the package's `repository.url` to name this repository;
+# without it the publish is refused with a 404 that gives no reason.
 #
 # No provenance attestation: npm generates none for a private repository, and
 # one would point at a source nobody outside can open.
@@ -36,7 +38,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
-      - run: npm install -g npm@^11.5.1
+      - run: npm install -g npm@^11.5.1 && npm --version
 
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
@@ -56,7 +58,9 @@ jobs:
             exit 1
           }
 
-      - run: npm publish -w versioncam --access public --provenance=false
+      # A trusted publish npm refuses fails with a bare 404. The verbose log
+      # says why, on the lines that begin `npm verbose oidc`.
+      - run: npm publish -w versioncam --access public --provenance=false --loglevel verbose
 
       # version.cam's docs are built from the package as npm has it, so a
       # release is what should rebuild them. Skipped until the site's Pages

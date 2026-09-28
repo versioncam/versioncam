@@ -50,17 +50,34 @@ function shipped(): string[] {
   ];
 }
 
+/**
+ * The one place this repository's address has to appear: npm's trusted
+ * publishing refuses a release whose `repository.url` does not name the
+ * GitHub repository the workflow runs in — with a 404, not a reason. So the
+ * manifest names it, a link only collaborators can open, and nothing else
+ * may.
+ */
+const REQUIRED = '"url": "git+https://github.com/petbul/versioncam.git",';
+
 describe("the published package", () => {
   it("names no client, private repository, personal address or local path", () => {
     const found: string[] = [];
     for (const file of shipped()) {
       const lines = readFileSync(join(PACKAGE, file), "utf8").split("\n");
       lines.forEach((line, i) => {
+        if (file === "package.json" && line.trim() === REQUIRED) return;
         for (const [what, pattern] of PRIVATE) {
           if (pattern.test(line)) found.push(`${file}:${i + 1} — ${what}`);
         }
       });
     }
     expect(found).toEqual([]);
+  });
+
+  it("names the repository it is published from, as trusted publishing needs", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(PACKAGE, "package.json"), "utf8"),
+    ) as { repository?: { url?: string } };
+    expect(`"url": "${manifest.repository?.url}",`).toBe(REQUIRED);
   });
 });
