@@ -18,6 +18,12 @@ and its entry here says how.
   whose own versioncam is not the one running, and says to `cd` into it
   instead.
 
+### Changed
+
+- `versioncam init` below a repository root says where Claude Code finds the
+  skill: in a session started in that directory or below it, and from the
+  root only after the session has read or edited a file there.
+
 ### Fixed
 
 - The authoring skill works in a monorepo wherever the session started. It

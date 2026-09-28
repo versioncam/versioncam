@@ -700,6 +700,8 @@ test.describe("the versioncam CLI", () => {
       'Installed. Ask your agent: /versioncam "<what the clip should show>"',
     );
     expect(first.stdout).toContain("The first run sets this repository up.");
+    // Not in a repository, so not below one's root either.
+    expect(first.stdout).not.toContain("Claude Code loads the skill");
     // No config stub: the first run writes the real one.
     expect(existsSync(join(dir, "versioncam.config.ts"))).toBe(false);
 
@@ -751,6 +753,30 @@ test.describe("the versioncam CLI", () => {
       join("agent-skills", "versioncam", "versioncam-reviewer.md"),
     );
     expect(existsSync(join(dir, ".claude"))).toBe(false);
+  });
+
+  test("init below a repository root says where Claude Code finds the skill", () => {
+    // A session started at the root loads a skill further down only once it
+    // has read a file there. That is the monorepo that invoked /versioncam
+    // at its root and ran it there, far from the app's config.
+    const root = mkdtempSync(join(tmpdir(), "versioncam-init-"));
+    mkdirSync(join(root, ".git"));
+    const app = join("apps", "web");
+    mkdirSync(join(root, app), { recursive: true });
+
+    // From the root, pointed at the app: it installs into the app.
+    const { status, stdout } = run(["init", "--cwd", app], root);
+    expect(status).toBe(0);
+    expect(
+      existsSync(
+        join(root, app, ".claude", "skills", "versioncam", "SKILL.md"),
+      ),
+    ).toBe(true);
+    expect(existsSync(join(root, ".claude"))).toBe(false);
+    expect(stdout).toContain(
+      `Claude Code loads the skill in a session started in ${app} or below it.`,
+    );
+    expect(stdout).toContain(`reading or editing a file in ${app}.`);
   });
 
   test("init --claude is gone, and says what replaced it", () => {

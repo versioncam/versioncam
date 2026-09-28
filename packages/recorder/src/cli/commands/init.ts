@@ -25,6 +25,18 @@ const OLD_INSTALL = [
   join(".claude", "agents", "demo-reviewer.md"),
 ];
 
+/**
+ * The nearest directory from `dir` up that holds a `.git`: the root of the
+ * repository `dir` is in, or null when it is in none. A file counts as well
+ * as a directory, since that is what a linked worktree has.
+ */
+function repositoryRoot(dir: string): string | null {
+  for (let at = dir; ; at = dirname(at)) {
+    if (existsSync(join(at, ".git"))) return at;
+    if (dirname(at) === at) return null;
+  }
+}
+
 /** Every file under `dir`, as paths relative to it. */
 async function filesUnder(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { recursive: true, withFileTypes: true });
@@ -128,6 +140,21 @@ export async function init(argv: string[]): Promise<number> {
     process.stdout.write(
       `\nAn older install is still here, and this one replaces it. Remove it:\n` +
         old.map((path) => `  ${path}\n`).join(""),
+    );
+  }
+
+  // Claude Code loads a project's skills from the directory a session starts
+  // in and from those above it, and one further down only once the session
+  // has read or edited a file in the directory that holds it. So an app below
+  // the repository root is the one place a session started at the root does
+  // not look, and the symptom comes much later, as a /versioncam that is not
+  // there. Said here because this is when anyone reads where the skill went.
+  const root = repositoryRoot(cwd);
+  if (!into && root !== null && root !== cwd) {
+    const here = relative(root, cwd);
+    process.stdout.write(
+      `\nClaude Code loads the skill in a session started in ${here} or below it.\n` +
+        `A session started at the repository root loads it only after reading or editing a file in ${here}.\n`,
     );
   }
 
