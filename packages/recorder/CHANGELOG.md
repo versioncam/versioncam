@@ -8,6 +8,13 @@ and its entry here says how.
 
 ## [Unreleased]
 
+### Fixed
+
+- A point written as `{ x, y }` — the shape a bounding box gives you — fails
+  with "A point is [x, y], not { x, y }", naming the fix. It used to reach
+  Playwright as if it were a locator and fail as "locator.count is not a
+  function". `dsl.md` says that a point is `[x, y]`.
+
 ## [0.1.1] — 2026-09-28
 
 The first version published by the release workflow rather than by hand.

@@ -17,6 +17,43 @@ import { installFixtureRoutes, testConfig } from "./support.js";
  * inscrutable timeout with no indication of which step was at fault. An
  * authoring loop cannot repair what it cannot read.
  */
+/**
+ * A point is `[x, y]`. The object shape a bounding box returns reached
+ * Playwright as a locator and failed as "locator.count is not a function" —
+ * a real clip hit it — so it is refused with the fix in the message.
+ */
+test("a point written as { x, y } fails by saying to write [x, y]", async () => {
+  test.setTimeout(90_000);
+  const browser = await launchBrowser();
+  try {
+    const config = testConfig();
+    const failing = clip(
+      "object-point",
+      {
+        title: "Object point",
+        viewport: { width: 1000, height: 700 },
+        seed: 1,
+      },
+      async (s: RecordingSession) => {
+        await s.offCamera(installFixtureRoutes);
+        await s.open("/buttons.html");
+        await s.moveTo({ x: 120, y: 80 } as unknown as [number, number]);
+      },
+    );
+
+    const error = await runClip(browser, config, failing).then(
+      () => null,
+      (e: Error) => e,
+    );
+
+    expect(error?.message).toContain("A point is [x, y]");
+    expect(error?.message).toContain("[120, 80]");
+    expect(error?.message).not.toContain("locator.count");
+  } finally {
+    await browser.close();
+  }
+});
+
 test("a missing locator fails by name, with the step and the moment", async () => {
   test.setTimeout(90_000);
   const browser = await launchBrowser();

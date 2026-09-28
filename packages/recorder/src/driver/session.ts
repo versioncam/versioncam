@@ -54,9 +54,25 @@ type ScheduledAction = { t: number; run: () => Promise<void> };
 /**
  * `Array.isArray` does not narrow a readonly tuple union, and a Locator is an
  * object like any other, so both targets need real guards.
+ *
+ * A point is `[x, y]`. An `{ x, y }` object looks like one — it is what a
+ * bounding box or a measured rect hands you — and used to be taken for a
+ * locator, failing deep in Playwright with "locator.count is not a function",
+ * which names neither the step nor the fix. It is refused here instead.
  */
 function isPoint(target: Locator | Vec2): target is Vec2 {
-  return Array.isArray(target);
+  if (Array.isArray(target)) return true;
+  const t = target as unknown as Record<string, unknown>;
+  if (
+    typeof t.count !== "function" &&
+    typeof t.x === "number" &&
+    typeof t.y === "number"
+  ) {
+    throw new TypeError(
+      `A point is [x, y], not { x, y }: write [${t.x}, ${t.y}].`,
+    );
+  }
+  return false;
 }
 
 function isRect(target: Locator | Rect): target is Rect {

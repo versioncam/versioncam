@@ -57,7 +57,8 @@ naming the count — narrow it rather than reaching for the first match.
 
 ## Pointer
 
-- `moveTo(target, options?)` — glide to a locator or a point without pressing.
+- `moveTo(target, options?)` — glide to a locator or a point, `[x, y]` in
+  viewport pixels, without pressing.
   `{ duration }` overrides the Fitts-law timing.
 - `hover(target, options?)` — move there and stay, the way a person does before
   reading a tooltip. `{ dwell, duration }`.
