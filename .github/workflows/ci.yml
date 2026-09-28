@@ -35,7 +35,12 @@ jobs:
       # already on the port would be refused rather than trusted.
       - name: Check the example's clips still match it
         working-directory: examples/demo-app
-        run: npx versioncam check
+        # bash, so pipefail holds: a failing check still fails the job through
+        # the tee. Its output is kept, and published beside the clips below.
+        shell: bash
+        run: |
+          mkdir -p .versioncam
+          npx versioncam check 2>&1 | tee .versioncam/check.txt
 
       # The gate decides not to take screenshots. This is the check that it
       # never changes what the recording shows — on a real app, not a fixture —
@@ -85,9 +90,25 @@ jobs:
             echo "No R2 secrets in this repository yet; nothing published."
             exit 0
           fi
+          R2="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
           # The top-level renders only; the sheets' tile directories stay out.
           aws s3 sync examples/demo-app/.versioncam/out "s3://versioncam-clips/example" \
-            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
+            --endpoint-url "$R2" \
             --exclude "*" --include "*.mp4" --include "*.webm" --include "*.png" \
             --exclude "*/*" \
             --cache-control "public, max-age=300"
+
+          # What the front page needs to show a take truthfully, beside its
+          # video: the script that recorded it, the recording's own timeline
+          # (its steps, and the version that made it), and this run's check.
+          # The manifest goes last, so it never names a file not yet there.
+          node .github/scripts/take-manifest.mjs examples/demo-app take
+          aws s3 cp take "s3://versioncam-clips/example" --recursive \
+            --endpoint-url "$R2" --exclude "*" --include "*.timeline.json" \
+            --content-type "application/json" --cache-control "public, max-age=300"
+          aws s3 cp take "s3://versioncam-clips/example" --recursive \
+            --endpoint-url "$R2" --exclude "*" --include "*.clip.ts" --include "check.txt" \
+            --content-type "text/plain; charset=utf-8" --cache-control "public, max-age=300"
+          aws s3 cp take/manifest.json "s3://versioncam-clips/example/manifest.json" \
+            --endpoint-url "$R2" \
+            --content-type "application/json" --cache-control "public, max-age=300"
