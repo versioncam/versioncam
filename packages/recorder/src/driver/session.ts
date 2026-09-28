@@ -54,7 +54,7 @@ export type SessionOptions = {
 type ScheduledAction = { t: number; run: () => Promise<void> };
 
 /** Members a script calls that are not steps: locator factories, and the driver's own. */
-const NOT_A_STEP = /^(by[A-Z]|constructor$|finish$|forClipBody$)/;
+const NOT_A_STEP = /^(by[A-Z]|css$|constructor$|finish$|forClipBody$)/;
 
 /**
  * `Array.isArray` does not narrow a readonly tuple union, and a Locator is an

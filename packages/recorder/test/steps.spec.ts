@@ -26,7 +26,7 @@ test("a recording lists its script's steps, and the version that made it", async
         await s.open("/fields.html");
         s.caption("A city");
         await s.hold(200);
-        await s.camera.zoom(s.byTestId("city"), 1.4);
+        await s.camera.zoom(s.css("[data-testid=city]"), 1.4);
         await s.typeInto(s.byLabel("City"), "Ljubljana");
         s.camera.reset();
         await s.hold(300);
@@ -35,7 +35,8 @@ test("a recording lists its script's steps, and the version that made it", async
     const { timeline } = await runClip(browser, testConfig(), stepped);
 
     // One step per line, in order: typeInto is one step, not also the click
-    // it makes, and a locator factory is an argument, not a step.
+    // it makes, and a locator factory, `css` or `by…`, is an argument, not a
+    // step.
     expect(timeline.steps?.map((step) => step.call)).toEqual([
       "offCamera",
       "open",
