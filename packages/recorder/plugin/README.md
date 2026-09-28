@@ -39,8 +39,8 @@ claude --plugin-dir node_modules/versioncam/plugin
 
 ## What it does
 
-**The first run**, in a directory with no `versioncam.config.ts`, sets the
-repository up (`skills/versioncam/onboarding.md`):
+**The first run**, in a repository with no `versioncam.config.ts`, sets it
+up (`skills/versioncam/onboarding.md`):
 
 1. It works out how the app starts and where it is served, from
    `package.json`, the framework's config and the README. When there is more
@@ -53,6 +53,11 @@ repository up (`skills/versioncam/onboarding.md`):
    records the same way twice before a clip is written for it.
 
 Nothing is committed.
+
+**In a monorepo** the skill first looks for `versioncam.config.ts` across the
+whole repository, wherever the session started, and then works in the
+directory that holds it. With several apps, it asks which. With none, the
+first run writes the config where `versioncam init` put the skill.
 
 **Every run** then goes like this (`skills/versioncam/SKILL.md`):
 

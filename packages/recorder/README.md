@@ -28,6 +28,9 @@ The first run of the skill sets the repository up. It writes
 `versioncam.config.ts` from what it finds, proves the app starts and records
 the same way twice, and only then writes the clip. See *Authoring*.
 
+In a monorepo, run all three in the app's own directory. The skill goes
+there, and so does the config its first run writes.
+
 `npx versioncam doctor` checks the rest: Node 22 or later, Chromium, ffmpeg,
 your config, and whether the app starts. ffmpeg and ffprobe come from the
 system (`brew install ffmpeg`, `apt install ffmpeg`). The optional
@@ -452,8 +455,8 @@ reads skills from another place. Then ask for a clip:
 /versioncam "Find a shipment by filtering the list, and show how many matched"
 ```
 
-**The first run** in a directory with no `versioncam.config.ts` sets the
-repository up before anything else:
+**The first run** in a repository with no `versioncam.config.ts` sets it up
+before anything else:
 
 1. It works out how the app starts and where it is served, from its scripts
    and its framework's config.
@@ -464,6 +467,11 @@ repository up before anything else:
    written against an app that does not record the same way twice.
 
 It commits nothing.
+
+**In a monorepo** the skill first looks for `versioncam.config.ts` across the
+whole repository, wherever the session started, and then works in the
+directory that holds it. With several apps, it asks which. With none, the
+first run writes the config where `versioncam init` put the skill.
 
 **Every run** then goes the same way. The session inspects the start page and
 reads `versioncam dsl` and your existing clips. It writes a beat sheet, then

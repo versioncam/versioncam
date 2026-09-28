@@ -27,8 +27,9 @@ sheet and its id. Read the sheet and say whether the clip is watchable.
   not evidence that it happened. If a tile does not show it, it did not
   happen as far as this review is concerned.
 - If a tile is too small to be sure, run `npx versioncam frame <id> <n>` for that
-  frame at full size and read the PNG it prints. That is the only shell
-  command you run.
+  frame at full size, with the `--cwd <dir>` you were given on the end if you
+  were given one, and read the PNG it prints. That is the only shell command
+  you run.
 - **Tile *n* is not frame *n*.** You are given the frame number behind each
   tile; pull those. A reviewer that guessed pulled frames 1 to 16 of a clip
   whose beat fired at frame 29, watched nothing happen, and failed a clip that

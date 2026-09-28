@@ -32,19 +32,63 @@ Follow these steps in order. Two more files sit beside this one, in this
 skill's directory: `onboarding.md` and `authoring.md`. They are briefs, read
 when a step says to.
 
-## 0. Which phase
+## 0. Where, and which phase
 
-First, check versioncam is installed where Node will find it:
-`ls -d node_modules/versioncam`, then the same in each parent directory up to
-the repository root (`../node_modules/versioncam`, …) — a workspace hoists it.
-If none has it, **stop** and say it must be installed first
-(`npm i -D versioncam`, then `npx versioncam install`). Every step below runs
-`npx versioncam`, and `npx` with nothing installed downloads the latest
-published version — not necessarily the one this repository will pin, and
+Everything below runs in **the app's directory**: the one that holds
+`versioncam.config.ts` (or `.js`, `.mjs`). That need not be the working
+directory. In a monorepo, a session started at the repository root can run
+this skill from an app's `.claude/skills/` further down, and one started
+inside an app can run a skill installed above it. So before deciding
+anything, find the config, in the whole repository rather than only here.
+
+**Find it.** Glob `**/versioncam.config.{ts,js,mjs}` from the top of the
+repository (the directory holding `.git`), and leave out anything under
+`node_modules/`, `.versioncam/` or `.claude/worktrees/`, which is another
+checkout. Files on disk are what count, committed or not: a first run's
+config may not be committed yet, and a deleted one is gone.
+
+- **One** → its directory is the app's directory.
+- **Several** → ask which app with `AskUserQuestion`, listing their
+  directories, unless the request already names one. With no one to ask,
+  stop and list them.
+- **None** → this is the first run, and the config goes where
+  `versioncam init` put this skill. This skill's directory is
+  `${CLAUDE_SKILL_DIR}` (if that is not a path, it is the directory you read
+  this file from). If it is `<dir>/.claude/skills/versioncam` inside this
+  repository, the app's directory is `<dir>`. Otherwise it is the working
+  directory.
+
+**Check versioncam is installed** where the app will find it: `ls -d
+<the app's directory>/node_modules/versioncam`, then the same in each
+directory above it up to the repository root, since a workspace hoists it.
+If none has it, **stop** and say it must be installed in the app's directory
+first (`npm i -D versioncam`, then `npx versioncam install`). Every step below
+runs `npx versioncam`, and `npx` with nothing installed downloads the latest
+published version: not necessarily the one this repository will pin, and
 with no Chromium to record with.
 
-Then: is there a `versioncam.config.ts` (or `.js`, `.mjs`) in the working
-directory?
+**Go there**, if the app's directory is not the working directory, and say in
+one line which directory it is:
+
+- **Below where this session started** (a session at the repository root):
+  `cd` into it by its absolute path. The shell stays there for every later
+  command, and a subagent you spawn starts there too. Do not reach it with
+  `--cwd` from above: `npx` looks for versioncam in the directory it runs in
+  and in those above it, never below, so it would not run the app's own.
+- **Anywhere else** (a session started inside the app, below its config): a
+  session cannot `cd` out of the directory it started in. Put `--cwd <the
+  app's directory>` on the end of every `npx versioncam` command instead.
+  `npx` then finds the app's versioncam by looking up from where you are,
+  and each command works as if run in the app's directory, so a relative path
+  you give it, or it prints, is that directory's. Your own `mkdir`, `cp` and
+  files take absolute paths.
+
+If a `cd` does not stay (a later `pwd` prints where you started), begin each
+command with `cd <the app's directory> && ` instead. Either way, tell each
+subagent you spawn the app's directory and how you are running commands
+there.
+
+Then, did you find a config?
 
 - **No** → this is the repository's first run. Read `onboarding.md` and do all
   of it, then continue with step 1.
@@ -91,7 +135,8 @@ directories; do not summarise it away. Copy `beats.json` beside it.
 host makes subagents cheap, hand the authoring to a subagent instead of doing
 it here. Spawn a plain one (general-purpose) whose prompt is the full text of
 `authoring.md`, followed by the intent, the clip id, the clips directory (the
-config's `clips`), the `inspect /` output inline, and the beats path. **Keep the
+config's `clips`), the `inspect /` output inline, the beats path, and the
+app's directory, with the `--cwd` flag if step 0 had you use it. **Keep the
 agent id it returns**: that id is how you continue the same author in later
 rounds, with `SendMessage`, everything it learned about the page still in its
 context — spawning a new one would start from nothing and repeat the same
@@ -114,8 +159,9 @@ The reviewer is given only:
 - the sheet path,
 - **the frame numbers `sheet --at-marks` just printed**, in order, one per tile,
 - the contents of `.versioncam/author/<id>/beats.json`,
-- the clip id (so it can call `npx versioncam frame <id> <n>` — from this
-  directory, which you name if a subagent on your host starts somewhere else).
+- the clip id, so it can call `npx versioncam frame <id> <n>`: from this
+  directory, which you name if a subagent on your host starts somewhere
+  else, and with the `--cwd` flag on the end if step 0 had you use one.
 
 The frame numbers are not optional. A reviewer given only the id assumed tile
 *n* was frame *n*, pulled frames 1 to 16 — every one of them before the beat

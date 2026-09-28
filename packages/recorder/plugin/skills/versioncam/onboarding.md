@@ -1,11 +1,11 @@
 # The first run: setting a repository up
 
-There is no `versioncam.config.ts` here, so before any clip can be written the
-repository has to be taught three things: how its app starts, whether it signs
-in, and what "the page is done" means. Then one question has to be answered
-before anything is authored: **does this app record the same way twice?** A
-clip is only as deterministic as the app it films, and one written against an
-app that is not fails CI for reasons nobody wrote.
+There is no `versioncam.config.ts` in this repository, so before any clip can
+be written the repository has to be taught three things: how its app starts,
+whether it signs in, and what "the page is done" means. Then one question has
+to be answered before anything is authored: **does this app record the same
+way twice?** A clip is only as deterministic as the app it films, and one
+written against an app that is not fails CI for reasons nobody wrote.
 
 You do not run the app yourself — not with `npm run dev`, not in the
 background, not ever in this phase. You write what you learn into the config,
@@ -13,11 +13,10 @@ and `versioncam` starts the app from it, every time, and stops it again. If
 you find yourself wanting to start a server by hand, the config is wrong;
 fix the config.
 
-Work in the directory the skill was run from; the config goes here. If there
-is no config here but `Glob` finds a `versioncam.config.*` further down, stop
-and say to run the skill from that directory instead: every `versioncam`
-command reads the config from the directory it runs in, and a second config
-would split the repository in two.
+Work in the app's directory, the one step 0 of the skill chose: the config
+goes there, and every `versioncam` command reads it from there. Step 0 found
+no `versioncam.config.*` anywhere in the repository, so this is the only one.
+A second would split the repository in two.
 
 ## 1. How the app runs
 
@@ -82,7 +81,7 @@ say what the person needs to do: nothing below works on a sign-in screen.
 
 ## 3. Write the config
 
-`versioncam.config.ts` in this directory, with only what the app needs:
+`versioncam.config.ts` in the app's directory, with only what the app needs:
 
 ```ts
 import { defineRecorder } from "versioncam";
@@ -101,11 +100,12 @@ for most apps, and a field nobody needed is a question the next person has to
 answer. Say in a comment above each field you did write why it has the value
 it has — the port came from the dev script, the command from the README.
 
-Then: create `demos/clips/`, and make sure `.versioncam/` is ignored —
-recordings, renders and a saved sign-in go there. If a `.gitignore` here, or
-in a directory above this one up to the repository root, already says so,
-leave it; otherwise add the line to the nearest one, creating one here if
-there is none, and leave the rest of the file alone.
+Then: create `demos/clips/` in the app's directory, and make sure
+`.versioncam/` is ignored — recordings, renders and a saved sign-in go there.
+If a `.gitignore` in the app's directory, or in a directory above it up to
+the repository root, already says so, leave it; otherwise add the line to the
+nearest one, creating one in the app's directory if there is none, and leave
+the rest of the file alone.
 
 ## 4. `npx versioncam doctor`
 

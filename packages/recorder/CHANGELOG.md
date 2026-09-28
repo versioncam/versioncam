@@ -18,6 +18,16 @@ and its entry here says how.
   whose own versioncam is not the one running, and says to `cd` into it
   instead.
 
+### Fixed
+
+- The authoring skill works in a monorepo wherever the session started. It
+  looks for `versioncam.config.ts` across the whole repository before
+  deciding anything, works in the directory that holds it, and asks which
+  when there are several. It used to look only in the directory the session
+  was in. Invoked at a repository root with the app below it, it said
+  versioncam was not installed, and past that it would have set the root up
+  as a second app, with a second config.
+
 ## 0.1.3 (2026-09-28)
 
 ### Added

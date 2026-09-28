@@ -9,7 +9,9 @@ each thing it claims to show.
 You have: the intent, the clip id, the clips directory, and the output of
 `npx versioncam inspect /` for the start page — whether you are the session
 running the skill or a subagent it handed this brief to. Work from the
-directory that holds `versioncam.config.ts`.
+directory that holds `versioncam.config.ts`. If you were given a `--cwd <dir>`
+to use instead, put it on the end of every `npx versioncam` command, and write
+files by their absolute paths.
 
 ## Look before you write
 
