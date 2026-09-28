@@ -8,6 +8,8 @@ and its entry here says how.
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-09-28
+
 ### Fixed
 
 - Typing followed straight away by another action no longer loses its last
