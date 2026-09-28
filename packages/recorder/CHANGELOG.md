@@ -10,6 +10,13 @@ and its entry here says how.
 
 ### Fixed
 
+- Typing followed straight away by another action no longer loses its last
+  character. `type` and `typeInto` queue keystrokes at a human cadence, and
+  whenever the typing ended between two frames the last keystroke stayed
+  queued until after the next step — so `typeInto(…)` then `press("Enter")`
+  sent the text without its last character, which then began the next
+  message. Whether a clip was affected depended only on its timing.
+
 - A point written as `{ x, y }` — the shape a bounding box gives you — fails
   with "A point is [x, y], not { x, y }", naming the fix. It used to reach
   Playwright as if it were a locator and fail as "locator.count is not a

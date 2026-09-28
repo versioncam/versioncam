@@ -540,6 +540,15 @@ export class RecordingSession {
     const until = start + schedule[schedule.length - 1] / 1000;
     this.pushHold(until);
     await this.advanceTo(until);
+    // The last keystroke is due at `until`, and `advanceTo` stops at the frame
+    // nearest it — the one before, whenever `until` falls short of the
+    // midpoint. Left queued, that keystroke ran after whatever the clip did
+    // next: an Enter pressed straight after typing sent the text without its
+    // last character, which then began the next message.
+    while (this.queue.length > 0 && this.queue[0].t <= until) {
+      const keystroke = this.queue.shift();
+      if (keystroke) await keystroke.run();
+    }
   }
 
   async press(key: string): Promise<void> {

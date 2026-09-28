@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A message box</title>
+    <style>
+      body { margin: 0; background: #fff; font: 16px Arial, Helvetica, sans-serif; }
+      textarea { position: absolute; left: 40px; top: 40px; width: 420px; height: 40px; font-size: 16px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      A chat composer, as apps write them: Enter sends whatever the field
+      holds at that moment, read straight from the element, and the field is
+      cleared for the next message. Every message sent is written down in the
+      order it was sent, which is what the test compares with what was typed.
+    -->
+    <textarea aria-label="Message"></textarea>
+    <script>
+      const field = document.querySelector("textarea");
+      const sent = [];
+      field.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        sent.push(field.value);
+        document.body.dataset.sent = JSON.stringify(sent);
+        field.value = "";
+      });
+    </script>
+  </body>
+</html>
