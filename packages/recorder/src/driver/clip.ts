@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Browser } from "playwright";
 import type { CaptureConfig, ResolvedConfig } from "../config.js";
@@ -47,6 +48,15 @@ export function clip(
 ): ClipDefinition {
   return { id, options, body };
 }
+
+/**
+ * This package's version, for the recording's provenance: which versioncam
+ * made it, read by whoever shows the recording rather than guessed from the
+ * latest release.
+ */
+const RECORDER_VERSION = (
+  createRequire(import.meta.url)("../../package.json") as { version: string }
+).version;
 
 /** The app's commit, for the recording's provenance. Best effort. */
 function appCommit(cwd: string): string {
@@ -159,13 +169,14 @@ export async function runClip(
     seed: options.seed ?? 1,
     outputDir: dir,
     appCommit: appCommit(config.root),
+    recorder: RECORDER_VERSION,
     capture,
     draft,
     config,
   });
 
   try {
-    await body(session);
+    await body(session.forClipBody());
     if (documentLoads > 1) {
       throw new Error(
         `The document reloaded ${documentLoads - 1} time(s) during "${id}". ` +

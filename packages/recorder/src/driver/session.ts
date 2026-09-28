@@ -39,6 +39,8 @@ export type SessionOptions = {
   seed: number;
   outputDir: string;
   appCommit: string;
+  /** The versioncam version making the recording, for its provenance. */
+  recorder: string;
   capture: Required<CaptureConfig>;
   /**
    * Capture at CSS scale rather than device scale, for a cheap look at a clip
@@ -50,6 +52,9 @@ export type SessionOptions = {
 };
 
 type ScheduledAction = { t: number; run: () => Promise<void> };
+
+/** Members a script calls that are not steps: locator factories, and the driver's own. */
+const NOT_A_STEP = /^(by[A-Z]|constructor$|finish$|forClipBody$)/;
 
 /**
  * `Array.isArray` does not narrow a readonly tuple union, and a Locator is an
@@ -164,6 +169,7 @@ export class RecordingSession {
       baseUrl: options.config.baseUrl,
       // Fixed, so two recordings of the same script differ in no byte at all.
       recordedAt: "1970-01-01T00:00:00.000Z",
+      recorder: options.recorder,
     });
 
     page.on("request", () => {
@@ -937,6 +943,36 @@ export class RecordingSession {
    */
   get at(): { frame: number; t: number } {
     return { frame: this.frame, t: this.t };
+  }
+
+  /**
+   * The session as the clip's script sees it.
+   *
+   * Every call the script makes into the DSL is logged as a step, with the
+   * frame it began on. The calls the session makes to itself (`typeInto`'s
+   * own click) go through `this` rather than through this view, so they log
+   * nothing and a step is always a line of the script. Locator factories
+   * build arguments rather than doing anything, and are not steps. Called by
+   * `runClip`, never by a clip.
+   */
+  forClipBody(): RecordingSession {
+    const steps = (this.timeline.steps ??= []);
+    const view = <T extends object>(target: T, prefix: string): T =>
+      new Proxy(target, {
+        get: (obj, key) => {
+          const value: unknown = Reflect.get(obj, key, obj);
+          if (typeof key !== "string") return value;
+          if (prefix === "" && key === "camera") {
+            return view(value as object, "camera.");
+          }
+          if (typeof value !== "function" || NOT_A_STEP.test(key)) return value;
+          return (...args: unknown[]) => {
+            steps.push({ frame: this.frame + 1, call: prefix + key });
+            return (value as (...a: unknown[]) => unknown).apply(obj, args);
+          };
+        },
+      });
+    return view(this, "");
   }
 
   /** Write the timeline out. Called by `clip()` once the script has run. */

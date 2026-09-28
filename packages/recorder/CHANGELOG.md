@@ -8,6 +8,16 @@ and its entry here says how.
 
 ## [Unreleased]
 
+### Added
+
+- A recording lists the steps its script took: `steps` in `timeline.json`,
+  each DSL call the script made and the frame it began on, one per line of
+  the script (`typeInto` is one step, not also the click it makes). A reader
+  holding the script can say which line produced which moment.
+- A recording names the versioncam that made it: `meta.recorder`, the
+  package version. A page that shows the recording can print the version
+  that recorded it instead of the latest release.
+
 ## [0.1.2] — 2026-09-28
 
 ### Fixed

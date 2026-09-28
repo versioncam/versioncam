@@ -75,6 +75,16 @@ export type Caption = { t0: number; t1: number; text: string };
  */
 export type Mark = { frame: number; label: string };
 
+/**
+ * One call the clip's script made into the DSL, and the frame it began on.
+ *
+ * In script order, one per call the script itself made: `typeInto` is one
+ * step, not also the click it makes. A reader holding the script can say
+ * which line produced which moment of the video, and version.cam's front
+ * page lights the line that is running as the recording plays.
+ */
+export type Step = { frame: number; call: string };
+
 export type Timeline = {
   version: 1;
   clipId: string;
@@ -93,6 +103,8 @@ export type Timeline = {
   cuts: number[];
   /** Labelled settles, in the order they happened. */
   marks: Mark[];
+  /** The script's calls, in order. Absent from recordings made before 0.1.3. */
+  steps?: Step[];
   cursor: CursorTrack;
   pointer: PointerAction[];
   camera: CameraKey[];
@@ -103,6 +115,12 @@ export type Timeline = {
     recordedAt: string;
     appCommit: string;
     baseUrl: string;
+    /**
+     * The versioncam version that made this recording: the version a viewer
+     * can trust, read from the recording rather than guessed from a release.
+     * Absent from recordings made before 0.1.3.
+     */
+    recorder?: string;
     /**
      * How many frames were screenshotted, as opposed to reusing the previous
      * frame's state. A property of the recording, not of the machine — the
@@ -126,6 +144,8 @@ export type TimelineInit = {
   appCommit: string;
   baseUrl: string;
   recordedAt: string;
+  /** Set by a recording; absent from timelines built by hand, as in tests. */
+  recorder?: string;
 };
 
 export function emptyTimeline(init: TimelineInit): Timeline {
@@ -139,6 +159,7 @@ export function emptyTimeline(init: TimelineInit): Timeline {
     frames: [],
     cuts: [],
     marks: [],
+    steps: [],
     cursor: [],
     pointer: [],
     camera: [
@@ -155,6 +176,7 @@ export function emptyTimeline(init: TimelineInit): Timeline {
       recordedAt: init.recordedAt,
       appCommit: init.appCommit,
       baseUrl: init.baseUrl,
+      ...(init.recorder ? { recorder: init.recorder } : {}),
     },
   };
 }
@@ -199,5 +221,18 @@ export function validateTimeline(timeline: Timeline): string[] {
     (step, index) => index > 0 && step.t0 < timeline.cursor[index - 1].t0,
   );
   if (cursorOutOfOrder) problems.push("cursor steps are not sorted by time");
+  const steps = timeline.steps ?? [];
+  const stepsOutOfOrder = steps.some(
+    (step, index) => index > 0 && step.frame < steps[index - 1].frame,
+  );
+  if (stepsOutOfOrder) problems.push("steps are not in the order they ran");
+  const stepPastTheEnd = steps.find(
+    (step) => step.frame < 0 || step.frame > timeline.durationFrames,
+  );
+  if (stepPastTheEnd) {
+    problems.push(
+      `step ${stepPastTheEnd.call} at frame ${stepPastTheEnd.frame} is outside the recording`,
+    );
+  }
   return problems;
 }

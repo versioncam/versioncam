@@ -29,6 +29,8 @@ const NOT_AUTHORING_SURFACE = new Set([
   "constructor",
   // Called by `runClip` once a clip's body has returned, never by a clip.
   "finish",
+  // Called by `runClip` to hand the script its view of the session.
+  "forClipBody",
   // Private, and visible here only because `private` is a compile-time word.
   "defaultHook",
   "pushCameraKey",
