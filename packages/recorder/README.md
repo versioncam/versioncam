@@ -448,7 +448,7 @@ the thing to avoid is leaving a browser tab open on the same session.
 
 This README is also the documentation at [version.cam](https://version.cam).
 Bugs, questions, and apps it cannot record go to the issue tracker at
-[github.com/versioncam/versioncam](https://github.com/versioncam/versioncam/issues)
+[github.com/petbul/versioncam-home](https://github.com/petbul/versioncam-home/issues)
 — a clip that will not reproduce is easiest to help with alongside the two
 pictures `versioncam stability` saves.
 
