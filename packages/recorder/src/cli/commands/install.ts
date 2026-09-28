@@ -34,7 +34,13 @@ export function installArgv(
   cli: string,
   withDeps: boolean,
 ): string[] {
-  return [node, cli, "install", ...(withDeps ? ["--with-deps"] : []), "chromium"];
+  return [
+    node,
+    cli,
+    "install",
+    ...(withDeps ? ["--with-deps"] : []),
+    "chromium",
+  ];
 }
 
 /**

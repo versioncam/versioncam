@@ -18,7 +18,6 @@ import { stability } from "./commands/stability.js";
 import { loadEnvFiles } from "../env.js";
 import { USAGE } from "./usage.js";
 
-
 type Command = (argv: string[]) => Promise<number>;
 
 const COMMANDS: Record<string, Command> = {
