@@ -9,7 +9,8 @@
  *
  * Grouped by the stage of the work each command belongs to, in the order a
  * repository meets them. A flat list of seventeen commands left a newcomer to
- * work out that `inspect` comes before `record` and `sheet` after it.
+ * work out that `inspect` comes before `record` and `sheet` after it. The
+ * last group is not a stage but a way to run any of them.
  */
 export const USAGE = `versioncam: record and render demo clips of a real app
 
@@ -54,5 +55,8 @@ Output
       --scene <id>                   render a designed scene (repeatable)
       --sequence                     stitch the results into one piece
 
-Run from a directory containing versioncam.config.ts.
+From another directory
+  versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
+
+Run from a directory containing versioncam.config.ts, or name it with --cwd.
 `;

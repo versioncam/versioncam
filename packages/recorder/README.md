@@ -214,8 +214,9 @@ status line it waits for instead of guessing at it.
 
 ## Commands
 
-Every command runs from the directory that holds `versioncam.config.ts`.
-`npx versioncam --help` prints the same list.
+Every command works in the directory that holds `versioncam.config.ts`: run
+it from there, or name that directory with `--cwd`. `npx versioncam --help`
+prints the same list.
 
 ### Set up
 
@@ -283,6 +284,24 @@ Turn recordings into video.
 versioncam render [id…]            composite and encode what has been recorded
     --scene <id>                   render a designed scene (repeatable)
     --sequence                     stitch the results into one piece
+```
+
+### From another directory
+
+In a monorepo the app is one directory among many. A command run from
+somewhere else, the repository root or a subdirectory of the app, can name
+the app's directory. The config, `.env.recording` and `.env`, `.versioncam/`
+and any relative path are then that directory's. `--cwd` can go anywhere on
+the line.
+
+`npx` runs the versioncam it finds in the directory it is run from, or in the
+nearest one above it, never in one below. From above an app that has
+versioncam in its own `node_modules`, it runs another copy, or downloads the
+latest. So `--cwd` refuses a directory whose own versioncam is not the one
+running, and says to `cd` into it instead.
+
+```
+versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
 ```
 
 ## What a recording leaves behind

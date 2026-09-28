@@ -16,6 +16,7 @@ import { review } from "./commands/review.js";
 import { sheet } from "./commands/sheet.js";
 import { stability } from "./commands/stability.js";
 import { loadEnvFiles } from "../env.js";
+import { enterCwd, takeCwd } from "./cwd.js";
 import { USAGE } from "./usage.js";
 
 type Command = (argv: string[]) => Promise<number>;
@@ -39,7 +40,9 @@ const COMMANDS: Record<string, Command> = {
 };
 
 async function main(): Promise<number> {
-  const argv = process.argv.slice(2);
+  // `--cwd` comes out first: it takes a value, which the parsing below would
+  // otherwise read as the command's name.
+  const { cwd, rest: argv } = takeCwd(process.argv.slice(2));
 
   // `--help` is a flag, not a positional, so it never reaches `positionals`.
   // Asking for help is a success; being given nothing is not.
@@ -66,8 +69,14 @@ async function main(): Promise<number> {
     return 1;
   }
 
+  // Before the environment files, which are that directory's too.
+  if (cwd !== undefined) enterCwd(cwd);
   loadEnvFiles(process.cwd());
-  return command(process.argv.slice(3));
+
+  // The command's own arguments: everything but its name, wherever the name
+  // was, which is first unless a flag came before it.
+  const at = argv.indexOf(name);
+  return command([...argv.slice(0, at), ...argv.slice(at + 1)]);
 }
 
 main().then(

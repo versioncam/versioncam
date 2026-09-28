@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -13,7 +14,7 @@ import { createServer } from "node:http";
 import { connect } from "node:net";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { FIXTURE_RECORDING } from "./support.js";
@@ -225,6 +226,7 @@ test.describe("the versioncam CLI", () => {
     ]) {
       expect(stdout).toContain(`versioncam ${command}`);
     }
+    expect(stdout).toContain("--cwd <dir>");
   });
 
   test("refuses an unknown command, and says so", () => {
@@ -550,6 +552,112 @@ test.describe("the versioncam CLI", () => {
     expect(bad.stdout).toContain('"filtered"');
     expect(bad.stdout).toContain("outside 9–11s");
     expect(bad.status).toBe(1);
+  });
+
+  /**
+   * `--cwd`, as a monorepo meets it: run from somewhere that is not the app.
+   * Each test runs the CLI from an empty directory beside the app, so nothing
+   * it finds can have come from where it runs.
+   */
+  test("--cwd works in the directory it names, as if run there", () => {
+    const dir = appDirWithRecording([
+      { frame: 0, label: "open /buttons.html" },
+      { frame: 79, label: "after click" },
+    ]);
+    writeFileSync(
+      join(dir, "beats.json"),
+      `${JSON.stringify([{ label: "after click", expect: "the counter reads 1" }])}\n`,
+    );
+    const elsewhere = mkdtempSync(join(tmpdir(), "versioncam-elsewhere-"));
+
+    // Before the command's name, relative to where the command runs, with the
+    // beat sheet's path relative to the directory it names and not to here.
+    const review = run(
+      [
+        "--cwd",
+        relative(elsewhere, dir),
+        "review",
+        "buttons",
+        "--beats",
+        "beats.json",
+        "--min",
+        "1",
+        "--max",
+        "3",
+      ],
+      elsewhere,
+    );
+    expect(review.stdout).toContain("buttons: PASS");
+    expect(review.status).toBe(0);
+
+    // After it: where the reviewer, allowed `npx versioncam frame *` and
+    // nothing else, has to put it.
+    const frame = run(["frame", "buttons", "10", `--cwd=${dir}`], elsewhere);
+    expect(frame.status).toBe(0);
+    const file = frame.stdout.trim();
+    expect(file.endsWith("buttons-frame-10.png")).toBe(true);
+    expect(realpathSync(file).startsWith(realpathSync(dir))).toBe(true);
+  });
+
+  test("--cwd reads the environment files of the directory it names", () => {
+    // Loaded after the move, not before: a sign-in's variables sit beside the
+    // config they are for.
+    const dir = appDir();
+    writeFileSync(
+      join(dir, "versioncam.config.ts"),
+      `import { defineRecorder } from "versioncam";\n` +
+        `export default defineRecorder({ baseUrl: process.env.VERSIONCAM_TEST_URL ?? "http://example.test" });\n`,
+    );
+    writeFileSync(
+      join(dir, ".env.recording"),
+      "VERSIONCAM_TEST_URL=http://from-env-recording.test\n",
+    );
+    const elsewhere = mkdtempSync(join(tmpdir(), "versioncam-elsewhere-"));
+    const { status, stdout } = run(["doctor", "--cwd", dir], elsewhere);
+    expect(stdout).toContain("http://from-env-recording.test");
+    // Nothing serves it; the point is only which address was asked.
+    expect(status).toBe(1);
+  });
+
+  test("--cwd refuses a directory whose own versioncam is another one", () => {
+    // What `npx` does from above an app that has versioncam in its own
+    // node_modules: it runs another copy, or downloads the latest, and that
+    // copy would record with a Chromium the app never pinned.
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-other-"));
+    const other = join(dir, "node_modules", "versioncam");
+    mkdirSync(other, { recursive: true });
+    writeFileSync(
+      join(other, "package.json"),
+      '{ "name": "versioncam", "version": "0.0.1" }\n',
+    );
+    writeFileSync(
+      join(dir, "versioncam.config.ts"),
+      'export default { baseUrl: "http://example.test" };\n',
+    );
+    const elsewhere = mkdtempSync(join(tmpdir(), "versioncam-elsewhere-"));
+
+    const { status, stdout, stderr } = run(["doctor", "--cwd", dir], elsewhere);
+    expect(status).toBe(1);
+    expect(stderr).toContain(
+      `its own versioncam 0.0.1 in ${realpathSync(other)}`,
+    );
+    expect(stderr).toContain("never below");
+    expect(stderr).toContain("then the same command without --cwd");
+    // Refused before the command began.
+    expect(stdout).toBe("");
+  });
+
+  test("--cwd says what is wrong with the directory it was given", () => {
+    const elsewhere = mkdtempSync(join(tmpdir(), "versioncam-elsewhere-"));
+
+    const missing = run(["doctor", "--cwd", "no-such-app"], elsewhere);
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain("there is no directory");
+    expect(missing.stderr).toContain("no-such-app");
+
+    const left = run(["doctor", "--cwd"], elsewhere);
+    expect(left.status).toBe(1);
+    expect(left.stderr).toContain("`--cwd` needs a directory");
   });
 
   test("dsl prints the reference, and every method in it is real", () => {

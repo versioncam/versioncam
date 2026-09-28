@@ -6,6 +6,18 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Added
+
+- `--cwd <dir>` runs any command as if from `<dir>`: that directory's
+  config, `.env.recording` and `.env`, and any relative path the command is
+  given or prints. It can go anywhere on the line. It is for a monorepo, run
+  from the repository root or from inside the app. `npx` looks for
+  versioncam only where it runs and above, so `--cwd` refuses a directory
+  whose own versioncam is not the one running, and says to `cd` into it
+  instead.
+
 ## 0.1.3 (2026-09-28)
 
 ### Added
