@@ -7,8 +7,9 @@ sheet, and CI re-records every clip so a demo that no longer matches the app
 fails instead of quietly lying. The master plan is [`docs/plan.md`](docs/plan.md);
 the product plan — IXO adoption, publishing, the hosted service, revenue — is
 [`docs/product.md`](docs/product.md); the paid layer's scope (setup, deployment,
-billing, costs, the beta) is [`docs/paid.md`](docs/paid.md); each work package
-has its own execution record, `docs/wp*.md`. Read the plan's sections 1–3 and the current work
+billing, costs, the beta) is [`docs/paid.md`](docs/paid.md), and its build order,
+executable milestone by milestone, is [`docs/build.md`](docs/build.md); each
+work package has its own execution record, `docs/wp*.md`. Read the plan's sections 1–3 and the current work
 package before changing code.
 
 ## Layout
