@@ -109,6 +109,14 @@ and its entry here says how.
   ffmpeg wrote straight to it, and had emptied it by the time it failed.
   The sequence is now written beside it and takes its place only once it
   is complete.
+- A contact sheet's evenly spread tiles no longer land in the dissolve the
+  renderer draws after a settle, where a tile showed the page before the
+  wait ghosting through the page after it. The sheet `render` writes and
+  `versioncam sheet` without `--at-marks` move such a tile to the first
+  frame after the dissolve, as `--at-marks` already did for its own tiles.
+  The example app's first clip had one. A scene's sheet is unchanged, since
+  a scene never dissolves. `evenFrames` is exported beside `uniformFrames`
+  and `markedFrames`.
 
 ## 0.1.3 (2026-09-28)
 

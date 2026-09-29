@@ -20,6 +20,57 @@ export function uniformFrames(
 }
 
 /**
+ * The first frame at or after `frame` that is not inside a dissolve.
+ *
+ * The renderer dissolves between states for `crossfadeFrames` after every
+ * cut, and a tile taken inside that window is two pages at once. A reviewer
+ * shown one said so and declined to judge the beat from it, which is the
+ * right answer to a question that should not have been asked.
+ *
+ * Two settles a few frames apart overlap their dissolves, and the first frame
+ * after one can be inside the next, so the frame moves on until it is clear
+ * of all of them. Never past the last frame, which has nothing after it.
+ */
+function pastCrossfade(
+  frame: number,
+  durationFrames: number,
+  crossfadeFrames: number,
+  cuts: readonly number[],
+): number {
+  let clear = frame;
+  for (;;) {
+    const cut = cuts.find((c) => clear > c && clear <= c + crossfadeFrames);
+    if (cut === undefined) break;
+    clear = cut + crossfadeFrames + 1;
+  }
+  return Math.min(clear, durationFrames - 1);
+}
+
+/**
+ * Evenly spaced, ends included, and none of them inside a dissolve: the
+ * frames a sheet shows when nobody chose them.
+ *
+ * An even spread knows nothing about the clip, so it lands wherever the
+ * spacing puts it, and after a settle that can be the renderer's crossfade: a
+ * plain sheet of the example app showed two tiles with one page ghosting
+ * through the next, which `--at-marks` had stopped doing for its own tiles
+ * long before. A tile inside a dissolve moves to the first frame after it.
+ * The first frame is never inside one, the last stays the last, and two
+ * tiles that land on the same frame are one.
+ */
+export function evenFrames(
+  durationFrames: number,
+  count = SHEET_TILES,
+  crossfadeFrames = 0,
+  cuts: readonly number[] = [],
+): number[] {
+  const tiles = uniformFrames(durationFrames, count).map((frame) =>
+    pastCrossfade(frame, durationFrames, crossfadeFrames, cuts),
+  );
+  return [...new Set(tiles)].sort((a, b) => a - b);
+}
+
+/**
  * Frame 0, every beat, and the last frame.
  *
  * An evenly spaced sample is blind to what a clip is *about*: a pilot's sheet
@@ -39,23 +90,13 @@ export function markedFrames(
 ): number[] {
   const inRange = (frame: number) =>
     Number.isInteger(frame) && frame >= 0 && frame < durationFrames;
-  // Past the crossfade, wherever a frame would land inside one.
-  //
-  // The renderer dissolves between states for `crossfadeFrames` after every
-  // cut, and a tile taken inside that window is two pages at once. A reviewer
-  // shown one said so and declined to judge the beat from it, which is the
-  // right answer to a question that should not have been asked.
-  //
-  // A mark is the worst case — it sits on the cut's first frame, where the
-  // blend has barely begun and the tile still shows what was on screen
-  // *before* the wait — but any evenly spread tile can land there too. Marks
-  // stay where they are, because `review` wants the state boundary; only the
-  // picture waits for the dissolve to finish.
-  const settled = (frame: number) => {
-    const cut = cuts.find((c) => frame > c && frame <= c + crossfadeFrames);
-    const clear = cut === undefined ? frame : cut + crossfadeFrames + 1;
-    return Math.min(clear, durationFrames - 1);
-  };
+  // A mark is the worst case of a tile inside a dissolve: it sits on the
+  // cut's first frame, where the blend has barely begun and the tile still
+  // shows what was on screen *before* the wait. `beatFrame` moves its tile
+  // past the dissolve that starts there; the marks themselves stay where
+  // they are, because `review` wants the state boundary. The spare tiles
+  // below come from `evenFrames`, which moves them past any dissolve they
+  // land in.
   const wanted = [
     0,
     ...marks.map((m) => beatFrame(m, durationFrames, crossfadeFrames)),
@@ -72,9 +113,14 @@ export function markedFrames(
   // the shape of the clip around them.
   if (unique.length < count) {
     const filled = new Set(unique);
-    for (const frame of uniformFrames(durationFrames, count)) {
+    for (const frame of evenFrames(
+      durationFrames,
+      count,
+      crossfadeFrames,
+      cuts,
+    )) {
       if (filled.size >= count) break;
-      filled.add(settled(frame));
+      filled.add(frame);
     }
     return [...filled].sort((a, b) => a - b);
   }

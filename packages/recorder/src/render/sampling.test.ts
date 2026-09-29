@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { frameAtMark, markedFrames, uniformFrames } from "./sampling.js";
+import {
+  evenFrames,
+  frameAtMark,
+  markedFrames,
+  uniformFrames,
+} from "./sampling.js";
 
 const marksAt = (...frames: number[]) =>
   frames.map((frame, index) => ({ frame, label: `beat ${index}` }));
@@ -123,6 +128,79 @@ describe("no tile is two pages at once", () => {
 
   it("leaves tiles alone that are nowhere near a cut", () => {
     expect(markedFrames(149, marksAt(0), 8, 6, [140])).toContain(21);
+  });
+
+  it("steps past dissolves that overlap, not into the next one", () => {
+    // Two settles four frames apart: the first frame after the first
+    // dissolve is inside the second.
+    const frames = markedFrames(149, marksAt(0), 8, 6, [20, 24]);
+    expect(frames).toContain(31);
+    for (const f of frames) expect(f > 20 && f <= 30).toBe(false);
+  });
+});
+
+describe("a plain sheet, with no beats to aim at", () => {
+  it("steps a tile out of a dissolve", () => {
+    // The committed fixture recording: 115 frames and one settle, cut at 78.
+    // An even spread puts its sixth tile on 81, three frames into the
+    // six-frame dissolve, where the page before the click ghosts through the
+    // page after it. That tile is shown at 85, the first frame past it.
+    expect(uniformFrames(115)).toContain(81);
+    expect(evenFrames(115, 8, 6, [78])).toEqual([
+      0, 16, 33, 49, 65, 85, 98, 114,
+    ]);
+  });
+
+  it("is the even spread itself when nothing dissolves", () => {
+    expect(evenFrames(601)).toEqual(uniformFrames(601));
+    expect(evenFrames(601, 8, 0, [100])).toEqual(uniformFrames(601));
+    expect(evenFrames(601, 8, 6, [])).toEqual(uniformFrames(601));
+  });
+
+  it("keeps the first frame and the last, even a last frame inside a dissolve", () => {
+    // Nothing comes after the last frame to move it to.
+    const frames = evenFrames(100, 8, 6, [97]);
+    expect(frames[0]).toBe(0);
+    expect(frames.at(-1)).toBe(99);
+  });
+
+  it("makes one tile of two that land in the same dissolve", () => {
+    // A short clip, its tiles two frames apart, and a dissolve over six.
+    expect(evenFrames(15, 8, 6, [3])).toEqual([0, 2, 10, 12, 14]);
+  });
+
+  it("steps past dissolves that overlap, not into the next one", () => {
+    const frames = evenFrames(149, 8, 6, [20, 24]);
+    expect(frames).toContain(31);
+    for (const f of frames) expect(f > 20 && f <= 30).toBe(false);
+  });
+
+  it("never leaves a tile but the last inside a dissolve, whatever the cuts", () => {
+    for (let duration = 20; duration <= 320; duration += 23) {
+      const middle = Math.floor(duration / 2);
+      const layouts = [
+        [5],
+        [duration - 10],
+        [10, 13, 16],
+        [middle, middle + 2],
+        [3, middle, duration - 4],
+      ];
+      for (const cuts of layouts) {
+        const frames = evenFrames(duration, 8, 6, cuts);
+        expect([...frames].sort((a, b) => a - b)).toEqual(frames);
+        expect(new Set(frames).size).toBe(frames.length);
+        expect(frames[0]).toBe(0);
+        expect(frames.at(-1)).toBe(duration - 1);
+        for (const f of frames.slice(0, -1)) {
+          for (const c of cuts) {
+            expect(
+              f > c && f <= c + 6,
+              `frame ${f} of ${duration} is inside the dissolve after ${c}`,
+            ).toBe(false);
+          }
+        }
+      }
+    }
   });
 });
 

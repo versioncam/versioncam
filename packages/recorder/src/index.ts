@@ -64,6 +64,7 @@ export {
 export type { RenderOutcome, RenderTarget } from "./render/render.js";
 export {
   beatFrame,
+  evenFrames,
   frameAtMark,
   markedFrames,
   uniformFrames,

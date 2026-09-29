@@ -176,7 +176,11 @@ export async function contactSheet(
     id: string;
     durationFrames: number;
     count?: number;
-    /** Exactly which frames to show. Evenly spaced when absent. */
+    /**
+     * Exactly which frames to show. Evenly spaced when absent, which suits a
+     * scene; a recording's come from `evenFrames`, which knows where its
+     * dissolves are.
+     */
     frames?: number[];
     outDir: string;
   },

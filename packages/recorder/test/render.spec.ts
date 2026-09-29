@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { PNG } from "pngjs";
 import { fitFrameArea, sourceToOutput } from "../src/core/compose.js";
 import { ffprobeSync } from "../src/render/ffmpeg.js";
+import { uniformFrames } from "../src/render/sampling.js";
 import {
   contactSheet,
   openRenderPage,
@@ -353,6 +354,40 @@ test.describe("rendering a recording", () => {
       expect(existsSync(sheet)).toBe(true);
       expect(statSync(sheet).size).toBeGreaterThan(10_000);
       expect(sheet.startsWith(config.outputDir)).toBe(true);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("puts no evenly spread tile inside a dissolve", async () => {
+    // The fixture settles once, cut at frame 78, and an even spread of its
+    // 115 frames puts the sixth tile on 81: three frames into the six-frame
+    // dissolve, where the page before the click ghosts through the page
+    // after it. The tile is the first frame past the dissolve instead, the
+    // same frame rendered on its own, to the byte.
+    const config = configWith(null);
+    const browser = await launchBrowser();
+    const target = {
+      kind: "recording" as const,
+      id: CLIP,
+      dir: join(config.recordingsDir, CLIP),
+    };
+    try {
+      const timeline = JSON.parse(
+        readFileSync(join(target.dir, "timeline.json"), "utf8"),
+      ) as { durationFrames: number; cuts: number[] };
+      expect(timeline.cuts).toEqual([78]);
+      expect(uniformFrames(timeline.durationFrames)[5]).toBe(81);
+
+      await contactSheet(browser, config, target);
+      const tile = readFileSync(
+        join(config.outputDir, `${CLIP}-sheet`, "05.png"),
+      );
+      const hash = (png: Buffer) =>
+        createHash("sha1").update(png).digest("hex");
+      expect(hash(tile)).toBe(
+        hash(await renderFrame(browser, config, target, 85)),
+      );
     } finally {
       await browser.close();
     }

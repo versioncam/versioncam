@@ -12,6 +12,7 @@ import {
   encodeFromPage,
 } from "./encode.js";
 import type { EncodeResult } from "./encode.js";
+import { evenFrames } from "./sampling.js";
 import { distPageDir, installRenderRoutes, RENDER_ORIGIN } from "./serve.js";
 
 export type RenderTarget =
@@ -96,6 +97,32 @@ export type RenderOutcome = EncodeResult & {
   sheet: string;
 };
 
+/**
+ * The frames a sheet shows when nobody chose them.
+ *
+ * For a recording, evenly spread and moved past the renderer's dissolves,
+ * which only the recording's own cuts can say where they are. Read from its
+ * directory rather than by id, since a target can be a recording anywhere. A
+ * scene draws every frame itself and never dissolves, so its sheet is the
+ * plain even spread the encoder falls back on.
+ */
+async function sheetFrames(
+  config: ResolvedConfig,
+  target: RenderTarget,
+  durationFrames: number,
+): Promise<number[] | undefined> {
+  if (target.kind !== "recording") return undefined;
+  const timeline = JSON.parse(
+    await readFile(join(target.dir, "timeline.json"), "utf8"),
+  ) as Timeline;
+  return evenFrames(
+    durationFrames,
+    undefined,
+    config.motion.crossfadeFrames,
+    timeline.cuts,
+  );
+}
+
 async function renderTarget(
   browser: Browser,
   config: ResolvedConfig,
@@ -116,6 +143,7 @@ async function renderTarget(
     const sheet = await encodeContactSheet(page, {
       id: target.id,
       durationFrames,
+      frames: await sheetFrames(config, target, durationFrames),
       outDir: config.outputDir,
     });
     return { ...encoded, id: target.id, durationFrames, fps, sheet };
@@ -161,7 +189,8 @@ export async function contactSheet(
     return await encodeContactSheet(page, {
       id: target.id,
       durationFrames,
-      frames: options.frames,
+      frames:
+        options.frames ?? (await sheetFrames(config, target, durationFrames)),
       outDir: config.outputDir,
     });
   } finally {
