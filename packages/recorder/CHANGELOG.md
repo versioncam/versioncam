@@ -6,7 +6,10 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.2.0 (2026-09-29)
+
+A minor version: new config fields and new camera methods. A clip whose
+camera moves never overlap records what it did before, to the byte.
 
 ### Added
 
