@@ -207,6 +207,7 @@ Two more, from the tools rather than the app:
 |---|---|
 | a locator "matched N elements" | the text appears in more than one place — use `byRole` with a name, or a test id |
 | review warns that a track never rendered | you wrote a camera, highlight or caption with no frames after it; add a hold |
+| review warns that a click is outside what the camera shows | the camera was framing something else when the button went down: zoom to what the click is on before it, or follow the cursor |
 
 ## What you write down
 

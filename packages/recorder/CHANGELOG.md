@@ -23,6 +23,9 @@ and its entry here says how.
   fields of the config's `motion`: `followZoom`, `followDeadZone` and
   `followSmoothingMs`. `s.camera.release()` stops following, and the camera
   comes to rest on the framing it was heading for.
+- `versioncam review` warns, under `onscreen`, about a click that lands
+  outside what the camera shows: the button changes, and no frame shows it
+  pressed.
 - `--cwd <dir>` runs any command as if from `<dir>`: that directory's
   config, `.env.recording` and `.env`, and any relative path the command is
   given or prints. It can go anywhere on the line. It is for a monorepo, run

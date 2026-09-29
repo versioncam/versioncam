@@ -211,14 +211,22 @@ function checkRendered(timeline: Timeline): ReviewItem {
  * not `review`, which had no clause for it, and not the video, which simply
  * lacks the ring it was supposed to end on.
  *
+ * A click is the other thing a clip points at. The ripple is drawn where the
+ * cursor was, and a click the camera is framing something else for is a
+ * ripple drawn off the edge of the frame: the button changes, and nobody saw
+ * it pressed. A camera that follows the cursor promises this never happens,
+ * and this is where that promise is checked, for every other camera too.
+ *
  * A warning rather than a failure: the camera can legitimately be somewhere
  * else entirely by the time a highlight runs, and only the renderer knows for
- * certain. But a highlight wholly outside the viewport is almost always a
- * mistake, and it is invisible in every other way.
+ * certain. But a highlight or a click wholly outside the frame is almost
+ * always a mistake, and it is invisible in every other way.
  */
 function checkOnScreen(timeline: Timeline): ReviewItem {
   const { width, height } = timeline.viewport;
   const full: Rect = { x: 0, y: 0, w: width, h: height };
+  const cameraAt = (t: number): Rect =>
+    timeline.camera.length > 0 ? evalCamera(timeline.camera, t) : full;
 
   // Against the camera, not the viewport.
   //
@@ -233,37 +241,62 @@ function checkOnScreen(timeline: Timeline): ReviewItem {
   // Sampled at both ends of the highlight because the camera can be moving
   // through it: a ring that starts cropped and ends visible is still a ring
   // someone can read.
-  const visible = (h: (typeof timeline.highlights)[number]): boolean => {
-    const rects =
-      timeline.camera.length > 0
-        ? [evalCamera(timeline.camera, h.t0), evalCamera(timeline.camera, h.t1)]
-        : [full];
-    return rects.some(
+  const visible = (h: (typeof timeline.highlights)[number]): boolean =>
+    [cameraAt(h.t0), cameraAt(h.t1)].some(
       (r) =>
         h.rect.x + h.rect.w > r.x &&
         h.rect.y + h.rect.h > r.y &&
         h.rect.x < r.x + r.w &&
         h.rect.y < r.y + r.h,
     );
-  };
   const offscreen = timeline.highlights.filter((h) => !visible(h));
-  if (offscreen.length === 0) {
+
+  // A click, at the moment the button goes down.
+  const presses = timeline.pointer.filter((p) => p.kind === "down");
+  const unseen = presses.filter((p) => {
+    const r = cameraAt(p.t);
+    const [x, y] = p.at;
+    return x < r.x || x > r.x + r.w || y < r.y || y > r.y + r.h;
+  });
+
+  if (offscreen.length === 0 && unseen.length === 0) {
     return {
       check: "onscreen",
       pass: true,
-      detail: `${timeline.highlights.length} highlight(s), all inside the viewport`,
+      detail:
+        `${timeline.highlights.length} highlight(s) and ${presses.length} ` +
+        "click(s), all inside what the camera shows",
     };
   }
-  const where = offscreen
-    .map((h) => `y ${Math.round(h.rect.y)}–${Math.round(h.rect.y + h.rect.h)}`)
-    .join(", ");
+  const found: string[] = [];
+  if (offscreen.length > 0) {
+    const where = offscreen
+      .map(
+        (h) => `y ${Math.round(h.rect.y)}–${Math.round(h.rect.y + h.rect.h)}`,
+      )
+      .join(", ");
+    found.push(
+      `${offscreen.length} highlight(s) outside what the camera is showing ` +
+        `(${where}), so no frame can show them`,
+    );
+  }
+  if (unseen.length > 0) {
+    const where = unseen
+      .map(
+        (p) =>
+          `at ${seconds(p.t)} on (${Math.round(p.at[0])}, ${Math.round(p.at[1])})`,
+      )
+      .join(", ");
+    found.push(
+      `${unseen.length} click(s) outside what the camera is showing (${where}), ` +
+        "so no frame shows the press",
+    );
+  }
   return {
     check: "onscreen",
     pass: false,
     warning: true,
-    detail:
-      `${offscreen.length} highlight(s) outside what the camera is showing ` +
-      `(${where}), so no frame can show them`,
+    detail: found.join("; "),
   };
 }
 

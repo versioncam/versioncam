@@ -260,7 +260,8 @@ eases into its new framing over its `duration`. A zoom written while the last
 one is still moving takes over from it without a stop. `s.camera.reset()`
 goes back to the whole page.
 
-*The clip DSL* has every option and its default.
+`versioncam review` warns about a click that lands outside what the camera
+shows. *The clip DSL* has every option and its default.
 
 ### Look before you write
 
@@ -424,8 +425,8 @@ that needs no eyes and no browser. It prints a line per check and exits 0 or 1:
 - **progress**: the screen changed between one beat and the next.
 - **rendered**: nothing was written after the last frame, where no frame
   would show it. A warning, not a failure.
-- **onscreen**: every highlight is inside what the camera shows. Also a
-  warning.
+- **onscreen**: every highlight and every click is inside what the camera
+  shows. Also a warning.
 
 What needs eyes is what the contact sheet and `versioncam frame` are for. Is
 it legible? Is the cursor in the way? Does the frame show what the beat

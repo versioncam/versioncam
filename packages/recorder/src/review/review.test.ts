@@ -352,3 +352,33 @@ describe("a highlight the camera is not showing", () => {
     ).toBe(true);
   });
 });
+
+describe("a click the camera is not showing", () => {
+  const pressed = (at: [number, number], camera: Rect) => {
+    const timeline = timelineOf({ seconds: 10 });
+    timeline.pointer = [
+      { t: 3, kind: "down", at, button: "left" },
+      { t: 3.08, kind: "up", at, button: "left" },
+    ];
+    timeline.camera = [{ t: 0, rect: camera, ease: "hold" }];
+    return reviewRecording({ timeline }).items.find(
+      (i) => i.check === "onscreen",
+    )!;
+  };
+
+  it("warns when the camera is framing something else as the button goes down", () => {
+    // Zoomed on the right half while the click lands on the left: the ripple
+    // is drawn off the edge of the frame and nobody sees the press.
+    const onscreen = pressed([120, 300], { x: 500, y: 0, w: 500, h: 350 });
+    expect(onscreen.pass).toBe(false);
+    expect(onscreen.warning).toBe(true);
+    expect(onscreen.detail).toContain("click");
+    expect(onscreen.detail).toContain("(120, 300)");
+  });
+
+  it("is content with a click inside the frame", () => {
+    const onscreen = pressed([700, 200], { x: 500, y: 0, w: 500, h: 350 });
+    expect(onscreen.pass).toBe(true);
+    expect(onscreen.detail).toContain("1 click(s)");
+  });
+});
