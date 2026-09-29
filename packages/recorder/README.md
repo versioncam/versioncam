@@ -32,7 +32,8 @@ In a monorepo, run all three in the app's own directory. The skill goes
 there, and so does the config its first run writes.
 
 `npx versioncam doctor` checks the rest: Node 22 or later, Chromium, ffmpeg,
-your config, and whether the app starts. ffmpeg and ffprobe come from the
+your config and the scenes module it names, if any, and whether the app
+starts. ffmpeg and ffprobe come from the
 system (`brew install ffmpeg`, `apt install ffmpeg`). The optional
 `ffmpeg-static` package covers a machine that has neither, but it has no
 ffprobe. versioncam is tested on macOS and Linux. Windows is untested.

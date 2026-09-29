@@ -3,7 +3,12 @@ import { existsSync } from "node:fs";
 import { ffmpegStatus } from "../../render/ffmpeg.js";
 import { ensureApp, probe } from "../../app-server.js";
 import type { ResolvedConfig } from "../../config.js";
-import { NO_CONFIG, findConfigFile, loadConfig } from "../../loader.js";
+import {
+  NO_CONFIG,
+  findConfigFile,
+  loadConfig,
+  loadSceneIds,
+} from "../../loader.js";
 
 type Check = { name: string; ok: boolean; detail: string; fix?: string };
 
@@ -71,6 +76,38 @@ async function appCheck(cwd: string): Promise<Check> {
 }
 
 /**
+ * Are the app's scenes where the renderer reads them?
+ *
+ * Only for a config that names a scenes module. `render` refuses one whose
+ * scenes are not its default export, but only once someone renders, and then
+ * after the minutes that takes; this says so the first time anyone asks
+ * whether the repository is set up. Null when there is nothing to say: no
+ * scenes module, or a config that did not load, which the app check reports.
+ */
+async function scenesCheck(cwd: string): Promise<Check | null> {
+  let config: ResolvedConfig;
+  try {
+    config = await loadConfig(cwd);
+  } catch {
+    return null;
+  }
+  if (!config.scenes) return null;
+
+  try {
+    const ids = await loadSceneIds(config);
+    return {
+      name: "scenes",
+      ok: true,
+      detail: `${config.scenes}: ${ids.join(", ") || "none defined"}`,
+    };
+  } catch (error) {
+    // What is wrong, then the shape it should have and the fix beneath it.
+    const [first, ...rest] = (error as Error).message.split("\n");
+    return { name: "scenes", ok: false, detail: first, fix: rest.join("\n") };
+  }
+}
+
+/**
  * Can this machine record and encode?
  *
  * Reports every check rather than stopping at the first failure, because the
@@ -125,7 +162,11 @@ export async function doctor(): Promise<number> {
 
   // Only with a config: without one there is no `baseUrl` to try, and saying
   // so twice would be noise.
-  if (config !== null) checks.push(await appCheck(process.cwd()));
+  if (config !== null) {
+    const scenes = await scenesCheck(process.cwd());
+    if (scenes) checks.push(scenes);
+    checks.push(await appCheck(process.cwd()));
+  }
 
   for (const check of checks) {
     process.stdout.write(

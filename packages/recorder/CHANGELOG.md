@@ -17,6 +17,8 @@ and its entry here says how.
   versioncam only where it runs and above, so `--cwd` refuses a directory
   whose own versioncam is not the one running, and says to `cd` into it
   instead.
+- `versioncam doctor` reads the scenes module a config names, and lists its
+  scene ids, or says what `render` would refuse it for and how to fix it.
 
 ### Changed
 

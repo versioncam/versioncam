@@ -334,6 +334,25 @@ test.describe("the versioncam CLI", () => {
     expect(status).toBe(1);
   });
 
+  test("doctor reads the scenes module, and says what is wrong with it", () => {
+    const dir = appDir("http://example.test", ', scenes: "scenes.ts"');
+    const file = join(realpathSync(dir), "scenes.ts");
+    writeScenes(dir, ["01-x", "03-y"]);
+    expect(run(["doctor"], dir).stdout).toContain(
+      `✓ scenes    ${file}: 01-x, 03-y\n`,
+    );
+
+    // The module `render` refuses, found before anyone renders.
+    writeScenes(dir, ["01-x"], "named");
+    const { stdout } = run(["doctor"], dir);
+    expect(stdout).toContain(
+      `✗ scenes    ${file} has no default export. It exports SCENES.\n`,
+    );
+    expect(stdout).toContain(
+      "            SCENES is one: add `export default SCENES`.\n",
+    );
+  });
+
   test("a command run where there is no config says how to get one", () => {
     const empty = mkdtempSync(join(tmpdir(), "versioncam-empty-"));
     const { status, stderr } = run(["check"], empty);
