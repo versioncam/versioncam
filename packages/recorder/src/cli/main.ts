@@ -19,6 +19,7 @@ import { stability } from "./commands/stability.js";
 import { loadEnvFiles } from "../env.js";
 import { enterCwd, takeCwd } from "./cwd.js";
 import { USAGE } from "./usage.js";
+import { RECORDER_VERSION } from "../driver/clip.js";
 
 type Command = (argv: string[]) => Promise<number>;
 
@@ -50,6 +51,11 @@ async function main(): Promise<number> {
   // Asking for help is a success; being given nothing is not.
   if (argv.some((a) => a === "--help" || a === "-h" || a === "help")) {
     process.stdout.write(USAGE);
+    return 0;
+  }
+  // For a script that must know what it is driving before it drives it.
+  if (argv.length === 1 && (argv[0] === "--version" || argv[0] === "-v")) {
+    process.stdout.write(`${RECORDER_VERSION}\n`);
     return 0;
   }
 

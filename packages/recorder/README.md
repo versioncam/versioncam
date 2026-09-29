@@ -406,6 +406,7 @@ running, and says to `cd` into it instead.
 
 ```
 versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
+versioncam --version               which versioncam this is
 ```
 
 ## What a recording leaves behind

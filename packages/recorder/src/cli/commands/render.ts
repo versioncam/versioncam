@@ -7,6 +7,7 @@ import { renderRecording, renderScene } from "../../render/render.js";
 import { missingScenes } from "../../render/scenes.js";
 import { buildSequence } from "../../render/sequence.js";
 import { writeReport } from "./publish.js";
+import { RECORDER_VERSION } from "../../driver/clip.js";
 
 /** Every recording on disk, by id. */
 function recordedIds(recordingsDir: string): string[] {
@@ -188,6 +189,7 @@ export async function render(argv: string[]): Promise<number> {
   // without having to know the config's output directory.
   if (typeof values.report === "string") {
     writeReport(resolve(values.report), {
+      recorder: RECORDER_VERSION,
       outputDir: config.outputDir,
       rendered: outputs,
       sequence: film,

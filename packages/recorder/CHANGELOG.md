@@ -36,6 +36,16 @@ recording. Clips record exactly what they did before.
   machine is the same file.
 - `versioncam/publish`, an entry point with the publish protocol's types and
   `validateTimeline`, which pulls in nothing that needs Node.
+- `versioncam --version` prints which versioncam this is, for a script that
+  must know before it drives it. The reports of `render` and `publish` carry
+  the version too, and `publish --report` is written when a publish fails,
+  with the error, so a CI step can say why without the log.
+
+### Changed
+
+- A clip that fails before its first step (a saved session the browser
+  refuses, say) now leaves `failure.json` too, with its message and no step,
+  frame or picture, so `check --report` and `publish` say why it failed.
 
 ### Fixed
 

@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright";
 import type { Rect } from "../core/timeline.js";
@@ -92,5 +92,31 @@ export async function writeFailure(
     );
   } catch {
     // Nothing to do about it here, and the original failure is on its way up.
+  }
+}
+
+/**
+ * A failure that happened before the run had a page to record (a saved
+ * session the browser refused, a clip whose viewport is invalid) leaves no
+ * report of its own. This writes the message where a later step looks for
+ * one, with no step, no frame and no picture, so `publish` and `--report`
+ * still say that the clip failed and why. A report the run did write is kept.
+ */
+export function ensureFailure(dir: string, error: Error): void {
+  if (existsSync(join(dir, FAILURE_JSON))) return;
+  try {
+    mkdirSync(dir, { recursive: true });
+    const failure: Failure = {
+      message: error.message,
+      frame: -1,
+      t: 0,
+      step: null,
+    };
+    writeFileSync(
+      join(dir, FAILURE_JSON),
+      `${JSON.stringify(failure, null, 2)}\n`,
+    );
+  } catch {
+    // The error itself is on its way to the terminal either way.
   }
 }

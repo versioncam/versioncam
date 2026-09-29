@@ -7,6 +7,7 @@ import type { ClipDefinition } from "../../driver/clip.js";
 import type { ResolvedConfig } from "../../config.js";
 import { loadClips, loadConfig } from "../../loader.js";
 import { drivingApp } from "../app.js";
+import { ensureFailure } from "../../driver/reports.js";
 import {
   FAILURE_JSON,
   FAILURE_PNG,
@@ -57,6 +58,7 @@ async function checkAll(
         process.stdout.write(`PASS  ${clip.id}\n`);
       } catch (error) {
         failures.push({ id: clip.id, error: error as Error });
+        ensureFailure(join(config.recordingsDir, clip.id), error as Error);
         process.stdout.write(`FAIL  ${clip.id}\n`);
       }
     }

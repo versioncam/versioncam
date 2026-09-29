@@ -8,6 +8,7 @@ import type { ResolvedConfig } from "../../config.js";
 import { formatTiming } from "../../core/timing.js";
 import { loadClips, loadConfig } from "../../loader.js";
 import { drivingApp } from "../app.js";
+import { ensureFailure } from "../../driver/reports.js";
 
 /**
  * Record every clip the config points at, serially.
@@ -72,6 +73,7 @@ async function recordAll(
         );
       } catch (error) {
         failures.push({ id: clip.id, error: error as Error });
+        ensureFailure(join(config.recordingsDir, clip.id), error as Error);
         process.stdout.write(`  ${clip.id}: FAILED\n`);
       }
     }

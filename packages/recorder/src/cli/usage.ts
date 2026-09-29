@@ -65,6 +65,7 @@ Publish
 
 From another directory
   versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
+  versioncam --version               which versioncam this is
 
 Run from a directory containing versioncam.config.ts, or name it with --cwd.
 `;

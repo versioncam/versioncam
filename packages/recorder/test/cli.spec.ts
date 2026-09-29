@@ -505,6 +505,56 @@ test.describe("the versioncam CLI", () => {
     expect(stderr).toContain("VERSIONCAM_TOKEN");
   });
 
+  test("says which versioncam it is", () => {
+    const { status, stdout } = run(["--version"], appDir());
+    const { version } = JSON.parse(
+      readFileSync(join(PACKAGE, "package.json"), "utf8"),
+    ) as { version: string };
+    expect(status).toBe(0);
+    expect(stdout.trim()).toBe(version);
+  });
+
+  test("a clip that fails before its first step still leaves its failure", async () => {
+    // A saved session the browser refuses fails the run before a page exists.
+    const { dir } = await startableDir();
+    writeOpenClip(dir);
+    writeFileSync(join(dir, "broken-session.json"), "{ not json");
+    const config = readFileSync(
+      join(dir, "versioncam.config.ts"),
+      "utf8",
+    ).replace(
+      "defineRecorder({",
+      'defineRecorder({ auth: { storageState: "broken-session.json" },',
+    );
+    writeFileSync(join(dir, "versioncam.config.ts"), config);
+    const report = join(dir, "check.json");
+    const { status } = await runAsync(["check", "--report", report], dir);
+    expect(status).toBe(1);
+    const written = JSON.parse(readFileSync(report, "utf8")) as {
+      clips: {
+        id: string;
+        status: string;
+        step: unknown;
+        picture: unknown;
+        message: string;
+      }[];
+    };
+    expect(written.clips[0]).toMatchObject({
+      id: "open",
+      status: "fail",
+      step: null,
+      picture: null,
+    });
+    const failure = JSON.parse(
+      readFileSync(
+        join(dir, ".versioncam", "recordings", "open", "failure.json"),
+        "utf8",
+      ),
+    ) as { frame: number; message: string };
+    expect(failure.frame).toBe(-1);
+    expect(failure.message).toBe(written.clips[0].message);
+  });
+
   test("check --report writes each clip's result for a machine to read", async () => {
     const { dir } = await startableDir();
     writeOpenClip(dir);

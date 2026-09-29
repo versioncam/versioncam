@@ -137,9 +137,12 @@ export async function publish(argv: string[]): Promise<number> {
     }
     if (reportPath) {
       writeReport(reportPath, {
+        recorder: RECORDER_VERSION,
         api,
         project: committed.project,
         versions: committed.versions,
+        refused: begun.refused,
+        error: null,
       });
     }
     return 0;
@@ -149,6 +152,17 @@ export async function publish(argv: string[]): Promise<number> {
         ? `version.cam refused the publish: ${error.message}`
         : `publish failed: ${(error as Error).message}`;
     process.stderr.write(`${message}\n`);
+    // A CI step reading the report learns what went wrong without the log.
+    if (reportPath) {
+      writeReport(reportPath, {
+        recorder: RECORDER_VERSION,
+        api,
+        project: null,
+        versions: [],
+        refused: [],
+        error: message,
+      });
+    }
     return 1;
   }
 }
