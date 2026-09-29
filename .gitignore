@@ -22,3 +22,6 @@ playwright-report/
 blob-report/
 
 .DS_Store
+
+# The recorder, packed for the render image by `npm run pack:renderer`.
+packages/cloud/render/versioncam.tgz

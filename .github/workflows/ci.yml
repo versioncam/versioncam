@@ -159,8 +159,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # The Worker imports the recorder's publish types from its dist.
+      # The Worker imports the recorder's publish types from its dist, and the
+      # render image installs the recorder packed from this commit.
       - run: npm run build
+      - run: npm run pack:renderer -w @versioncam/cloud
       - name: Deploy the cloud to staging
         working-directory: packages/cloud
         env:
