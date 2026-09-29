@@ -13,7 +13,6 @@
  * states' content hashes: the service asks for the states it has never seen,
  * and a version that changed one screen uploads one screen.
  */
-import type { RenderConfig } from "../config.js";
 
 /** Bumped when either side could misread the other. */
 export const PUBLISH_PROTOCOL = 1;
@@ -69,9 +68,22 @@ export type StateRef = {
  * the app's own code, and nothing runs an app's code but the app's own CI),
  * and the clock the render page is opened with.
  */
-export type PublishedRenderConfig = Omit<RenderConfig, "scenes"> & {
+export type PublishedRenderConfig = {
+  output: { width: number; height: number };
+  theme: {
+    accent: string;
+    cursorScale: number;
+    /** The config's `theme.presentation`, or null when it is off. */
+    presentation: Record<string, unknown> | null;
+  };
+  /** The config's motion, every default filled in. */
+  motion: Record<string, unknown>;
   clock: { timezoneId: string; locale: string };
 };
+// Written out rather than derived from the config's types, so that the
+// service, which imports this file, never reaches the config module and the
+// Node it needs. `manifest.ts` builds one from the real config, and the
+// compiler checks the two agree there.
 
 /** A complete recording, described without its bytes. */
 export type RecordingManifest = {
