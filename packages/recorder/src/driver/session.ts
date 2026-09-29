@@ -58,7 +58,8 @@ export type SessionOptions = {
 type ScheduledAction = { t: number; run: () => Promise<void> };
 
 /** Members a script calls that are not steps: locator factories, and the driver's own. */
-const NOT_A_STEP = /^(by[A-Z]|css$|constructor$|finish$|forClipBody$)/;
+const NOT_A_STEP =
+  /^(by[A-Z]|css$|constructor$|finish$|forClipBody$|evidence$)/;
 
 /**
  * `Array.isArray` does not narrow a readonly tuple union, and a Locator is an
@@ -121,6 +122,8 @@ export class RecordingSession {
    * the cursor goes next, which only the rest of the clip says.
    */
   private readonly cameraWrites: CameraWrite[] = [];
+  /** The first box each step measured, by the step's index. */
+  private readonly stepTargets: Record<string, Rect> = {};
   /** Where the cursor rests in frame 0, before its track has a step. */
   private readonly cursorStart: Vec2;
 
@@ -699,7 +702,13 @@ export class RecordingSession {
         `Matched ${locator.toString()} but it has no box (zero-sized or detached).`,
       );
     }
-    return { x: box.x, y: box.y, w: box.width, h: box.height };
+    const rect = { x: box.x, y: box.y, w: box.width, h: box.height };
+    // Kept for the targets sidecar: the first box a step measures is the
+    // control it acts on. A step's own later measurements (typeInto clicking
+    // the field it already measured) must not replace it.
+    const steps = this.timeline.steps ?? [];
+    if (steps.length > 0) this.stepTargets[String(steps.length - 1)] ??= rect;
+    return rect;
   }
 
   /**
@@ -1002,6 +1011,23 @@ export class RecordingSession {
         },
       });
     return view(this, "");
+  }
+
+  /**
+   * What the run leaves besides its frames: where each step's target was, and
+   * the step that is running now (the one that failed, when this is asked
+   * after a failure). Called by `runClip`, never by a clip.
+   */
+  evidence(): {
+    targets: Record<string, Rect>;
+    step: { index: number; call: string } | null;
+  } {
+    const steps = this.timeline.steps ?? [];
+    const last = steps.at(-1);
+    return {
+      targets: { ...this.stepTargets },
+      step: last ? { index: steps.length - 1, call: last.call } : null,
+    };
   }
 
   /** Write the timeline out. Called by `clip()` once the script has run. */

@@ -67,3 +67,38 @@ test("a recording lists its script's steps, and the version that made it", async
     await browser.close();
   }
 });
+
+test("a recording keeps where each step's target was, beside the timeline", async () => {
+  test.setTimeout(90_000);
+  const browser = await launchBrowser();
+  try {
+    const config = testConfig();
+    const clicking = clip(
+      "targets",
+      { title: "Targets", viewport: { width: 1000, height: 700 }, seed: 3 },
+      async (s: RecordingSession) => {
+        await s.offCamera(installFixtureRoutes);
+        await s.open("/fields.html");
+        await s.hold(200);
+        await s.typeInto(s.byLabel("City"), "Kranj");
+        await s.hold(200);
+      },
+    );
+    const { timeline, dir } = await runClip(browser, config, clicking);
+    const targets = JSON.parse(
+      readFileSync(`${dir}/targets.json`, "utf8"),
+    ) as Record<string, { x: number; y: number; w: number; h: number }>;
+
+    // Only the step that used a control has a target, and it is the field
+    // typeInto typed into, not the click it made to get there.
+    const typing = timeline.steps?.findIndex((s) => s.call === "typeInto");
+    expect(Object.keys(targets)).toEqual([String(typing)]);
+    const box = targets[String(typing)];
+    expect(box.w).toBeGreaterThan(0);
+    expect(box.h).toBeGreaterThan(0);
+    expect(box.x + box.w).toBeLessThanOrEqual(1000);
+    expect(box.y + box.h).toBeLessThanOrEqual(700);
+  } finally {
+    await browser.close();
+  }
+});

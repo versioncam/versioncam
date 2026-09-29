@@ -105,7 +105,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `viewport` | `{ width: 1440, height: 900 }` | The page's size. The video has the same shape. |
 | `dpr` | `2` | Device pixel ratio, from 1 to 3. At 2, a zoom shows real pixels. |
 | `fps` | `60` | Frames per second, from 10 to 120. |
-| `output` | `{ width: 1920 }` | The video's width. Its height follows the viewport. |
+| `output` | `{ width: 1920 }` | The video's width. Its height follows the viewport. `threads` fixes how many threads each encoder uses: an encoder's bytes depend on it, so a fixed number renders the same recording to the same file on any machine. `VERSIONCAM_FFMPEG_THREADS` sets it for one run. |
 | `auth` | none | How the app signs in: a saved session, `{ storageState }`, or a hook, `{ login }`. |
 | `settle` | `quietMs: 150`, `timeoutMs: 15000`, `yieldMs: 20` | When a page counts as done. `ready` adds a condition of your own. |
 | `capture` | `gate: true`, `forceCaptureEvery: 30` | Which frames get a screenshot. See *Speed*. |
@@ -320,6 +320,7 @@ the wreckage would help nobody.
 versioncam record [id…]            drive the app and capture frames
     --draft                        15fps at CSS scale: cheap, for writing clips
 versioncam check [id…]             record every clip; exit 1 if any breaks
+    --report <file>                and write each clip's result there, as JSON
 versioncam stability [id…]         record each clip twice the same way; stable or not
     --runs <n>                     how many times (default 2)
     --full                         at full quality rather than draft
@@ -362,6 +363,31 @@ versioncam render [id…]            composite and encode recordings and scenes
                                    no ids: every one, stale recordings included
     --scene <id>                   and this scene, whatever the ids say (repeatable)
     --sequence                     stitch the results into one piece
+    --report <file>                and write what it made there, as JSON
+```
+
+### Publish
+
+Send what the last run recorded to [version.cam](https://version.cam), which
+renders it and keeps it at a living address. `publish` records nothing and
+renders nothing: for each clip the config defines, it sends the recording if
+the clip's last run passed, or the failure if it did not, so a clip that
+broke says so on every page that embeds it. Only the states the service has
+not seen are uploaded, so a version that changed one screen sends one
+screen.
+
+It needs a credential in the environment, never on the command line:
+`VERSIONCAM_OIDC_TOKEN`, which the versioncam GitHub Action requests from
+GitHub for the run (no secret to store), or `VERSIONCAM_TOKEN`, a project
+token from version.cam for any other CI. `VERSIONCAM_API` points it
+somewhere other than `https://api.version.cam`. Outside GitHub Actions it
+reads the commit and branch from git; `VERSIONCAM_COMMIT` and
+`VERSIONCAM_BRANCH` set them outright.
+
+```
+versioncam publish [id…]           send the recordings and their checks to version.cam
+    --dry-run                      print what would be sent, and send nothing
+    --report <file>                and write the living URLs there, as JSON
 ```
 
 ### From another directory
@@ -391,8 +417,9 @@ versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.co
 | `timeline.json` | Everything the renderer needs, and everything a reviewer can check. |
 | `states/` | The page states the timeline indexes, one image each. |
 | `settles.json` | Every wait: what it was still blocked on, and how long it really took. |
+| `targets.json` | Where each step's target was when the step began, by the step's index in `steps`: the box of the control it used. New in 0.3.0. |
 | `failure.png` | Only after a failure: the page at the moment the clip gave up. |
-| `failure.json` | Only after a failure: the message, the frame and the authored second. |
+| `failure.json` | Only after a failure: the message, the frame, the authored second, and the step that was running (its index in `steps` and its call; new in 0.3.0). |
 
 The timeline's `frames` say which state each frame shows. Beside them are the
 tracks the renderer draws: `cursor`, `pointer`, `camera`, `highlights` and
@@ -585,6 +612,12 @@ Two runs of a clip on one machine produce the same bytes, draft and full. The
 package's own tests assert it for capture and for rendering on every change,
 on macOS and on Linux. A golden recording pins the capture path against
 changes nobody meant to make.
+
+A render is the same bytes every time it is made from one recording, on one
+ffmpeg build, with one encoder thread count. The thread count otherwise
+follows the machine's cores, so a render that must match another machine's
+fixes it with `output.threads` or `VERSIONCAM_FFMPEG_THREADS`. Before 0.3.0
+every WebM carried a random id and no two were the same file.
 
 Across machines the claim is narrower. The **timeline** is identical: it is
 what the driver decided, and nothing in it depends on the host. The captured

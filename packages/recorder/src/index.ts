@@ -90,3 +90,16 @@ export type {
   ReviewResult,
 } from "./review/review.js";
 export { buildSequence } from "./render/sequence.js";
+export { validateTimeline } from "./core/timeline.js";
+export type { Step } from "./core/timeline.js";
+export { publishRecordings, PublishRefused } from "./publish/client.js";
+export type { PublishFiles, PublishOptions } from "./publish/client.js";
+export {
+  publishedRenderConfig,
+  readClip,
+  pngSize,
+  sha256Hex,
+} from "./publish/manifest.js";
+export type { RecordingFiles } from "./publish/manifest.js";
+export * from "./publish/protocol.js";
+export type { Failure, Targets } from "./driver/reports.js";

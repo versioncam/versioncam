@@ -1,3 +1,4 @@
+import { REPRODUCIBLE, threadArgs } from "./encode.js";
 import { spawn } from "node:child_process";
 import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -126,6 +127,7 @@ export function buildFilter(inputs: SequenceInput[]): {
 export async function buildSequence(
   ids: readonly string[],
   outDir: string,
+  options: { threads?: number | null } = {},
 ): Promise<{ path: string; total: number; used: string[]; missing: string[] }> {
   const missing: string[] = [];
   const inputs: SequenceInput[] = [];
@@ -179,6 +181,8 @@ export async function buildSequence(
         "yuv420p",
         "-movflags",
         "+faststart",
+        ...REPRODUCIBLE,
+        ...threadArgs(options.threads),
         partial,
       ],
       { stdio: ["ignore", "ignore", "pipe"] },

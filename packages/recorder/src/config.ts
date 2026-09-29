@@ -185,8 +185,15 @@ export type RecorderConfig = {
     cursorScale?: number;
     presentation?: Presentation;
   };
-  /** Output width; the height follows the viewport's aspect. */
-  output?: { width?: number };
+  /**
+   * Output width; the height follows the viewport's aspect. `threads` fixes
+   * how many threads each encoder uses. The bytes an encoder writes depend on
+   * its thread count, which by default follows the machine's cores, so two
+   * machines render the same recording to different files; fixing it is what
+   * makes a render reproducible anywhere, and what version.cam's renderer
+   * does. `VERSIONCAM_FFMPEG_THREADS` sets it for one run.
+   */
+  output?: { width?: number; threads?: number };
   motion?: Partial<Motion>;
   /** Module whose default export is `Record<string, Scene>`. */
   scenes?: string;
@@ -220,6 +227,8 @@ export type ResolvedConfig = {
     presentation: Presentation | null;
   };
   output: { width: number; height: number };
+  /** Threads per encoder, or null for ffmpeg's own choice. */
+  encoderThreads: number | null;
   motion: Motion;
   scenes: string | null;
   sequence: string[] | null;
@@ -232,6 +241,25 @@ export function defineRecorder(config: RecorderConfig): RecorderConfig {
 
 function fail(field: string, why: string): never {
   throw new Error(`versioncam config: \`${field}\` ${why}`);
+}
+
+/**
+ * The environment wins over the config, so a machine (version.cam's renderer,
+ * a CI job) can pin the thread count of a repository that does not.
+ */
+function threadsOf(configured: number | undefined): number | null {
+  const fromEnv = process.env.VERSIONCAM_FFMPEG_THREADS;
+  if (fromEnv !== undefined && fromEnv !== "") {
+    const n = Number(fromEnv);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new Error(
+        `VERSIONCAM_FFMPEG_THREADS must be a whole number of 1 or more, got "${fromEnv}".`,
+      );
+    }
+    return n;
+  }
+  if (configured === undefined) return null;
+  return positiveInt(configured, "output.threads");
 }
 
 function positiveInt(value: number, field: string): number {
@@ -369,6 +397,7 @@ export function resolveConfig(
   const outDir = abs(config.outDir ?? ".versioncam");
   const outputWidth = config.output?.width ?? 1920;
   positiveInt(outputWidth, "output.width");
+  const encoderThreads = threadsOf(config.output?.threads);
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
 
   if (presentation?.captionInset !== undefined) {
@@ -425,6 +454,7 @@ export function resolveConfig(
       presentation: presentation ?? null,
     },
     output: outputSize(viewport, outputWidth),
+    encoderThreads,
     motion: { ...MOTION, ...config.motion },
     scenes: config.scenes ? abs(config.scenes) : null,
     sequence: config.sequence ?? null,

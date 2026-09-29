@@ -40,6 +40,10 @@
     "./fixtures": {
       "types": "./dist/fixtures.d.ts",
       "import": "./dist/fixtures.js"
+    },
+    "./publish": {
+      "types": "./dist/publish/index.d.ts",
+      "import": "./dist/publish/index.js"
     }
   },
   "files": [

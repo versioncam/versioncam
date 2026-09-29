@@ -88,10 +88,17 @@ test("a missing locator fails by name, with the step and the moment", async () =
     const dir = join(config.recordingsDir, "missing-control");
     const failure = JSON.parse(
       readFileSync(join(dir, "failure.json"), "utf8"),
-    ) as { message: string; frame: number; t: number };
+    ) as {
+      message: string;
+      frame: number;
+      t: number;
+      step: { index: number; call: string } | null;
+    };
     expect(failure.message).toBe(error?.message);
     expect(failure.frame).toBeGreaterThanOrEqual(0);
     expect(failure.t).toBeGreaterThan(0);
+    // The line of the script it stopped at: offCamera, open, hold, click.
+    expect(failure.step).toEqual({ index: 3, call: "click" });
 
     // A real picture of the page, at the scale this recording captures in.
     const shot = PNG.sync.read(readFileSync(join(dir, "failure.png")));

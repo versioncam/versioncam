@@ -79,7 +79,24 @@ function partial(file: string): string {
   return file.replace(/(\.[^./]+)$/, ".partial$1");
 }
 
-function mp4Args(fps: number, out: string): string[] {
+/**
+ * `-threads` as an output option, placed just before the output file: the
+ * same flag before `-i` would set the decoder's threads instead, which change
+ * nothing about the bytes written.
+ */
+export function threadArgs(threads: number | null | undefined): string[] {
+  return threads ? ["-threads", String(threads)] : [];
+}
+
+/**
+ * Output options that make a file's bytes depend only on its frames. Without
+ * `bitexact` the WebM muxer writes a random segment id into every file, so no
+ * two renders of one recording were ever the same bytes, and both muxers
+ * stamp the file with the ffmpeg build that wrote it.
+ */
+export const REPRODUCIBLE: readonly string[] = ["-fflags", "+bitexact"];
+
+function mp4Args(fps: number, out: string, threads?: number | null): string[] {
   return [
     "-y",
     "-f",
@@ -104,11 +121,13 @@ function mp4Args(fps: number, out: string): string[] {
     // Lets a browser start playing before the whole file has downloaded.
     "-movflags",
     "+faststart",
+    ...REPRODUCIBLE,
+    ...threadArgs(threads),
     out,
   ];
 }
 
-function webmArgs(fps: number, out: string): string[] {
+function webmArgs(fps: number, out: string, threads?: number | null): string[] {
   return [
     "-y",
     "-f",
@@ -128,6 +147,8 @@ function webmArgs(fps: number, out: string): string[] {
     "0",
     "-row-mt",
     "1",
+    ...REPRODUCIBLE,
+    ...threadArgs(threads),
     out,
   ];
 }
@@ -169,6 +190,8 @@ export type EncodeOptions = {
   /** Frame used for the poster image; defaults to a third of the way in. */
   posterFrame?: number;
   outDir: string;
+  /** Threads per encoder; null or absent leaves it to ffmpeg. */
+  threads?: number | null;
 };
 
 /**
@@ -198,8 +221,8 @@ export async function encodeFromPage(
   const outputs = [mp4, webm, poster];
 
   const encoders = [
-    startEncoder(mp4Args(options.fps, partial(mp4)), "H.264"),
-    startEncoder(webmArgs(options.fps, partial(webm)), "VP9"),
+    startEncoder(mp4Args(options.fps, partial(mp4), options.threads), "H.264"),
+    startEncoder(webmArgs(options.fps, partial(webm), options.threads), "VP9"),
   ];
 
   try {

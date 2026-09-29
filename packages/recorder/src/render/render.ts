@@ -139,6 +139,7 @@ async function renderTarget(
       fps,
       durationFrames,
       outDir: config.outputDir,
+      threads: config.encoderThreads,
     });
     const sheet = await encodeContactSheet(page, {
       id: target.id,

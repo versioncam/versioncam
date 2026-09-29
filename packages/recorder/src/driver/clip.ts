@@ -6,7 +6,7 @@ import type { CaptureConfig, ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
 import type { RecordingTiming } from "../core/timing.js";
 import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks.js";
-import { writeFailure, writeSettles } from "./reports.js";
+import { writeFailure, writeSettles, writeTargets } from "./reports.js";
 import type { SettleReport } from "./settle.js";
 import { RecordingSession } from "./session.js";
 
@@ -57,7 +57,7 @@ export function clip(
  * made it, read by whoever shows the recording rather than guessed from the
  * latest release.
  */
-const RECORDER_VERSION = (
+export const RECORDER_VERSION = (
   createRequire(import.meta.url)("../../package.json") as { version: string }
 ).version;
 
@@ -190,6 +190,7 @@ export async function runClip(
     }
     const timeline = session.finish();
     writeSettles(dir, session.settles);
+    writeTargets(dir, session.evidence().targets);
     return { timeline, dir, cost: session.cost, settles: session.settles };
   } catch (error) {
     // Here rather than in the caller, because the context closes below and the
@@ -198,15 +199,17 @@ export async function runClip(
     //
     // Nothing in this block may throw, or it would replace the failure it
     // exists to report — a disk error standing in for the locator that broke.
+    const evidence = session.evidence();
     try {
       writeSettles(dir, session.settles);
+      writeTargets(dir, evidence.targets);
     } catch {
       // Said by the error on its way up, which is the more useful of the two.
     }
     await writeFailure(
       page,
       dir,
-      { message: (error as Error).message, ...session.at },
+      { message: (error as Error).message, ...session.at, step: evidence.step },
       { draft },
     );
     throw error;

@@ -1,11 +1,12 @@
 import { parseArgs } from "node:util";
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig, loadSceneIds } from "../../loader.js";
 import { renderRecording, renderScene } from "../../render/render.js";
 import { missingScenes } from "../../render/scenes.js";
 import { buildSequence } from "../../render/sequence.js";
+import { writeReport } from "./publish.js";
 
 /** Every recording on disk, by id. */
 function recordedIds(recordingsDir: string): string[] {
@@ -57,6 +58,7 @@ export async function render(argv: string[]): Promise<number> {
     options: {
       scene: { type: "string", multiple: true },
       sequence: { type: "boolean" },
+      report: { type: "string" },
     },
     strict: false,
     allowPositionals: true,
@@ -113,12 +115,15 @@ export async function render(argv: string[]): Promise<number> {
   const browser = await launchBrowser();
   const rendered: string[] = [];
   const failures: { id: string; error: Error }[] = [];
+  const outputs: { id: string; files: string[] }[] = [];
+  let film: string | null = null;
 
   try {
     for (const id of recordings) {
       try {
         const out = await renderRecording(browser, config, id);
         rendered.push(id);
+        outputs.push({ id, files: [out.mp4, out.webm, out.poster, out.sheet] });
         process.stdout.write(
           `  ${id}: ${out.durationFrames} frames at ${out.fps}fps ` +
             `(${(out.durationFrames / out.fps).toFixed(1)}s)\n`,
@@ -149,8 +154,11 @@ export async function render(argv: string[]): Promise<number> {
     const stitched = order.filter((id) => rendered.includes(id));
     let unusable: string[] = [];
     if (stitched.length >= 2) {
-      const result = await buildSequence(stitched, config.outputDir);
+      const result = await buildSequence(stitched, config.outputDir, {
+        threads: config.encoderThreads,
+      });
       unusable = result.missing;
+      film = result.path;
       process.stdout.write(
         `  sequence: ${result.used.length} clips, ${result.total.toFixed(1)}s\n`,
       );
@@ -174,6 +182,17 @@ export async function render(argv: string[]): Promise<number> {
         `  (not in the config's sequence: ${unlisted.join(", ")})\n`,
       );
     }
+  }
+
+  // What was made, and where, for a machine: the Action uploads these files
+  // without having to know the config's output directory.
+  if (typeof values.report === "string") {
+    writeReport(resolve(values.report), {
+      outputDir: config.outputDir,
+      rendered: outputs,
+      sequence: film,
+      failed: failures.map(({ id, error }) => ({ id, message: error.message })),
+    });
   }
 
   if (failures.length > 0) {

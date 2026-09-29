@@ -90,6 +90,32 @@ test.describe("rendering a recording", () => {
     }
   });
 
+  test("with a fixed thread count, encodes the same bytes twice", async () => {
+    // What makes a render reproducible: the encoders' output depends on their
+    // thread count, which otherwise follows the machine's cores, and the WebM
+    // muxer wrote a random id into every file until it was told not to.
+    // version.cam's renderer runs with the thread count fixed.
+    const hashOf = (file: string) =>
+      createHash("sha256").update(readFileSync(file)).digest("hex");
+    const renders: string[][] = [];
+    const browser = await launchBrowser();
+    try {
+      for (let run = 0; run < 2; run += 1) {
+        const config = testConfig({ output: { width: 480, threads: 2 } });
+        expect(config.encoderThreads).toBe(2);
+        mkdirSync(config.recordingsDir, { recursive: true });
+        cpSync(FIXTURE_RECORDING, join(config.recordingsDir, CLIP), {
+          recursive: true,
+        });
+        const result = await renderRecording(browser, config, CLIP);
+        renders.push([hashOf(result.mp4), hashOf(result.webm)]);
+      }
+    } finally {
+      await browser.close();
+    }
+    expect(renders[1]).toEqual(renders[0]);
+  });
+
   test("is a pure function of the frame number", async () => {
     const config = configWith(null);
     const browser = await launchBrowser();

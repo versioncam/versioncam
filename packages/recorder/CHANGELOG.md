@@ -6,6 +6,44 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+A minor version: a new command, a new config field, and new files beside a
+recording. Clips record exactly what they did before.
+
+### Added
+
+- `versioncam publish` sends the recordings and what their last run said to
+  version.cam, which renders them and keeps them at a living address. It
+  records and renders nothing itself: for each clip the config defines, it
+  sends the recording if the clip's last run passed, or the failure if it
+  did not. Only the screens the service has not seen are uploaded. The
+  credential comes from the environment (`VERSIONCAM_OIDC_TOKEN`, which the
+  versioncam GitHub Action requests, or a project token in
+  `VERSIONCAM_TOKEN`), never from a flag. `--dry-run` prints what would be
+  sent.
+- `--report <file>` on `check`, `render` and `publish` writes what happened
+  as JSON, for a CI step to read instead of parsing what the command
+  printed: each clip's result and the step a failure stopped at, the files a
+  render made, the living URLs a publish made.
+- A recording keeps `targets.json` beside its timeline: where each step's
+  target was when the step began, by the step's index in `steps`. It is
+  what lets a screenshot be cropped to the control a step used.
+- `failure.json` names the step that was running: its index in `steps` and
+  its call, such as `click`.
+- `output.threads` in the config, and `VERSIONCAM_FFMPEG_THREADS` for one
+  run, fix how many threads each encoder uses, so a render made on another
+  machine is the same file.
+- `versioncam/publish`, an entry point with the publish protocol's types and
+  `validateTimeline`, which pulls in nothing that needs Node.
+
+### Fixed
+
+- A render is now the same bytes every time it is made from one recording.
+  The WebM muxer wrote a random id into every file, so two renders of the
+  same recording always differed, and both muxers stamped each file with
+  the ffmpeg build that wrote it.
+
 ## 0.2.0 (2026-09-29)
 
 A minor version: new config fields and new camera methods. A clip whose

@@ -33,6 +33,7 @@ Record
   versioncam record [id…]            drive the app and capture frames
       --draft                        15fps at CSS scale: cheap, for writing clips
   versioncam check [id…]             record every clip; exit 1 if any breaks
+      --report <file>                and write each clip's result there, as JSON
   versioncam stability [id…]         record each clip twice the same way; stable or not
       --runs <n>                     how many times (default 2)
       --full                         at full quality rather than draft
@@ -55,6 +56,12 @@ Output
                                      no ids: every one, stale recordings included
       --scene <id>                   and this scene, whatever the ids say (repeatable)
       --sequence                     stitch the results into one piece
+      --report <file>                and write what it made there, as JSON
+
+Publish
+  versioncam publish [id…]           send the recordings and their checks to version.cam
+      --dry-run                      print what would be sent, and send nothing
+      --report <file>                and write the living URLs there, as JSON
 
 From another directory
   versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts

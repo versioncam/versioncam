@@ -10,6 +10,7 @@ import { install } from "./commands/install.js";
 import { login } from "./commands/login.js";
 import { measure } from "./commands/measure.js";
 import { preview } from "./commands/preview.js";
+import { publish } from "./commands/publish.js";
 import { record } from "./commands/record.js";
 import { render } from "./commands/render.js";
 import { review } from "./commands/review.js";
@@ -24,6 +25,7 @@ type Command = (argv: string[]) => Promise<number>;
 const COMMANDS: Record<string, Command> = {
   record,
   render,
+  publish,
   check,
   stability,
   sheet,

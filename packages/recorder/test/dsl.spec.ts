@@ -31,6 +31,8 @@ const NOT_AUTHORING_SURFACE = new Set([
   "finish",
   // Called by `runClip` to hand the script its view of the session.
   "forClipBody",
+  // Called by `runClip` for the targets sidecar and the failing step.
+  "evidence",
   // Private, and visible here only because `private` is a compile-time word.
   "defaultHook",
   "frameCamera",

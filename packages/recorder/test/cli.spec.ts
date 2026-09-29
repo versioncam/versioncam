@@ -35,12 +35,14 @@ const CLI = join(PACKAGE, "dist", "cli", "main.js");
 function run(
   args: string[],
   cwd: string,
+  env: Record<string, string> = {},
 ): { status: number; stdout: string; stderr: string } {
   try {
     const stdout = execFileSync(process.execPath, [CLI, ...args], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...env },
     });
     return { status: 0, stdout, stderr: "" };
   } catch (error) {
@@ -239,6 +241,20 @@ function writeScenes(
   );
 }
 
+/** A clip file that declares `id`, for commands that only need it to exist. */
+function writeClip(dir: string, id: string, title = id): void {
+  mkdirSync(join(dir, "demos"), { recursive: true });
+  writeFileSync(
+    join(dir, "demos", `${id}.clip.ts`),
+    [
+      'import { clip } from "versioncam";',
+      `export default clip(${JSON.stringify(id)}, { title: ${JSON.stringify(title)} }, async (s) => {`,
+      '  await s.open("/");',
+      "});",
+    ].join("\n"),
+  );
+}
+
 /** A clip that opens the page and looks at it: enough to compare two runs. */
 function writeOpenClip(dir: string): void {
   mkdirSync(join(dir, "demos"), { recursive: true });
@@ -409,6 +425,98 @@ test.describe("the versioncam CLI", () => {
     } finally {
       await new Promise<void>((done) => squatter.close(() => done()));
     }
+  });
+
+  test("publish --dry-run says what each defined clip's last run left", async () => {
+    // Recorded and passing, recorded and then broken, defined but never
+    // recorded, and a recording of a clip since deleted.
+    const dir = appDirRecorded(["passing", "broken", "deleted"]);
+    writeClip(dir, "passing", "It passes");
+    writeClip(dir, "broken");
+    writeClip(dir, "unrecorded");
+    const broken = join(dir, ".versioncam", "recordings", "broken");
+    writeFileSync(
+      join(broken, "failure.json"),
+      JSON.stringify({
+        message: "Nothing matched the button",
+        frame: 4,
+        t: 0.25,
+        step: { index: 2, call: "click" },
+      }),
+    );
+
+    const { status, stdout, stderr } = await runAsync(
+      ["publish", "--dry-run"],
+      dir,
+      {
+        VERSIONCAM_COMMIT: "c".repeat(40),
+        VERSIONCAM_BRANCH: "main",
+        GITHUB_REPOSITORY: "",
+        GITHUB_SHA: "",
+        GITHUB_REF: "",
+        GITHUB_REF_NAME: "",
+        GITHUB_HEAD_REF: "",
+        GITHUB_RUN_ID: "",
+      },
+    );
+    expect(status).toBe(0);
+    const begin = JSON.parse(stdout) as {
+      commit: string;
+      branch: string;
+      ref: string;
+      clips: {
+        id: string;
+        title: string;
+        check: { status: string; step?: unknown };
+        recording: { states: unknown[]; renderConfig: object } | null;
+      }[];
+    };
+    expect(begin.commit).toBe("c".repeat(40));
+    expect(begin.branch).toBe("main");
+    expect(begin.ref).toBe("refs/heads/main");
+    expect(begin.clips.map((c) => c.id)).toEqual(["broken", "passing"]);
+
+    const [failed, passed] = begin.clips;
+    expect(failed.check).toMatchObject({
+      status: "fail",
+      step: { index: 2, call: "click" },
+    });
+    expect(failed.recording).toBeNull();
+    expect(passed.title).toBe("It passes");
+    expect(passed.check).toEqual({ status: "pass" });
+    expect(passed.recording?.states.length).toBeGreaterThan(0);
+    expect(passed.recording?.renderConfig).not.toHaveProperty("scenes");
+
+    expect(stderr).toContain("Not recorded here, so not published: unrecorded");
+    expect(stdout).not.toContain("deleted");
+  });
+
+  test("publish asks for a credential rather than sending without one", () => {
+    const dir = appDirRecorded(["passing"]);
+    writeClip(dir, "passing");
+    const { status, stderr } = run(["publish"], dir, {
+      VERSIONCAM_COMMIT: "c".repeat(40),
+      VERSIONCAM_BRANCH: "main",
+      VERSIONCAM_OIDC_TOKEN: "",
+      VERSIONCAM_TOKEN: "",
+    });
+    expect(status).toBe(1);
+    expect(stderr).toContain("VERSIONCAM_OIDC_TOKEN");
+    expect(stderr).toContain("VERSIONCAM_TOKEN");
+  });
+
+  test("check --report writes each clip's result for a machine to read", async () => {
+    const { dir } = await startableDir();
+    writeOpenClip(dir);
+    const report = join(dir, "out", "check.json");
+    const { status } = await runAsync(["check", "--report", report], dir);
+    expect(status).toBe(0);
+    const written = JSON.parse(readFileSync(report, "utf8")) as {
+      recorder: string;
+      clips: { id: string; status: string }[];
+    };
+    expect(written.clips).toEqual([{ id: "open", status: "pass" }]);
+    expect(written.recorder).toMatch(/^\d+\.\d+\.\d+/);
   });
 
   test("stability records a clip twice and calls a steady page stable", async () => {
