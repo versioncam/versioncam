@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   symlinkSync,
   writeFileSync,
@@ -574,6 +575,58 @@ test.describe("the versioncam CLI", () => {
       Math.abs(Number(frames) - (115 + 60 + 115 - 2 * 24)),
     ).toBeLessThanOrEqual(2);
     expect(status).toBe(0);
+  });
+
+  test("a render that fails exits, and keeps the last good render", async () => {
+    // A scene that threw partway through left both ffmpeg encoders waiting
+    // for frames that would never come: `render` printed the error and then
+    // never exited, a playable half-clip replaced the last good one, and the
+    // failed run's poster replaced its poster. With the old code this test
+    // does not fail; it hangs until its timeout.
+    test.setTimeout(120_000);
+    const dir = appDir("http://example.test", ', scenes: "scenes.ts"');
+    writeScenes(dir, ["01-x"]);
+    expect((await runAsync(["render", "--scene", "01-x"], dir)).status).toBe(0);
+
+    const out = join(dir, ".versioncam", "out");
+    const files = [
+      "01-x.mp4",
+      "01-x.webm",
+      "01-x-poster.png",
+      "01-x-sheet.png",
+    ];
+    const before = files.map((file) => readFileSync(join(out, file)));
+
+    // The same scene, now throwing at frame 30 of its 60.
+    writeFileSync(
+      join(dir, "scenes.ts"),
+      [
+        "export default {",
+        '  "01-x": { id: "01-x", title: "01-x", durationFrames: 60, fps: 60,',
+        "    draw(ctx: CanvasRenderingContext2D, frame: number, canvas: { width: number; height: number }) {",
+        '      if (frame === 30) throw new Error("frame 30 is where this scene breaks");',
+        '      ctx.fillStyle = "#322"; ctx.fillRect(0, 0, canvas.width, canvas.height);',
+        "    } },",
+        "};",
+      ].join("\n"),
+    );
+    const started = Date.now();
+    const { status, stderr } = await runAsync(
+      ["render", "--scene", "01-x"],
+      dir,
+    );
+    expect(stderr).toContain("frame 30 is where this scene breaks");
+    expect(status).toBe(1);
+    // Seconds: the stuck encoders used to hold it open for as long as anyone
+    // waited.
+    expect(Date.now() - started).toBeLessThan(30_000);
+
+    files.forEach((file, i) => {
+      expect(readFileSync(join(out, file)).equals(before[i]), file).toBe(true);
+    });
+    expect(
+      readdirSync(out).filter((file) => file.includes(".partial.")),
+    ).toEqual([]);
   });
 
   test("render refuses an id that matches nothing, before rendering anything", () => {

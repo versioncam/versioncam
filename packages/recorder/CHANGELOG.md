@@ -109,6 +109,15 @@ and its entry here says how.
   ffmpeg wrote straight to it, and had emptied it by the time it failed.
   The sequence is now written beside it and takes its place only once it
   is complete.
+- A clip or scene that fails partway through `render` stops it at once, and
+  leaves the last good render as it was. A scene that threw at a frame used
+  to leave both ffmpeg encoders waiting for frames that would never come:
+  `render` printed the error and then never exited, which in CI is a job
+  that hangs until it is killed. ffmpeg also wrote straight over the
+  finished files, so a playable half-clip, and the failed run's poster, took
+  the place of the last good ones. The clip, its webm, its poster and its
+  contact sheet are now each written beside the last and take its place only
+  once complete, as the sequence is.
 - A contact sheet's evenly spread tiles no longer land in the dissolve the
   renderer draws after a settle, where a tile showed the page before the
   wait ghosting through the page after it. The sheet `render` writes and

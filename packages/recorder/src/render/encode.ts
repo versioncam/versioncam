@@ -1,5 +1,12 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import type { ChildProcess } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright";
 import { ffmpegPath } from "./ffmpeg.js";
@@ -13,13 +20,24 @@ export type EncodeResult = {
 };
 
 /**
- * Pipe PNG frames into ffmpeg twice — once for H.264, once for VP9.
+ * One ffmpeg, fed frames on its stdin, and how it ended.
+ *
+ * `done` settles when ffmpeg exits: resolved on success, rejected with the
+ * tail of what it printed otherwise. It is the only way an encoder reports
+ * failure. The handlers it replaced threw from inside event callbacks, where
+ * no caller could catch them, so stopping an encoder on purpose would have
+ * taken the whole process down.
+ */
+type Encoder = { child: ChildProcess; done: Promise<void> };
+
+/**
+ * Pipe PNG frames into ffmpeg twice: once for H.264, once for VP9.
  *
  * Two encoders rather than a transcode because both come from the same
  * lossless frames; transcoding the mp4 into a webm would compound artefacts
  * for no saving worth having on a ten-second clip.
  */
-function startEncoder(args: string[]): ReturnType<typeof spawn> {
+function startEncoder(args: string[], what: string): Encoder {
   const child = spawn(ffmpegPath(), args, {
     stdio: ["pipe", "ignore", "pipe"],
   });
@@ -27,19 +45,38 @@ function startEncoder(args: string[]): ReturnType<typeof spawn> {
   child.stderr?.on("data", (chunk: Buffer) => {
     stderr += chunk.toString();
   });
-  child.on("error", (error) => {
-    throw new Error(
-      `ffmpeg could not be started (${error.message}). Install it, or add ` +
-        "the optional ffmpeg-static dependency.",
+  // A write to an encoder that has exited fails with EPIPE. The write's own
+  // callback and `done` both report it; left unhandled here, it would crash.
+  child.stdin?.on("error", () => {});
+  const done = new Promise<void>((resolveDone, rejectDone) => {
+    child.once("error", (error) =>
+      rejectDone(
+        new Error(
+          `ffmpeg could not be started (${error.message}). Install it, or add ` +
+            "the optional ffmpeg-static dependency.",
+        ),
+      ),
     );
+    child.once("close", (code, signal) => {
+      if (code === 0) return resolveDone();
+      const how = signal ? `was stopped (${signal})` : `exited with ${code}`;
+      const tail = stderr.split("\n").slice(-25).join("\n");
+      rejectDone(new Error(`ffmpeg (${what}) ${how}:\n${tail}`));
+    });
   });
-  child.on("close", (code) => {
-    if (code !== 0) {
-      console.error(stderr.split("\n").slice(-25).join("\n"));
-      throw new Error(`ffmpeg exited with ${code}`);
-    }
-  });
-  return child;
+  // Whoever finishes the encode awaits `done`. A render stopped early only
+  // waits for it to settle, and must not leave it an unhandled rejection.
+  done.catch(() => {});
+  return { child, done };
+}
+
+/**
+ * Where `name.ext` is written until it is whole: `name.partial.ext`, the
+ * sequence's convention. ffmpeg picks its muxer from the extension, so the
+ * extension stays last.
+ */
+function partial(file: string): string {
+  return file.replace(/(\.[^./]+)$/, ".partial$1");
 }
 
 function mp4Args(fps: number, out: string): string[] {
@@ -111,15 +148,18 @@ function writeAll(
   });
 }
 
-function closeEncoder(child: ReturnType<typeof spawn>): Promise<void> {
-  return new Promise((resolveClose, rejectClose) => {
-    child.on("close", (code) =>
-      code === 0
-        ? resolveClose()
-        : rejectClose(new Error(`ffmpeg exited ${code}`)),
-    );
-    child.stdin?.end();
-  });
+/**
+ * One frame into one encoder. An encoder that exits early fails the write
+ * with ffmpeg's own account of why, rather than leaving it waiting on a
+ * `drain` that will never come.
+ */
+function feed(encoder: Encoder, buffer: Buffer): Promise<void> {
+  return Promise.race([
+    writeAll(encoder.child.stdin as NodeJS.WritableStream, buffer),
+    encoder.done.then(() => {
+      throw new Error("ffmpeg finished before the last frame was sent");
+    }),
+  ]);
 }
 
 export type EncodeOptions = {
@@ -135,6 +175,13 @@ export type EncodeOptions = {
  * Walk the render page frame by frame, screenshotting each one into both
  * encoders. The page is a pure function of the frame number, so this loop can
  * be re-run, interrupted or parallelised without changing its output.
+ *
+ * Nothing the last good render left is touched until this one has finished.
+ * The clip, its webm and its poster are written beside them, as
+ * `.partial` files, and moved over them only once both encoders have
+ * exited cleanly. Written in place, a scene that threw at frame 30 of 60
+ * left a playable half-clip, and the failed run's poster, where the last
+ * good render had been.
  */
 export async function encodeFromPage(
   page: Page,
@@ -148,24 +195,44 @@ export async function encodeFromPage(
   const poster = join(outDir, `${options.id}-poster.png`);
   const posterFrame =
     options.posterFrame ?? Math.floor(options.durationFrames / 3);
+  const outputs = [mp4, webm, poster];
 
-  const h264 = startEncoder(mp4Args(options.fps, mp4));
-  const vp9 = startEncoder(webmArgs(options.fps, webm));
+  const encoders = [
+    startEncoder(mp4Args(options.fps, partial(mp4)), "H.264"),
+    startEncoder(webmArgs(options.fps, partial(webm)), "VP9"),
+  ];
 
-  const stage = page.locator("#stage");
-  for (let frame = 0; frame < options.durationFrames; frame += 1) {
-    await page.evaluate((n) => window.__render?.setFrame(n), frame);
-    const buffer = await stage.screenshot({
-      type: "png",
-      animations: "disabled",
-    });
-    if (frame === posterFrame) writeFileSync(poster, buffer);
-    await writeAll(h264.stdin as NodeJS.WritableStream, buffer);
-    await writeAll(vp9.stdin as NodeJS.WritableStream, buffer);
+  try {
+    const stage = page.locator("#stage");
+    for (let frame = 0; frame < options.durationFrames; frame += 1) {
+      await page.evaluate((n) => window.__render?.setFrame(n), frame);
+      const buffer = await stage.screenshot({
+        type: "png",
+        animations: "disabled",
+      });
+      if (frame === posterFrame) writeFileSync(partial(poster), buffer);
+      for (const encoder of encoders) await feed(encoder, buffer);
+    }
+    for (const encoder of encoders) encoder.child.stdin?.end();
+    await Promise.all(encoders.map((encoder) => encoder.done));
+  } catch (error) {
+    // Both encoders are waiting for frames that will never come. Left
+    // running, they held the process open after the error was reported:
+    // `render` said what had failed and then never exited, which in CI is a
+    // job that hangs until it is killed.
+    for (const encoder of encoders) {
+      encoder.child.stdin?.destroy();
+      encoder.child.kill("SIGKILL");
+    }
+    await Promise.allSettled(encoders.map((encoder) => encoder.done));
+    for (const file of outputs) rmSync(partial(file), { force: true });
+    throw error;
   }
 
-  await Promise.all([closeEncoder(h264), closeEncoder(vp9)]);
-
+  for (const file of outputs) {
+    // No poster when the poster frame is past the end: the last one stays.
+    if (existsSync(partial(file))) renameSync(partial(file), file);
+  }
   return { frames: options.durationFrames, mp4, webm, poster };
 }
 
@@ -223,7 +290,7 @@ export async function contactSheet(
         `scale=960:-1,tile=${columns}x${rows}`,
         "-frames:v",
         "1",
-        sheet,
+        partial(sheet),
       ],
       { stdio: ["ignore", "ignore", "pipe"] },
     );
@@ -231,13 +298,21 @@ export async function contactSheet(
     child.stderr.on("data", (c: Buffer) => {
       stderr += c.toString();
     });
+    child.once("error", (error) =>
+      rejectSheet(new Error(`ffmpeg could not be started (${error.message})`)),
+    );
     child.on("close", (code) => {
       if (code === 0) resolveSheet();
       else
         rejectSheet(new Error(`contact sheet failed:\n${stderr.slice(-800)}`));
     });
+  }).catch((error: unknown) => {
+    rmSync(partial(sheet), { force: true });
+    throw error;
   });
 
+  // Like the clip: the last good sheet stays until this one is whole.
+  renameSync(partial(sheet), sheet);
   return sheet;
 }
 
