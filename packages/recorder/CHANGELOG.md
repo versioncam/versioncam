@@ -6,10 +6,12 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.3.0 (2026-09-29)
 
 A minor version: a new command, a new config field, and new files beside a
-recording. Clips record exactly what they did before.
+recording. Clips record exactly what they did before. `versioncam publish`
+is for version.cam's hosted service, which opens with its beta; everything
+else in this version works without it.
 
 ### Added
 
