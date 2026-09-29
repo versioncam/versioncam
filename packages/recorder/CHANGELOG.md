@@ -56,6 +56,12 @@ and its entry here says how.
   `render 02 04 --scene 01-intro --sequence` rendered no scene and stitched
   the recordings without it. Ids still choose among the scenes `--scene`
   does not name.
+- `render --sequence` says what the sequence was stitched without: the ids
+  in the config's `sequence` that this run did not render, and the ones it
+  rendered that the `sequence` leaves out. The first note was in the code
+  and could never print. With fewer than two of the `sequence`'s clips
+  rendered, it says a sequence needs two, as it does with fewer than two
+  clips at all, rather than failing.
 
 ## 0.1.3 (2026-09-28)
 

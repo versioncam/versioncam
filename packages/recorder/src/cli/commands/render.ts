@@ -142,22 +142,38 @@ export async function render(argv: string[]): Promise<number> {
     await browser.close();
   }
 
-  if (values.sequence && rendered.length >= 2) {
+  if (values.sequence) {
     // The config's order when it states one, since a sequence is an argument
     // and not an accident of how the directory happens to sort.
     const order = config.sequence ?? rendered;
-    const result = await buildSequence(
-      order.filter((id) => rendered.includes(id)),
-      config.outputDir,
-    );
-    process.stdout.write(
-      `  sequence: ${result.used.length} clips, ${result.total.toFixed(1)}s\n`,
-    );
-    if (result.missing.length > 0) {
-      process.stdout.write(`  (not rendered: ${result.missing.join(", ")})\n`);
+    const stitched = order.filter((id) => rendered.includes(id));
+    let unusable: string[] = [];
+    if (stitched.length >= 2) {
+      const result = await buildSequence(stitched, config.outputDir);
+      unusable = result.missing;
+      process.stdout.write(
+        `  sequence: ${result.used.length} clips, ${result.total.toFixed(1)}s\n`,
+      );
+    } else {
+      process.stderr.write("  sequence needs at least two rendered clips.\n");
     }
-  } else if (values.sequence) {
-    process.stderr.write("  sequence needs at least two rendered clips.\n");
+
+    // What the piece was stitched without, as plainly as what it was
+    // stitched from: four clips of six look finished. The config's sequence
+    // says what belongs in it, and a run can render less than that, or more.
+    const absent = [
+      ...order.filter((id) => !rendered.includes(id)),
+      ...unusable,
+    ];
+    if (absent.length > 0) {
+      process.stdout.write(`  (not rendered: ${absent.join(", ")})\n`);
+    }
+    const unlisted = rendered.filter((id) => !order.includes(id));
+    if (unlisted.length > 0) {
+      process.stdout.write(
+        `  (not in the config's sequence: ${unlisted.join(", ")})\n`,
+      );
+    }
   }
 
   if (failures.length > 0) {

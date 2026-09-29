@@ -514,6 +514,24 @@ test.describe("the versioncam CLI", () => {
     expect(status).toBe(0);
   });
 
+  test("a sequence says what it was stitched without", async () => {
+    // A film of four clips where the config's sequence names six looks
+    // finished, and the note that should have said otherwise never printed.
+    const dir = appDirRecorded(
+      ["02-a", "05-trial"],
+      ', scenes: "scenes.ts", sequence: ["01-x", "02-a", "03-y"]',
+    );
+    writeScenes(dir, ["01-x", "03-y"]);
+    const { status, stdout } = await runAsync(
+      ["render", "02", "05", "--scene", "01-x", "--sequence"],
+      dir,
+    );
+    expect(stdout).toContain("  sequence: 2 clips");
+    expect(stdout).toContain("  (not rendered: 03-y)\n");
+    expect(stdout).toContain("  (not in the config's sequence: 05-trial)\n");
+    expect(status).toBe(0);
+  });
+
   test("render refuses an id that matches nothing, before rendering anything", () => {
     // A typo, or a clip not recorded yet: either way a film made without it
     // would look finished.
