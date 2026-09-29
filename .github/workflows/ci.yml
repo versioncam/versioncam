@@ -8,6 +8,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # id-token: the publish step below asks GitHub for a token that names
+    # this repository and commit, which is how version.cam knows who is
+    # publishing without a stored secret. Naming one permission removes the
+    # defaults, so contents: read is stated too.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,6 +76,26 @@ jobs:
       - name: Render the example's clips
         working-directory: examples/demo-app
         run: npx versioncam render --sequence
+
+      # version.cam's own publish, used on this repository first: the
+      # recordings `check` just made, sent with GitHub's token for this run.
+      # It is what the versioncam Action's publish mode does, written out
+      # until that repository is public. Skipped until staging answers.
+      - name: Publish the example's recordings to version.cam (staging)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: examples/demo-app
+        env:
+          VERSIONCAM_API: https://api-staging.version.cam
+        run: |
+          if ! curl -fsS --max-time 10 "$VERSIONCAM_API/healthz" > /dev/null 2>&1; then
+            echo "Staging is not up yet; nothing published."
+            exit 0
+          fi
+          token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=version.cam" | jq -r .value)
+          echo "::add-mask::$token"
+          VERSIONCAM_OIDC_TOKEN="$token" npx versioncam publish \
+            --report .versioncam/publish.json
 
       - uses: actions/upload-artifact@v4
         if: always()
