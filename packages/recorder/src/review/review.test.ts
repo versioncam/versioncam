@@ -198,6 +198,27 @@ describe("reviewRecording", () => {
     expect(result.pass).toBe(true);
   });
 
+  it("names a camera still moving at the end once, however many keys it left", () => {
+    // A camera that follows the cursor, or blends between moves, is a key a
+    // frame; one still under way at the end leaves a key for every frame it
+    // would have taken to arrive. One line says where it would have stopped.
+    const timeline = beatsClip();
+    const full = { x: 0, y: 0, w: 1000, h: 700 };
+    for (let frame = 540; frame <= 640; frame += 1) {
+      timeline.camera.push({
+        t: frame / FPS,
+        rect: { ...full, w: 1000 - (frame - 540) },
+        ease: "linear",
+      });
+    }
+    const rendered = item(review({ timeline }), "rendered");
+    expect(rendered.warning).toBe(true);
+    expect(rendered.detail.match(/camera key/g)).toHaveLength(1);
+    expect(rendered.detail).toContain(
+      `camera key at ${(640 / FPS).toFixed(1)}s`,
+    );
+  });
+
   it("warns about a highlight or a caption written after the end", () => {
     const timeline = beatsClip();
     timeline.highlights.push({

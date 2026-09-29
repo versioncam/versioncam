@@ -33,7 +33,7 @@ const NOT_AUTHORING_SURFACE = new Set([
   "forClipBody",
   // Private, and visible here only because `private` is a compile-time word.
   "defaultHook",
-  "pushCameraKey",
+  "frameCamera",
   "pushHold",
   "boxOf",
   "untilVisible",

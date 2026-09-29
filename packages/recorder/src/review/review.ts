@@ -163,8 +163,13 @@ function checkRendered(timeline: Timeline): ReviewItem {
   const late = (t: number) => frameAt(t, timeline.fps) > lastFrame;
   const unseen: string[] = [];
 
-  for (const key of timeline.camera) {
-    if (late(key.t)) unseen.push(`a camera key at ${seconds(key.t)}`);
+  // Once for the camera, at its last key. A camera that follows the cursor
+  // or blends between moves has a key a frame, and one still under way at
+  // the end left dozens past it: one line saying where the camera would have
+  // stopped says everything they do.
+  const lastKey = timeline.camera[timeline.camera.length - 1];
+  if (lastKey && late(lastKey.t)) {
+    unseen.push(`a camera key at ${seconds(lastKey.t)}`);
   }
   for (const highlight of timeline.highlights) {
     if (late(highlight.t0)) {

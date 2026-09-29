@@ -47,8 +47,16 @@ export type PointerAction = {
 export type CameraKey = {
   t: number;
   rect: Rect;
-  /** How to reach this key from the previous one. */
-  ease: "minjerk" | "hold";
+  /**
+   * How to reach this key from the previous one: `minjerk` glides, `hold`
+   * stays put and then cuts, and `linear` goes straight there, because the
+   * key is the next frame's sample of a path the recording computed: a
+   * camera following the cursor, or blending one move into another.
+   * Recordings made before the camera could follow have no `linear` keys,
+   * and a renderer from before then reads one as `minjerk`, which lands on
+   * the same sample at every frame.
+   */
+  ease: "minjerk" | "hold" | "linear";
 };
 
 export type HighlightStyle = "ring" | "spotlight";

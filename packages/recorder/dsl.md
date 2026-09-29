@@ -182,6 +182,11 @@ One key, at once: `"Enter"`, `"Escape"`, `"Meta+a"`.
 
 None of these spends clip time, so each needs frames after it.
 
+Each camera line starts from wherever the camera is, still or moving, and
+eases into its new framing over its `duration`. A line written while the
+camera is still on its way somewhere takes over from there at once. Two
+written at the same instant are one: the second.
+
 ### `camera.zoom(target, scale?, options?)`
 
 Frame a locator or a rect, padded by 12% of its size on each side, and keep
@@ -219,6 +224,38 @@ classic mistake, and `versioncam review` warns about it.
 | Option | Default | What it sets |
 |---|---|---|
 | `duration` | `1100` | How long the camera takes to get there. |
+
+### `camera.follow(options?)`
+
+Follow the cursor at one scale until the next camera line. For a clip that
+moves around the page, one `follow` does what a `zoom` before each thing the
+cursor uses cannot: the camera stays at one scale and moves with the cursor
+without stopping.
+
+The camera keeps the cursor inside a dead zone in the middle of the frame and
+moves only when the cursor leaves it, so a move to the next field of a form
+does not move the picture. It never shows beyond the page's edge, and never
+overshoots. Its path is worked out from the whole cursor track once the clip
+has run, so it sets off with the cursor rather than trailing behind it.
+
+It starts centred on the cursor, easing in from wherever the camera was. The
+next `zoom`, `to`, `reset` or `follow` eases out of it the same way.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `scale` | `1.35` | How far in. Unlike a zoom's, it is exact: the frame is `viewport.width / scale` wide the whole time. |
+| `deadZone` | `0.3` | The share of the frame, around its middle, the cursor can move in without moving the camera. `0` answers every movement. |
+| `smoothing` | `600` | How softly the camera moves, in milliseconds: about how long it takes over a move the cursor makes at once. Larger is softer. |
+| `duration` | `1100` | How long the camera takes to get from where it was into the follow. |
+
+The defaults are `followZoom`, `followDeadZone`, `followSmoothingMs` and
+`zoomDurationMs` in the config's `motion`, so an app can set its own.
+
+### `camera.release()`
+
+Stop following. The camera comes to rest on the framing it was heading for,
+with the cursor in it, and stays there until the next camera line. When the
+camera is not following, it does nothing.
 
 ### `highlight(target, style, options?)`
 

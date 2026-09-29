@@ -126,6 +126,26 @@ describe("evalCamera", () => {
   it("throws rather than guessing when it has no keys", () => {
     expect(() => evalCamera([], 0)).toThrow();
   });
+
+  it("lands exactly on each sample of a path, and goes straight between them", () => {
+    // A camera following the cursor is a key a frame. The renderer asks for
+    // frame times only, and must get the sample, not an ease towards it.
+    const a = { x: 100, y: 50, w: 1000, h: 625 };
+    const b = { x: 104, y: 52, w: 996, h: 622.5 };
+    const sampled: CameraKey[] = [
+      { t: 0, rect: full, ease: "hold" },
+      { t: 1 / 60, rect: a, ease: "linear" },
+      { t: 2 / 60, rect: b, ease: "linear" },
+    ];
+    expect(evalCamera(sampled, 1 / 60)).toEqual(a);
+    expect(evalCamera(sampled, 2 / 60)).toEqual(b);
+    expect(evalCamera(sampled, 1.5 / 60)).toEqual({
+      x: 102,
+      y: 51,
+      w: 998,
+      h: 623.75,
+    });
+  });
 });
 
 describe("compose", () => {

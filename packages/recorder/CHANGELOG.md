@@ -10,6 +10,19 @@ and its entry here says how.
 
 ### Added
 
+- `s.camera.follow()` follows the cursor at one scale until the next camera
+  line, for a clip that moves around the page: one line instead of a zoom
+  before each thing the cursor uses, which zoomed in and out and panned in
+  fits and starts. The camera keeps the cursor inside a dead zone in the
+  middle of the frame, never shows beyond the page's edge, and moves
+  smoothly without overshooting. Its path is worked out from the whole
+  cursor track once the clip has run, so it keeps up with a cursor that
+  crosses the page. The options are `scale` (1.35, exact rather than a
+  ceiling), `deadZone` (0.3 of the frame), `smoothing` (600 milliseconds)
+  and `duration` (how long it takes to ease in). Their defaults are new
+  fields of the config's `motion`: `followZoom`, `followDeadZone` and
+  `followSmoothingMs`. `s.camera.release()` stops following, and the camera
+  comes to rest on the framing it was heading for.
 - `--cwd <dir>` runs any command as if from `<dir>`: that directory's
   config, `.env.recording` and `.env`, and any relative path the command is
   given or prints. It can go anywhere on the line. It is for a monorepo, run
@@ -29,6 +42,18 @@ and its entry here says how.
 
 ### Changed
 
+- A camera line written while the camera is still moving starts at once,
+  from where the camera is, and takes its whole `duration`. It used to wait
+  for the move before it to arrive and then run in whatever time was left,
+  so a series of pans stopped and snapped. Two camera lines written at the
+  same instant used to glide to the first and cut to the second; now the
+  second is the only one. A clip whose camera moves never overlap records
+  exactly the camera it did before, to the byte.
+- A recording whose camera follows the cursor, or eases from one move into
+  another, keeps its camera as a key a frame, with a new ease, `"linear"`.
+  A renderer from an earlier version draws such a recording the same way.
+- `versioncam review` names a camera still moving at the end of a clip once,
+  at its last key, rather than once for every key past the end.
 - `versioncam init` below a repository root says where Claude Code finds the
   skill: in a session started in that directory or below it, and from the
   root only after the session has read or edited a file there.

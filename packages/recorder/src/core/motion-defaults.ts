@@ -52,6 +52,38 @@ export const MOTION = {
   /** Padding around a zoom target, as a fraction of its size. */
   zoomPad: 0.12,
 
+  /**
+   * How far in a camera that follows the cursor goes. Gentler than a zoom's
+   * 1.5, because a zoom frames one thing and stops, while a follow keeps the
+   * cursor in frame as it travels and needs more of the page around it to
+   * say where it is going. A website review that found clips zooming in and
+   * out too much settled on this: in a little, once, and pan.
+   */
+  followZoom: 1.35,
+
+  /**
+   * The share of a following camera's frame, around its centre, that the
+   * cursor can move within without the camera answering. At 1.35× on a page
+   * 1440 wide that is 160 pixels either side and 100 up or down: a move to
+   * the next field of a form stays inside it, a move across the page does
+   * not. Much smaller and the camera fidgets with every small movement.
+   */
+  followDeadZone: 0.3,
+
+  /**
+   * How softly a following camera moves: the time it would take over a move
+   * the cursor made at once, 3% to 97% of the way. The camera runs over the
+   * cursor's whole path, so it has no lag to trade against; larger is
+   * smoother, and sets off earlier before each move the cursor makes. At
+   * 600, with the dead zone above, it sets off within about a tenth of a
+   * second of the cursor and comes to rest about a fifth of a second after
+   * the cursor stops: close enough to read as following, soft enough that a
+   * pan across the page never lurches. With no dead zone it would lead the
+   * cursor by a quarter of a second, which starts to read as a camera that
+   * moved first.
+   */
+  followSmoothingMs: 600,
+
   /** How long a highlight stays up if the script does not say. */
   highlightMs: 1800,
 

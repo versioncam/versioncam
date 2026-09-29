@@ -199,6 +199,7 @@ happened again the first time an agent used it.
 | duration drift | adjust holds, never the beats |
 | tooltip / menu open in a frame it should not be | move the cursor start; add a hold before the next action |
 | the caption covers something a beat points at | `theme.presentation.captionInset: { right: 40 }` in the config moves it to the bottom-right corner; it moves every clip's caption, so say so in what you write down |
+| the camera zooms in and out, or stops and starts between targets | one `s.camera.follow()` where the clip starts moving around the page, instead of a `zoom` before each thing the cursor uses; `s.camera.reset()` or `release()` where it should stop |
 
 Two more, from the tools rather than the app:
 

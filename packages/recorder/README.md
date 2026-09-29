@@ -226,6 +226,42 @@ test holds that list to the session's code. The same reference is
 | `viewport`, `dpr`, `fps` | the config's | For a clip that needs a different shape. |
 | `capture` | the config's | A clip that films a canvas sets `{ forceCaptureEvery: 1 }` here. |
 
+### The camera
+
+The camera crops the recorded page as the video plays. There are two ways
+to point it.
+
+- **`s.camera.zoom(target, scale)`** frames one thing and stays there: a form
+  being filled, an answer to read. `scale` is a ceiling, so a small target
+  is framed with room around it.
+- **`s.camera.follow()`** follows the cursor at one scale until the next
+  camera line. Use it when a clip moves around the page, in place of a zoom
+  before each thing the cursor uses, which zooms in and out and pans in fits
+  and starts.
+
+```ts
+s.camera.follow({ scale: 1.35 });
+await s.typeInto(s.byTestId("recipient"), "Mira Halloran");
+await s.click(s.byTestId("create-shipment"));
+await s.click(s.byTestId("cancel-3")); // across the page, and the camera goes too
+s.camera.reset();
+await s.hold(1200);
+```
+
+A camera that follows keeps the cursor inside a dead zone in the middle of
+the frame, and moves only when the cursor leaves it: a move to the next field
+of a form does not move the picture. It never shows beyond the page's edge,
+and it moves smoothly, without overshooting. Its path is worked out from the
+whole cursor track once the clip has run, so it sets off with the cursor
+instead of trailing behind it. `s.camera.release()` stops it where it is.
+
+Every camera line starts from wherever the camera is, still or moving, and
+eases into its new framing over its `duration`. A zoom written while the last
+one is still moving takes over from it without a stop. `s.camera.reset()`
+goes back to the whole page.
+
+*The clip DSL* has every option and its default.
+
 ### Look before you write
 
 A clip written from an app's source reaches for controls that are
@@ -359,7 +395,8 @@ versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.co
 
 The timeline's `frames` say which state each frame shows. Beside them are the
 tracks the renderer draws: `cursor`, `pointer`, `camera`, `highlights` and
-`captions`. Three more fields are there for reading:
+`captions`. A camera that follows the cursor, or eases from one move into
+another, is kept as a key a frame. Three more fields are there for reading:
 
 - **`marks`** are the clip's beats: one per labelled `settle()`, at the first
   frame that shows what the wait was for. `versioncam sheet --at-marks`

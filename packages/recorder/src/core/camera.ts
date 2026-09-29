@@ -82,7 +82,7 @@ export function scaleOf(rect: Rect, viewport: Viewport): number {
  * the scale by the same factor, which is what the eye actually reads as
  * constant speed.
  */
-function interpolateRect(a: Rect, b: Rect, u: number): Rect {
+export function interpolateRect(a: Rect, b: Rect, u: number): Rect {
   const cxA = a.x + a.w / 2;
   const cyA = a.y + a.h / 2;
   const cxB = b.x + b.w / 2;
@@ -97,9 +97,24 @@ function interpolateRect(a: Rect, b: Rect, u: number): Rect {
 }
 
 /**
+ * Straight between two samples of a path, for keys a frame apart. The
+ * renderer asks only for frame times, where this lands on a sample exactly;
+ * between them, what `review` asks for is off by less than a frame's motion.
+ */
+function lerpRect(a: Rect, b: Rect, u: number): Rect {
+  return {
+    x: lerp(a.x, b.x, u),
+    y: lerp(a.y, b.y, u),
+    w: lerp(a.w, b.w, u),
+    h: lerp(a.h, b.h, u),
+  };
+}
+
+/**
  * Where the camera is at time `t`. A key's `ease` describes how the camera
  * reaches it from the previous key: `minjerk` glides, `hold` stays put and
- * then cuts.
+ * then cuts, `linear` is the next sample of a path the recording computed
+ * frame by frame, a follow or a blend.
  */
 export function evalCamera(keys: CameraKey[], t: number): Rect {
   if (keys.length === 0) {
@@ -114,6 +129,7 @@ export function evalCamera(keys: CameraKey[], t: number): Rect {
     if (next.ease === "hold") return prev.rect;
     const span = next.t - prev.t;
     const u = span <= 0 ? 1 : (t - prev.t) / span;
+    if (next.ease === "linear") return lerpRect(prev.rect, next.rect, u);
     return interpolateRect(prev.rect, next.rect, minjerk(u));
   }
 

@@ -10,6 +10,10 @@ import {
   targetPoint,
 } from "../core/cursor.js";
 import { zoomRect } from "../core/camera.js";
+import { cameraTrack } from "../core/camera-track.js";
+import type { CameraWrite } from "../core/camera-track.js";
+import { resolveFollow } from "../core/follow.js";
+import type { FollowOptions } from "../core/follow.js";
 import { loop as planLoop, resampleByArcLength } from "../core/loop.js";
 import type { LoopPlanner } from "../core/loop.js";
 import { seeded } from "../core/rng.js";
@@ -111,6 +115,14 @@ export class RecordingSession {
   private readonly stateIndexByHash = new Map<string, number>();
   private readonly queue: ScheduledAction[] = [];
   private readonly settleReports: SettleReport[] = [];
+  /**
+   * What the clip asked of the camera, turned into keys by `finish()`. Not
+   * keys as it goes, because a camera following the cursor depends on where
+   * the cursor goes next, which only the rest of the clip says.
+   */
+  private readonly cameraWrites: CameraWrite[] = [];
+  /** Where the cursor rests in frame 0, before its track has a step. */
+  private readonly cursorStart: Vec2;
 
   /** Authored time, in seconds. */
   private t = 0;
@@ -157,6 +169,7 @@ export class RecordingSession {
       options.viewport.width * start.x,
       options.viewport.height * start.y,
     ];
+    this.cursorStart = this.cursor;
 
     this.timeline = emptyTimeline({
       clipId: options.clipId,
@@ -564,6 +577,10 @@ export class RecordingSession {
 
   // ── camera, highlight, caption ────────────────────────────────────────────
 
+  /**
+   * Each of these starts from wherever the camera is, still or moving, and
+   * blends into where it is going over its `duration`: see `cameraTrack`.
+   */
   readonly camera = {
     zoom: async (
       target: Locator | Rect,
@@ -575,32 +592,44 @@ export class RecordingSession {
         maxScale: scale ?? this.motion.defaultZoom,
         pad: this.motion.zoomPad,
       });
-      this.pushCameraKey(rect, options.duration ?? this.motion.zoomDurationMs);
+      this.frameCamera(rect, options.duration);
     },
     to: (rect: Rect, options: { duration?: number } = {}): void => {
-      this.pushCameraKey(rect, options.duration ?? this.motion.zoomDurationMs);
+      this.frameCamera(rect, options.duration);
     },
     reset: (options: { duration?: number } = {}): void => {
-      this.pushCameraKey(
+      this.frameCamera(
         {
           x: 0,
           y: 0,
           w: this.options.viewport.width,
           h: this.options.viewport.height,
         },
-        options.duration ?? this.motion.zoomDurationMs,
+        options.duration,
       );
+    },
+    /**
+     * Follow the cursor at one scale until the next camera write, keeping it
+     * inside a dead zone around the frame's centre and the frame inside the
+     * page. The options are checked here, so a bad one fails this line.
+     */
+    follow: (options: FollowOptions = {}): void => {
+      const { spec, durationMs } = resolveFollow(options, this.motion);
+      this.cameraWrites.push({ t: this.t, kind: "follow", spec, durationMs });
+    },
+    /** Stop following, and come to rest on the framing the follow was heading for. */
+    release: (): void => {
+      this.cameraWrites.push({ t: this.t, kind: "release" });
     },
   };
 
-  private pushCameraKey(rect: Rect, durationMs: number): void {
-    const keys = this.timeline.camera;
-    const last = keys[keys.length - 1];
-    // Hold the current framing until "now", then glide to the new one.
-    if (last.t < this.t) {
-      keys.push({ t: this.t, rect: last.rect, ease: "hold" });
-    }
-    keys.push({ t: this.t + durationMs / 1000, rect, ease: "minjerk" });
+  private frameCamera(rect: Rect, durationMs?: number): void {
+    this.cameraWrites.push({
+      t: this.t,
+      kind: "frame",
+      rect,
+      durationMs: durationMs ?? this.motion.zoomDurationMs,
+    });
   }
 
   async highlight(
@@ -981,6 +1010,16 @@ export class RecordingSession {
     this.timeline.durationFrames = this.timeline.frames.length;
     this.timeline.meta.captured = this.timing.captured;
     if (this.options.draft) this.timeline.meta.draft = true;
+
+    // Only now, with the whole cursor track known: a camera that follows the
+    // cursor reads ahead of where it is.
+    this.timeline.camera = cameraTrack(this.cameraWrites, {
+      viewport: this.options.viewport,
+      fps: this.options.fps,
+      durationFrames: this.timeline.durationFrames,
+      cursor: this.timeline.cursor,
+      cursorStart: this.cursorStart,
+    });
 
     const finite = this.timeline.durationFrames / this.options.fps;
     for (const caption of this.timeline.captions) {
