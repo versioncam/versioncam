@@ -394,6 +394,11 @@ export type RenderConfig = {
     presentation: Presentation | null;
   };
   motion: Motion;
+  /**
+   * The scenes module's path. The page is served a bundle of it, and names
+   * the file it came from when it cannot read the scenes out of it.
+   */
+  scenes: string | null;
 };
 
 export function renderConfigOf(config: ResolvedConfig): RenderConfig {
@@ -401,5 +406,6 @@ export function renderConfigOf(config: ResolvedConfig): RenderConfig {
     output: config.output,
     theme: config.theme,
     motion: config.motion,
+    scenes: config.scenes,
   };
 }

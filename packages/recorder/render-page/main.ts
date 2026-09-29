@@ -1,7 +1,7 @@
 import { drawRecordingFrame } from "./draw.js";
 import type { Frames } from "./draw.js";
 import type { RenderConfig } from "../src/config.js";
-import type { Scene } from "../src/scene.js";
+import { missingScenes, readScenes } from "../src/render/scenes.js";
 import type { Timeline } from "../src/core/timeline.js";
 
 /**
@@ -155,18 +155,24 @@ async function bootRecording(api: RenderApi, config: RenderConfig) {
 }
 
 async function bootScene(api: RenderApi, config: RenderConfig, id: string) {
+  // Without a module there is no bundle to import, and the failed import
+  // would say only that a fetch failed.
+  if (config.scenes === null) fail(missingScenes([id], [], null));
+
   // Held in a variable so TypeScript does not try to resolve it: the bundle
   // exists only as a route the renderer installs, never as a file on disk.
   const scenesUrl = "/scenes.js";
-  const module = (await import(/* @vite-ignore */ scenesUrl)) as {
-    default: Record<string, Scene>;
-  };
-  const scenes = module.default;
-  const scene = scenes?.[id];
+  const module = (await import(/* @vite-ignore */ scenesUrl)) as Record<
+    string,
+    unknown
+  >;
+  // The check the CLI makes before it starts a browser, made again here for
+  // whatever renders a scene without the CLI, in the same words.
+  const read = readScenes(module, config.scenes);
+  if ("error" in read) fail(read.error);
+  const scene = read.scenes[id];
   if (!scene) {
-    fail(
-      `No scene "${id}". The scenes module exports: ${Object.keys(scenes ?? {}).join(", ") || "(nothing)"}.`,
-    );
+    fail(missingScenes([id], Object.keys(read.scenes), config.scenes));
   }
 
   const ctx = prepareCanvas(config);

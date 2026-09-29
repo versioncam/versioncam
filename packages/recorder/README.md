@@ -114,7 +114,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `theme` | `accent: "#2f6fed"`, `cursorScale: 2.1` | The colour of ripples and rings, the cursor's size, and an optional `presentation`. |
 | `motion` | `MOTION` | Dwells, strokes and camera timing. `MOTION` is exported, with the reason for each number beside it. |
 | `outDir` | `".versioncam"` | Where everything the recorder writes goes. Gitignore it. |
-| `scenes` | none | A module whose default export is `Record<string, Scene>`. |
+| `scenes` | none | A module whose default export is `Record<string, Scene>`, keyed by scene id: `export default { [intro.id]: intro }`. A named export is not read, and a module with no default export is refused. |
 | `sequence` | none | Clip ids, in order, for `versioncam render --sequence`. |
 
 ### Starting the app

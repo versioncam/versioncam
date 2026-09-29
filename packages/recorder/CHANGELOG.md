@@ -33,6 +33,15 @@ and its entry here says how.
   was in. Invoked at a repository root with the app below it, it said
   versioncam was not installed, and past that it would have set the root up
   as a second app, with a second config.
+- A scenes module whose scenes are not its default export is refused, with
+  the file's name and the shape it should have: a `Record<string, Scene>`
+  keyed by scene id. A module whose record was a named export used to count
+  as having no scenes, so `render` rendered none, said nothing, and stitched
+  a sequence without them. An array, a single scene, or an entry with no
+  `draw`, no whole `durationFrames` or no `fps` is refused the same way.
+  `render` and `preview --scene` refuse it before a browser starts, and the
+  render page refuses it too, for anything that renders a scene without the
+  CLI.
 
 ## 0.1.3 (2026-09-28)
 

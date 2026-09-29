@@ -190,6 +190,53 @@ async function startableDir(
   return { dir, port };
 }
 
+/**
+ * A consumer with the fixture recording on disk under each of `ids`, and a
+ * config that renders it small: what is being tested is which ids render,
+ * and a 320-pixel video says that as well as a 1920-pixel one, faster.
+ */
+function appDirRecorded(ids: string[], fields = ""): string {
+  const dir = appDir(
+    "http://example.test",
+    `, viewport: { width: 1000, height: 700 }, output: { width: 320 }${fields}`,
+  );
+  for (const id of ids) {
+    const recording = join(dir, ".versioncam", "recordings", id);
+    mkdirSync(dirname(recording), { recursive: true });
+    cpSync(FIXTURE_RECORDING, recording, { recursive: true });
+  }
+  return dir;
+}
+
+/**
+ * `scenes.ts` beside the config: a second of flat colour per id, collected in
+ * a record called SCENES and exported as `exported` says. A config names it
+ * with `, scenes: "scenes.ts"`.
+ *
+ * At the recording's 60 fps: the sequence's crossfade cannot join clips of
+ * two frame rates.
+ */
+function writeScenes(
+  dir: string,
+  ids: string[],
+  exported: "default" | "named" = "default",
+): void {
+  const scene = (id: string) =>
+    `  ${JSON.stringify(id)}: { id: ${JSON.stringify(id)}, title: ${JSON.stringify(id)}, ` +
+    "durationFrames: 60, fps: 60, draw(ctx: CanvasRenderingContext2D, " +
+    "_frame: number, canvas: { width: number; height: number }) " +
+    '{ ctx.fillStyle = "#223"; ctx.fillRect(0, 0, canvas.width, canvas.height); } },';
+  writeFileSync(
+    join(dir, "scenes.ts"),
+    [
+      "const SCENES = {",
+      ...ids.map(scene),
+      "};",
+      exported === "default" ? "export default SCENES;" : "export { SCENES };",
+    ].join("\n"),
+  );
+}
+
 /** A clip that opens the page and looks at it: enough to compare two runs. */
 function writeOpenClip(dir: string): void {
   mkdirSync(join(dir, "demos"), { recursive: true });
@@ -403,6 +450,23 @@ test.describe("the versioncam CLI", () => {
     const { status, stderr } = run(["render"], appDir());
     expect(status).toBe(1);
     expect(stderr).toContain("versioncam record");
+  });
+
+  test("render refuses a scenes module whose scenes are not its default export", () => {
+    // Found rendering a film: the module's record of scenes was a named
+    // export, so `render` found no scenes, said nothing, rendered the
+    // recordings and stitched them into a film two scenes short.
+    const dir = appDirRecorded(["02-a"], ', scenes: "scenes.ts"');
+    writeScenes(dir, ["01-x"], "named");
+    const { status, stdout, stderr } = run(["render", "--sequence"], dir);
+    const file = join(realpathSync(dir), "scenes.ts");
+    expect(stderr).toContain(
+      `${file} has no default export. It exports SCENES.\n`,
+    );
+    expect(stderr).toContain("SCENES is one: add `export default SCENES`.");
+    // Before anything rendered, not after the minutes that would take.
+    expect(stdout).toBe("");
+    expect(status).toBe(1);
   });
 
   test("a failure names the picture of it", async () => {

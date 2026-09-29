@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { renderConfigOf } from "../../config.js";
-import { bundleScenes } from "../../loader.js";
+import { bundleScenes, loadSceneIds } from "../../loader.js";
+import { missingScenes } from "../../render/scenes.js";
 import {
   distPageDir,
   installRenderRoutes,
@@ -38,6 +39,16 @@ export async function preview(argv: string[]): Promise<number> {
   if (!sceneId && !existsSync(join(dir, "timeline.json"))) {
     process.stderr.write(`No recording for "${id}".\n`);
     return 1;
+  }
+  // Said here rather than in a window that opens only to show an error.
+  if (sceneId) {
+    const defined = await loadSceneIds(config);
+    if (!defined.includes(sceneId)) {
+      process.stderr.write(
+        `${missingScenes([sceneId], defined, config.scenes)}\n`,
+      );
+      return 1;
+    }
   }
 
   const browser = await launchBrowser({ headless: false });

@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { resolveConfig } from "./config.js";
 import type { RecorderConfig, ResolvedConfig } from "./config.js";
 import type { ClipDefinition } from "./driver/clip.js";
+import { readScenes } from "./render/scenes.js";
 
 /**
  * Loads the TypeScript an app writes: its config, its clips, its scenes.
@@ -156,25 +157,40 @@ export async function loadClips(
     : clips.filter((clip) => only.some((needle) => clip.id.includes(needle)));
 }
 
-/** The app's scenes, bundled for the browser. Null when it has none. */
-export async function bundleScenes(
-  config: ResolvedConfig,
-): Promise<string | null> {
+/** The config's scenes module, or null when it names none. */
+function scenesFile(config: ResolvedConfig): string | null {
   if (!config.scenes) return null;
   if (!existsSync(config.scenes)) {
     throw new Error(
       `versioncam config: \`scenes\` points at a missing file: ${config.scenes}`,
     );
   }
-  return bundleModule(config.scenes, "browser", config.cacheDir);
+  return config.scenes;
 }
 
-/** Scene ids, without running a browser: needed to list and to filter. */
+/** The app's scenes, bundled for the browser. Null when it has none. */
+export async function bundleScenes(
+  config: ResolvedConfig,
+): Promise<string | null> {
+  const file = scenesFile(config);
+  return file ? bundleModule(file, "browser", config.cacheDir) : null;
+}
+
+/**
+ * Scene ids, without running a browser: needed to list and to filter.
+ *
+ * Reading them is also the check that the module exports its scenes where
+ * the render page will look for them. A module that does not is refused here,
+ * before anything renders, rather than left out of the output unremarked.
+ */
 export async function loadSceneIds(config: ResolvedConfig): Promise<string[]> {
-  if (!config.scenes) return [];
-  const bundle = await bundleModule(config.scenes, "node", config.cacheDir);
-  const module = await importFresh<{ default?: Record<string, unknown> }>(
-    bundle,
+  const file = scenesFile(config);
+  if (!file) return [];
+  const bundle = await bundleModule(file, "node", config.cacheDir);
+  const read = readScenes(
+    await importFresh<Record<string, unknown>>(bundle),
+    file,
   );
-  return Object.keys(module.default ?? {});
+  if ("error" in read) throw new Error(read.error);
+  return Object.keys(read.scenes);
 }

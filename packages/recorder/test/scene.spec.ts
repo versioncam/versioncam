@@ -90,6 +90,85 @@ test.describe("rendering a scene", () => {
       await browser.close();
     }
   });
+
+  test("says so when the config names no scenes module at all", async () => {
+    // It used to import a bundle that was not there and report a failed
+    // fetch, which says nothing about the config.
+    const browser = await launchBrowser();
+    try {
+      await expect(renderScene(browser, testConfig(), "ramp")).rejects.toThrow(
+        'No scene called "ramp". The config names no `scenes` module.',
+      );
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+/**
+ * A scenes module whose scenes are not where the renderer reads them: the
+ * default export, as a record of scenes by id.
+ *
+ * Both ways a module is read refuse it, in the same words: listing its ids in
+ * Node, which is what `versioncam render` does before it renders anything,
+ * and the render page, which is what anything rendering a scene without the
+ * CLI reaches. Each used to take the default export and carry on, so a module
+ * whose record was a named export had, as far as either could tell, no
+ * scenes at all.
+ */
+test.describe("a scenes module the renderer cannot read", () => {
+  const namedOnly = join(FIXTURES, "scenes-named-only.ts");
+  const wrongShape = join(FIXTURES, "scenes-wrong-shape.ts");
+
+  const refusal = (listing: Promise<unknown>) =>
+    listing.then(
+      () => [],
+      (error: Error) => error.message.split("\n"),
+    );
+
+  test("is refused when it has no default export, naming the file and the fix", async () => {
+    expect(
+      await refusal(loadSceneIds(testConfig({ scenes: namedOnly }))),
+    ).toEqual([
+      `${namedOnly} has no default export. It exports SCENES.`,
+      expect.stringContaining("a Record<string, Scene> keyed by scene id"),
+      "SCENES is one: add `export default SCENES`.",
+    ]);
+  });
+
+  test("is refused when its default export is the wrong shape", async () => {
+    expect(
+      await refusal(loadSceneIds(testConfig({ scenes: wrongShape }))),
+    ).toEqual([
+      `${wrongShape} default-exports an array.`,
+      expect.stringContaining("a Record<string, Scene> keyed by scene id"),
+    ]);
+  });
+
+  test("is refused by the render page too, in the same words", async () => {
+    const browser = await launchBrowser();
+    try {
+      for (const [file, first] of [
+        [namedOnly, `${namedOnly} has no default export. It exports SCENES.`],
+        [wrongShape, `${wrongShape} default-exports an array.`],
+      ]) {
+        const error = await renderScene(
+          browser,
+          testConfig({ scenes: file }),
+          "ramp",
+        ).then(
+          () => null,
+          (e: Error) => e,
+        );
+        expect(error?.message).toContain(first);
+        expect(error?.message).toContain(
+          "a Record<string, Scene> keyed by scene id",
+        );
+      }
+    } finally {
+      await browser.close();
+    }
+  });
 });
 
 declare global {
