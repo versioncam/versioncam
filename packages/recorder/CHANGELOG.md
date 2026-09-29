@@ -19,6 +19,13 @@ and its entry here says how.
   instead.
 - `versioncam doctor` reads the scenes module a config names, and lists its
   scene ids, or says what `render` would refuse it for and how to fix it.
+- `theme.presentation.captionInset` moves a caption that sits over the app:
+  `{ left: n }` or `{ right: n }`, pixels of the video in from that side,
+  and `right` puts it in the bottom-right corner. The default, `{ left: 40 }`,
+  is where it always sat, to the byte. It is for an app whose own controls
+  are where the caption was, such as an account menu at the foot of a
+  sidebar or a map's legend. The README's Configure section has a table of
+  every `presentation` field now, which a test holds to the type.
 
 ### Changed
 

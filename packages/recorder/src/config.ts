@@ -33,7 +33,22 @@ export type Presentation = {
   padding?: number;
   /** "auto" puts it below the app when padded, and over it when not. */
   caption?: "auto" | "below" | "overlay" | "none";
+  /**
+   * Where a caption over the app sits: `{ left: n }` or `{ right: n }`,
+   * pixels of the video in from that side, which also picks the bottom
+   * corner. Default `{ left: 40 }`.
+   *
+   * An app keeps its own controls in a corner as often as not (an account
+   * menu at the foot of a sidebar, a map's legend), and a caption fixed over
+   * one hides what a clip may be pointing at. Ignored when the caption sits
+   * below the app, where there is nothing of the app to cover.
+   */
+  captionInset?: CaptionInset;
 };
+
+/** One side and a distance from it, as CSS's `left` and `right` say it. */
+export type CaptionInset =
+  { left: number; right?: never } | { right: number; left?: never };
 
 export type AuthConfig =
   | { storageState: string; login?: never }
@@ -227,6 +242,33 @@ function positiveInt(value: number, field: string): number {
 }
 
 /**
+ * A caption inset names one side, and a distance that keeps the caption on
+ * the video.
+ *
+ * Checked because a caption placed off the video fails the way nothing in
+ * the presentation layer should: without an error, and without a caption.
+ */
+function checkCaptionInset(inset: CaptionInset, outputWidth: number): void {
+  const field = "theme.presentation.captionInset";
+  const given = inset as { left?: unknown; right?: unknown } | null;
+  const sides = (["left", "right"] as const).filter(
+    (side) => given?.[side] !== undefined,
+  );
+  if (given === null || sides.length !== 1) {
+    fail(field, "must be `{ left: n }` or `{ right: n }`, one side only");
+  }
+  const px = given[sides[0]];
+  if (typeof px !== "number" || !(px >= 0 && px < outputWidth)) {
+    // Quoted when it is a string, or `"40"` would read as the 40 it is not.
+    const got = typeof px === "string" ? JSON.stringify(px) : String(px);
+    fail(
+      `${field}.${sides[0]}`,
+      `must be pixels of the video, from 0 to under its width of ${outputWidth}, got ${got}`,
+    );
+  }
+}
+
+/**
  * Output dimensions follow the viewport's aspect.
  *
  * Nothing is letterboxed and nothing is cropped: record at 1440x900 and the
@@ -328,6 +370,10 @@ export function resolveConfig(
   const outputWidth = config.output?.width ?? 1920;
   positiveInt(outputWidth, "output.width");
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
+
+  if (presentation?.captionInset !== undefined) {
+    checkCaptionInset(presentation.captionInset, outputWidth);
+  }
 
   return {
     root,

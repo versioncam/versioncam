@@ -97,6 +97,48 @@ describe("resolveConfig", () => {
   });
 });
 
+describe("where a caption over the app sits", () => {
+  const withInset = (captionInset: unknown, width = 1920) =>
+    resolveConfig(
+      {
+        baseUrl: "http://x",
+        output: { width },
+        theme: { presentation: { captionInset } as never },
+      },
+      ROOT,
+    );
+
+  it("takes one side and a distance from it", () => {
+    expect(withInset({ right: 360 }).theme.presentation?.captionInset).toEqual({
+      right: 360,
+    });
+    expect(withInset({ left: 0 }).theme.presentation?.captionInset).toEqual({
+      left: 0,
+    });
+  });
+
+  it("refuses both sides, neither, or a distance off the video", () => {
+    // Each of these would draw no caption, or one in a place nobody chose,
+    // and say nothing about it.
+    for (const inset of [{ left: 40, right: 40 }, {}, null]) {
+      expect(() => withInset(inset)).toThrow(
+        "`theme.presentation.captionInset` must be `{ left: n }` or `{ right: n }`, one side only",
+      );
+    }
+    expect(() => withInset({ right: -1 })).toThrow(
+      "`theme.presentation.captionInset.right` must be pixels of the video",
+    );
+    expect(() => withInset({ left: "40" })).toThrow(
+      /`theme.presentation.captionInset.left`.*got "40"$/,
+    );
+    // The video's width, not the viewport's: 1280 at `output.width: 1280`.
+    expect(() => withInset({ left: 1280 }, 1280)).toThrow(
+      "from 0 to under its width of 1280, got 1280",
+    );
+    expect(() => withInset({ left: 1279 }, 1280)).not.toThrow();
+  });
+});
+
 describe("outputSize", () => {
   it("follows the viewport's aspect", () => {
     expect(outputSize({ width: 1440, height: 900 }, 1920)).toEqual({

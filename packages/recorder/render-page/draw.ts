@@ -9,7 +9,11 @@ import {
 } from "../src/core/compose.js";
 import { timeAt } from "../src/core/timeline.js";
 import type { Rect, Timeline, Vec2 } from "../src/core/timeline.js";
-import { captionPlacement, frameAreaFor } from "../src/render/presentation.js";
+import {
+  captionPlacement,
+  frameAreaFor,
+  overlayCaptionAnchor,
+} from "../src/render/presentation.js";
 import type { RenderConfig } from "../src/config.js";
 import { CHROME, withAlpha } from "./theme.js";
 
@@ -332,11 +336,19 @@ function drawCaption(
     ctx.shadowColor = CHROME.captionShadow;
     ctx.shadowBlur = 8;
 
-    const x = placement === "overlay" ? 40 : frameArea.x;
-    const y =
-      placement === "overlay"
-        ? canvas.height - CHROME.captionScrimHeight / 2 + 4
-        : (frameArea.y + frameArea.h + canvas.height) / 2;
+    // Over the app, the caption goes where the app's own controls are not.
+    // Below it, it lines up with the app's left edge, and covers nothing.
+    let x = frameArea.x;
+    let y = (frameArea.y + frameArea.h + canvas.height) / 2;
+    if (placement === "overlay") {
+      const anchor = overlayCaptionAnchor(
+        config.theme.presentation,
+        canvas.width,
+      );
+      ctx.textAlign = anchor.align;
+      x = anchor.x;
+      y = canvas.height - CHROME.captionScrimHeight / 2 + 4;
+    }
     ctx.fillText(caption.text, x, y);
     ctx.restore();
   }

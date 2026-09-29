@@ -32,3 +32,22 @@ export function captionPlacement(
   // "auto": there is only room below the app if something made room.
   return (presentation?.padding ?? 0) > 0 ? "below" : "overlay";
 }
+
+/**
+ * Where an overlay caption's text is anchored, and which way it runs from
+ * there: from `x` rightwards, or leftwards to it.
+ *
+ * Measured from the video's edge rather than the app's, so the default is
+ * exactly where the caption sat before it could be moved, padded or not:
+ * 40 pixels in from the left.
+ */
+export function overlayCaptionAnchor(
+  presentation: Presentation | null,
+  canvasWidth: number,
+): { x: number; align: "left" | "right" } {
+  const inset = presentation?.captionInset;
+  if (inset?.right !== undefined) {
+    return { x: canvasWidth - inset.right, align: "right" };
+  }
+  return { x: inset?.left ?? 40, align: "left" };
+}

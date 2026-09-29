@@ -1,8 +1,64 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { captionPlacement, frameAreaFor } from "./presentation.js";
+import type { Presentation } from "../config.js";
+import {
+  captionPlacement,
+  frameAreaFor,
+  overlayCaptionAnchor,
+} from "./presentation.js";
 
 const CANVAS = { width: 1920, height: 1200 };
 const VIEWPORT = { width: 1440, height: 900 };
+
+describe("overlayCaptionAnchor", () => {
+  it("sits 40 pixels in from the left unless told otherwise", () => {
+    // Where the caption always sat, before it could be moved.
+    expect(overlayCaptionAnchor(null, 1920)).toEqual({ x: 40, align: "left" });
+    expect(overlayCaptionAnchor({ caption: "overlay" }, 1920)).toEqual({
+      x: 40,
+      align: "left",
+    });
+  });
+
+  it("measures from the side it names, and runs away from it", () => {
+    expect(overlayCaptionAnchor({ captionInset: { left: 380 } }, 1920)).toEqual(
+      { x: 380, align: "left" },
+    );
+    // Right-aligned, so the caption ends 40 pixels short of the right edge
+    // however long it is.
+    expect(overlayCaptionAnchor({ captionInset: { right: 40 } }, 1920)).toEqual(
+      { x: 1880, align: "right" },
+    );
+  });
+});
+
+/**
+ * Every field of `Presentation`, by name. The compiler holds this object to
+ * the type, both ways: a field left out is missing, and one the type does not
+ * have is excess.
+ */
+const PRESENTATION: Record<keyof Presentation, true> = {
+  backdrop: true,
+  frame: true,
+  padding: true,
+  caption: true,
+  captionInset: true,
+};
+
+describe("the README's presentation table", () => {
+  // The README is also version.cam's documentation. A field it lists that
+  // the config does not have, or the reverse, is a promise to strangers.
+  it("names every field of Presentation, and nothing else", () => {
+    const readme = readFileSync(
+      new URL("../../README.md", import.meta.url),
+      "utf8",
+    );
+    const section =
+      readme.split(/^### Presentation$/m)[1]?.split(/^##/m)[0] ?? "";
+    const fields = [...section.matchAll(/^\| `(\w+)` \|/gm)].map((m) => m[1]);
+    expect(fields.sort()).toEqual(Object.keys(PRESENTATION).sort());
+  });
+});
 
 describe("frameAreaFor", () => {
   it("fills the canvas when there is no presentation", () => {

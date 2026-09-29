@@ -241,6 +241,60 @@ test.describe("rendering a recording", () => {
     }
   });
 
+  test("puts a caption over the app where captionInset says", async () => {
+    // An app keeps its own controls in a corner as often as not, and a
+    // caption fixed at the bottom left covered them: a sidebar's account
+    // menu, a legend a highlight was pointing at.
+    const browser = await launchBrowser();
+    try {
+      const shoot = async (presentation: Presentation | null) => {
+        const config = configWith(presentation);
+        const target = {
+          kind: "recording",
+          id: CLIP,
+          dir: join(config.recordingsDir, CLIP),
+        } as const;
+        return PNG.sync.read(await renderFrame(browser, config, target, 40));
+      };
+
+      // The first and last columns of the caption's white type. In this
+      // band the scrim has darkened the white page to under 210, and the
+      // cursor is up at the button, so nothing else here is this bright.
+      const type = (png: PNG) => {
+        let left = png.width;
+        let right = -1;
+        for (let y = png.height - 50; y < png.height - 28; y += 1) {
+          for (let x = 0; x < png.width; x += 1) {
+            if (pixel(png, x, y).every((c) => c > 235)) {
+              left = Math.min(left, x);
+              right = Math.max(right, x);
+            }
+          }
+        }
+        return { left, right };
+      };
+
+      // By default, where it always was: 40 pixels in from the left, which
+      // is what `{ left: 40 }` says, to the byte.
+      const standard = await shoot(null);
+      const stated = await shoot({ captionInset: { left: 40 } });
+      expect(Buffer.compare(standard.data, stated.data)).toBe(0);
+      const before = type(standard);
+      expect(before.left).toBeGreaterThanOrEqual(40);
+      expect(before.left).toBeLessThan(50);
+      expect(before.right).toBeLessThan(standard.width / 2);
+
+      // In the other corner, it ends 40 pixels short of the right edge.
+      const moved = await shoot({ captionInset: { right: 40 } });
+      const after = type(moved);
+      expect(after.right).toBeLessThan(moved.width - 40);
+      expect(after.right).toBeGreaterThanOrEqual(moved.width - 50);
+      expect(after.left).toBeGreaterThan(moved.width / 2);
+    } finally {
+      await browser.close();
+    }
+  });
+
   test("renders a single frame at output size", async () => {
     const config = configWith(null);
     const browser = await launchBrowser();
