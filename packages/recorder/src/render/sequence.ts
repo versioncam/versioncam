@@ -18,7 +18,18 @@ import { ffmpegPath, ffprobeSync } from "./ffmpeg.js";
 
 const TRANSITION_S = 0.4;
 
-export type SequenceInput = { id: string; path: string; duration: number };
+/**
+ * A rendered clip. `frameRate` is the fraction ffprobe gives, `60/1` or
+ * `30000/1001`, kept as written rather than divided out: it is the rate the
+ * filter may convert every clip to, the fastest clip included, and only the
+ * exact rate leaves that clip's frames where they were.
+ */
+export type SequenceInput = {
+  id: string;
+  path: string;
+  duration: number;
+  frameRate: string;
+};
 
 /** Duration of a video file, in seconds. Blocking; ffprobe is quick. */
 export function probeDuration(path: string): number {
@@ -38,11 +49,46 @@ export function probeDuration(path: string): number {
   return seconds;
 }
 
+/** Frame rate of a video file, as the fraction ffprobe gives. Blocking too. */
+export function probeFrameRate(path: string): string {
+  const out = ffprobeSync([
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_entries",
+    "stream=r_frame_rate",
+    "-of",
+    "default=nw=1:nk=1",
+    path,
+  ]).trim();
+  const rate = rateOf(out);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error(`Could not read a frame rate from ${path}`);
+  }
+  return out;
+}
+
+/** A fraction as ffprobe prints one, `30000/1001`, as a number. */
+function rateOf(fraction: string): number {
+  const [num, den = "1"] = fraction.split("/");
+  return Number(num) / Number(den);
+}
+
 /**
  * The `xfade` chain. Each transition's `offset` is measured from the start of
  * everything accumulated so far, and every crossfade shortens the total by its
  * own duration — which is the part that is easy to get wrong and shows up as
  * a clip that starts before the previous one has finished.
+ *
+ * `xfade` joins streams of one frame rate and one timebase only, and clips
+ * need not share a rate: a 15 fps draft among 60 fps recordings, or a scene
+ * or a clip with an `fps` of its own. When the rates differ, every clip goes
+ * through `fps` at the highest of them first. The highest, so that no clip
+ * loses a frame: a slower clip's frames are each held as long as they were.
+ * Every clip, the fastest included, because `fps` sets the timebase as well,
+ * and a clip left alone would keep its own. When the rates agree, the filter
+ * is the one it always was.
  */
 export function buildFilter(inputs: SequenceInput[]): {
   filter: string;
@@ -53,14 +99,22 @@ export function buildFilter(inputs: SequenceInput[]): {
     return { filter: "", label: "0:v", total: inputs[0].duration };
 
   const parts: string[] = [];
-  let current = "0:v";
+  const rates = inputs.map((input) => rateOf(input.frameRate));
+  const mixed = new Set(rates).size > 1;
+  if (mixed) {
+    const highest = inputs[rates.indexOf(Math.max(...rates))].frameRate;
+    inputs.forEach((_, i) => parts.push(`[${i}:v]fps=${highest}[f${i}]`));
+  }
+  const stream = (i: number) => (mixed ? `f${i}` : `${i}:v`);
+
+  let current = stream(0);
   let accumulated = inputs[0].duration;
 
   for (let i = 1; i < inputs.length; i += 1) {
     const offset = accumulated - TRANSITION_S;
     const label = i === inputs.length - 1 ? "out" : `x${i}`;
     parts.push(
-      `[${current}][${i}:v]xfade=transition=fade:duration=${TRANSITION_S}:offset=${offset.toFixed(3)}[${label}]`,
+      `[${current}][${stream(i)}]xfade=transition=fade:duration=${TRANSITION_S}:offset=${offset.toFixed(3)}[${label}]`,
     );
     current = label;
     accumulated += inputs[i].duration - TRANSITION_S;
@@ -82,7 +136,12 @@ export async function buildSequence(
       missing.push(id);
       continue;
     }
-    inputs.push({ id, path, duration: probeDuration(path) });
+    inputs.push({
+      id,
+      path,
+      duration: probeDuration(path),
+      frameRate: probeFrameRate(path),
+    });
   }
 
   if (inputs.length < 2) {

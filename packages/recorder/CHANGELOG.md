@@ -69,6 +69,12 @@ and its entry here says how.
   and could never print. With fewer than two of the `sequence`'s clips
   rendered, it says a sequence needs two, as it does with fewer than two
   clips at all, rather than failing.
+- `render --sequence` joins clips of different frame rates, such as a
+  15 fps draft beside 60 fps recordings, or a scene or a clip with an `fps`
+  of its own. Every clip is brought to the highest rate among them, so none
+  loses a frame. It used to print ffmpeg's error that the clips' timebases
+  or frame rates do not match, and stop without a sequence. Clips that
+  share one rate are stitched exactly as before.
 
 ## 0.1.3 (2026-09-28)
 

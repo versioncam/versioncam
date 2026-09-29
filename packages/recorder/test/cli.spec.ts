@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { ffprobeSync } from "../src/render/ffmpeg.js";
 import { FIXTURE_RECORDING } from "./support.js";
 
 /**
@@ -213,17 +214,17 @@ function appDirRecorded(ids: string[], fields = ""): string {
  * a record called SCENES and exported as `exported` says. A config names it
  * with `, scenes: "scenes.ts"`.
  *
- * At the recording's 60 fps: the sequence's crossfade cannot join clips of
- * two frame rates.
+ * At the recording's 60 fps unless `fps` says otherwise.
  */
 function writeScenes(
   dir: string,
   ids: string[],
   exported: "default" | "named" = "default",
+  fps = 60,
 ): void {
   const scene = (id: string) =>
     `  ${JSON.stringify(id)}: { id: ${JSON.stringify(id)}, title: ${JSON.stringify(id)}, ` +
-    "durationFrames: 60, fps: 60, draw(ctx: CanvasRenderingContext2D, " +
+    `durationFrames: ${fps}, fps: ${fps}, draw(ctx: CanvasRenderingContext2D, ` +
     "_frame: number, canvas: { width: number; height: number }) " +
     '{ ctx.fillStyle = "#223"; ctx.fillRect(0, 0, canvas.width, canvas.height); } },';
   writeFileSync(
@@ -529,6 +530,50 @@ test.describe("the versioncam CLI", () => {
     expect(stdout).toContain("  sequence: 2 clips");
     expect(stdout).toContain("  (not rendered: 03-y)\n");
     expect(stdout).toContain("  (not in the config's sequence: 05-trial)\n");
+    expect(status).toBe(0);
+  });
+
+  test("a sequence joins clips of different frame rates", async () => {
+    // A scene at 12 fps between recordings at 60 used to fail in ffmpeg,
+    // whose crossfade joins one frame rate and one timebase only: ffmpeg's
+    // error, and no film. A 15 fps draft beside full recordings failed the
+    // same way.
+    const dir = appDirRecorded(
+      ["01-a", "03-b"],
+      ', scenes: "scenes.ts", sequence: ["01-a", "02-x", "03-b"]',
+    );
+    writeScenes(dir, ["02-x"], "default", 12);
+    const { status, stdout, stderr } = await runAsync(
+      ["render", "--sequence"],
+      dir,
+    );
+    expect(stderr).toBe("");
+    expect(stdout).toContain("  02-x (scene): 12 frames at 12fps\n");
+    expect(stdout).toContain("  sequence: 3 clips, 4.0s\n");
+    // A failed run leaves an empty file where the film would be, so the film
+    // is probed, not just found. At the highest rate, 60 fps: each
+    // recording's 115 frames, the scene's second as 60, less two crossfades
+    // of 24. That is exact with ffmpeg 8.1. ffmpeg 6.0 drops the last frame
+    // of a crossfade between clips that went through `fps`, and the encoder
+    // repeats one to fill the gap, so each crossfade may be a frame out.
+    const [rate, frames] = ffprobeSync([
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-count_frames",
+      "-show_entries",
+      "stream=r_frame_rate,nb_read_frames",
+      "-of",
+      "default=nw=1:nk=1",
+      join(dir, ".versioncam", "out", "sequence.mp4"),
+    ])
+      .trim()
+      .split("\n");
+    expect(rate).toBe("60/1");
+    expect(
+      Math.abs(Number(frames) - (115 + 60 + 115 - 2 * 24)),
+    ).toBeLessThanOrEqual(2);
     expect(status).toBe(0);
   });
 
