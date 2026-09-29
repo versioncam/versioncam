@@ -25,6 +25,13 @@ and its entry here says how.
 - `versioncam init` below a repository root says where Claude Code finds the
   skill: in a session started in that directory or below it, and from the
   root only after the session has read or edited a file there.
+- `render` checks everything it was asked for before it renders anything.
+  An id that matches no recording and no scene, or a `--scene` the scenes
+  module does not define, stops it with what there is to render. An id that
+  matched nothing used to be passed over without a word.
+- `versioncam --help` and the README say plainly that `render` with no ids
+  renders every recording on disk, stale ones from drafts, trial runs and
+  renamed clips included.
 
 ### Fixed
 
@@ -44,6 +51,11 @@ and its entry here says how.
   `render` and `preview --scene` refuse it before a browser starts, and the
   render page refuses it too, for anything that renders a scene without the
   CLI.
+- `render --scene <id>` renders that scene whatever ids come with it. The
+  ids used to filter the named scenes as well, so
+  `render 02 04 --scene 01-intro --sequence` rendered no scene and stitched
+  the recordings without it. Ids still choose among the scenes `--scene`
+  does not name.
 
 ## 0.1.3 (2026-09-28)
 

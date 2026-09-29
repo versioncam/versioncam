@@ -51,8 +51,9 @@ Review
       --frame <n>                    start at this frame
 
 Output
-  versioncam render [id…]            composite and encode what has been recorded
-      --scene <id>                   render a designed scene (repeatable)
+  versioncam render [id…]            composite and encode recordings and scenes
+                                     no ids: every one, stale recordings included
+      --scene <id>                   and this scene, whatever the ids say (repeatable)
       --sequence                     stitch the results into one piece
 
 From another directory

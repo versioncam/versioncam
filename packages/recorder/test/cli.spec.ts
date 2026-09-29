@@ -488,6 +488,59 @@ test.describe("the versioncam CLI", () => {
     expect(status).toBe(1);
   });
 
+  test("render renders a --scene whatever the ids say", async () => {
+    // The ids used to filter the scenes named with --scene as well, so this
+    // line rendered no scene and stitched the two recordings alone. The
+    // scene nothing names, and the recording no id matches, stay out.
+    const dir = appDirRecorded(
+      ["02-a", "04-b", "05-trial"],
+      ', scenes: "scenes.ts"',
+    );
+    writeScenes(dir, ["01-x", "03-y"]);
+    const { status, stdout, stderr } = await runAsync(
+      ["render", "02-a", "04-b", "--scene", "01-x", "--sequence"],
+      dir,
+    );
+    expect(stderr).toBe("");
+    const rendered = stdout
+      .split("\n")
+      .filter((line) => / \d+ frames at /.test(line))
+      .map((line) => line.trim().split(":")[0]);
+    expect(rendered).toEqual(["02-a", "04-b", "01-x (scene)"]);
+    expect(stdout).toContain("  sequence: 3 clips");
+    expect(existsSync(join(dir, ".versioncam", "out", "sequence.mp4"))).toBe(
+      true,
+    );
+    expect(status).toBe(0);
+  });
+
+  test("render refuses an id that matches nothing, before rendering anything", () => {
+    // A typo, or a clip not recorded yet: either way a film made without it
+    // would look finished.
+    const dir = appDirRecorded(["02-a"], ', scenes: "scenes.ts"');
+    writeScenes(dir, ["01-x"]);
+    const recordings = join(realpathSync(dir), ".versioncam", "recordings");
+    const scenes = join(realpathSync(dir), "scenes.ts");
+
+    const typo = run(["render", "02-a", "07-b"], dir);
+    expect(typo.stderr).toBe(
+      'No recording or scene has "07-b" in its id.\n' +
+        `Recorded, in ${recordings}: 02-a.\n` +
+        `Scenes, in ${scenes}: 01-x.\n`,
+    );
+    expect(typo.stdout).toBe("");
+    expect(typo.status).toBe(1);
+
+    // A --scene is a name, not a substring, and has to be one the module
+    // defines.
+    const unknown = run(["render", "--scene", "01"], dir);
+    expect(unknown.stderr).toBe(
+      `No scene called "01". ${scenes} defines 01-x.\n`,
+    );
+    expect(unknown.stdout).toBe("");
+    expect(unknown.status).toBe(1);
+  });
+
   test("a failure names the picture of it", async () => {
     // The message says what broke; the screenshot says why. An authoring agent
     // spent two of three attempts reasoning about causes for a failure that

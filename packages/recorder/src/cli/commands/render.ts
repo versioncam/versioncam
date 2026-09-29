@@ -4,17 +4,51 @@ import { join } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig, loadSceneIds } from "../../loader.js";
 import { renderRecording, renderScene } from "../../render/render.js";
+import { missingScenes } from "../../render/scenes.js";
 import { buildSequence } from "../../render/sequence.js";
 
-/** Recordings on disk, newest config first, filtered by substring. */
-function recordedIds(recordingsDir: string, only: string[]): string[] {
+/** Every recording on disk, by id. */
+function recordedIds(recordingsDir: string): string[] {
   if (!existsSync(recordingsDir)) return [];
   return readdirSync(recordingsDir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
     .filter((id) => existsSync(join(recordingsDir, id, "timeline.json")))
-    .filter((id) => only.length === 0 || only.some((n) => id.includes(n)))
     .sort();
+}
+
+/**
+ * What `render` renders, from what there is and what was asked for.
+ *
+ * Ids are substrings, as everywhere else (`render 05` is the clip with 05 in
+ * its id), and they choose among the recordings and the scenes alike. A
+ * `--scene` names one scene exactly, and it renders whatever the ids say: it
+ * used to be filtered by them as well, so `render 02 04 --scene 01-intro`
+ * rendered no scene at all. With no ids, every recording on disk renders,
+ * and every scene unless `--scene` named the ones wanted.
+ *
+ * `unmatched` is the ids that choose nothing.
+ */
+export function chooseTargets(
+  recorded: string[],
+  defined: string[],
+  ids: string[],
+  named: string[],
+): { recordings: string[]; scenes: string[]; unmatched: string[] } {
+  const matches = (id: string) => ids.some((n) => id.includes(n));
+  return {
+    recordings: ids.length > 0 ? recorded.filter(matches) : recorded,
+    scenes: defined.filter(
+      (id) =>
+        named.includes(id) ||
+        (ids.length > 0 ? matches(id) : named.length === 0),
+    ),
+    unmatched: ids.filter(
+      (n) =>
+        !recorded.some((id) => id.includes(n)) &&
+        !defined.some((id) => id.includes(n)),
+    ),
+  };
 }
 
 export async function render(argv: string[]): Promise<number> {
@@ -29,16 +63,47 @@ export async function render(argv: string[]): Promise<number> {
   });
 
   const config = await loadConfig(process.cwd());
-  const only = positionals as string[];
-  const wantedScenes = (values.scene as string[] | undefined) ?? [];
+  const ids = positionals as string[];
+  const named = (values.scene as string[] | undefined) ?? [];
 
-  // With no `--scene`, every scene the app defines is rendered too: a config
-  // that names a scenes module means those scenes are part of the deliverable.
-  const sceneIds =
-    wantedScenes.length > 0 ? wantedScenes : await loadSceneIds(config);
-  const recordings = recordedIds(config.recordingsDir, only);
+  // Everything asked for is checked before anything renders. A render takes
+  // minutes, and the output of one missing a clip looks finished: a film
+  // stitched from four clips of six says nothing about the other two.
+  const defined = await loadSceneIds(config);
+  const unknown = named.filter((id) => !defined.includes(id));
+  if (unknown.length > 0) {
+    process.stderr.write(`${missingScenes(unknown, defined, config.scenes)}\n`);
+    return 1;
+  }
 
-  if (recordings.length === 0 && sceneIds.length === 0) {
+  const recorded = recordedIds(config.recordingsDir);
+  const { recordings, scenes, unmatched } = chooseTargets(
+    recorded,
+    defined,
+    ids,
+    named,
+  );
+
+  // An id that chooses nothing is a typo, or a clip not recorded yet.
+  if (unmatched.length > 0) {
+    for (const id of unmatched) {
+      process.stderr.write(`No recording or scene has "${id}" in its id.\n`);
+    }
+    process.stderr.write(
+      `Recorded, in ${config.recordingsDir}: ` +
+        (recorded.length > 0
+          ? `${recorded.join(", ")}.\n`
+          : "nothing yet. Run `versioncam record` first.\n"),
+    );
+    if (config.scenes) {
+      process.stderr.write(
+        `Scenes, in ${config.scenes}: ${defined.join(", ") || "none"}.\n`,
+      );
+    }
+    return 1;
+  }
+
+  if (recordings.length === 0 && scenes.length === 0) {
     process.stderr.write(
       `Nothing to render. Run \`versioncam record\` first; recordings live in ${config.recordingsDir}.\n`,
     );
@@ -62,8 +127,7 @@ export async function render(argv: string[]): Promise<number> {
         failures.push({ id, error: error as Error });
       }
     }
-    for (const id of sceneIds) {
-      if (only.length > 0 && !only.some((n) => id.includes(n))) continue;
+    for (const id of scenes) {
       try {
         const out = await renderScene(browser, config, id);
         rendered.push(id);
