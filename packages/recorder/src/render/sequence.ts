@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { ffmpegPath, ffprobeSync } from "./ffmpeg.js";
 
@@ -152,8 +152,14 @@ export async function buildSequence(
 
   const { filter, label, total } = buildFilter(inputs);
   const out = join(outDir, "sequence.mp4");
+  // Made beside the film and moved over it once ffmpeg has finished. ffmpeg
+  // opens its output before it finds out whether it can join the clips, and
+  // a sequence written straight to sequence.mp4 that failed left it empty,
+  // whatever film had been there. `.mp4` last: ffmpeg picks the muxer by it.
+  const partial = join(outDir, "sequence.partial.mp4");
 
-  await new Promise<void>((resolve, reject) => {
+  let stderr = "";
+  const code = await new Promise<number | null>((resolve) => {
     const child = spawn(
       ffmpegPath(),
       [
@@ -173,19 +179,25 @@ export async function buildSequence(
         "yuv420p",
         "-movflags",
         "+faststart",
-        out,
+        partial,
       ],
       { stdio: ["ignore", "ignore", "pipe"] },
     );
-    let stderr = "";
     child.stderr.on("data", (c: Buffer) => {
       stderr += c.toString();
     });
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`sequence failed:\n${stderr.slice(-1200)}`));
-    });
+    child.on("close", resolve);
   });
+
+  if (code !== 0) {
+    rmSync(partial, { force: true });
+    // The film still there is not this sequence, and could pass for it.
+    const kept = existsSync(out)
+      ? `\n${out} is from an earlier run, left as it was.`
+      : "";
+    throw new Error(`sequence failed:\n${stderr.slice(-1200)}${kept}`);
+  }
+  renameSync(partial, out);
 
   return { path: out, total, used: inputs.map((i) => i.id), missing };
 }

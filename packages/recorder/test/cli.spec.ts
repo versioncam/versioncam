@@ -550,8 +550,7 @@ test.describe("the versioncam CLI", () => {
     expect(stderr).toBe("");
     expect(stdout).toContain("  02-x (scene): 12 frames at 12fps\n");
     expect(stdout).toContain("  sequence: 3 clips, 4.0s\n");
-    // A failed run leaves an empty file where the film would be, so the film
-    // is probed, not just found. At the highest rate, 60 fps: each
+    // The film is probed, not just found. At the highest rate, 60 fps: each
     // recording's 115 frames, the scene's second as 60, less two crossfades
     // of 24. That is exact with ffmpeg 8.1. ffmpeg 6.0 drops the last frame
     // of a crossfade between clips that went through `fps`, and the encoder

@@ -75,6 +75,12 @@ and its entry here says how.
   loses a frame. It used to print ffmpeg's error that the clips' timebases
   or frame rates do not match, and stop without a sequence. Clips that
   share one rate are stitched exactly as before.
+- A sequence that fails in ffmpeg leaves the `sequence.mp4` of an earlier
+  run as it was, and says that the one there is an earlier run's. It used
+  to leave that file empty, or an empty one where there had been none:
+  ffmpeg wrote straight to it, and had emptied it by the time it failed.
+  The sequence is now written beside it and takes its place only once it
+  is complete.
 
 ## 0.1.3 (2026-09-28)
 
