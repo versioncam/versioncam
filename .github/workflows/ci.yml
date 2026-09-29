@@ -24,6 +24,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # The cloud's tests run inside workerd with Miniflare's D1, R2 and KV,
+      # which the root runner (plain Node) cannot host.
+      - run: npm test -w @versioncam/cloud
 
       - run: npx versioncam install --with-deps
       - run: npm run test:integration
@@ -112,3 +115,39 @@ jobs:
           aws s3 cp take/manifest.json "s3://versioncam-clips/example/manifest.json" \
             --endpoint-url "$R2" \
             --content-type "application/json" --cache-control "public, max-age=300"
+
+  # version.cam's staging environment follows main. It is a separate job so a
+  # deploy can never be mistaken for a test, and it does nothing until two
+  # things exist: this repository's Cloudflare secrets, and the resource ids
+  # `npm run provision -w @versioncam/cloud -- --env staging` writes into
+  # wrangler.jsonc. Production deploys only from a `cloud-v*` tag.
+  cloud-staging:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The Worker imports the recorder's publish types from its dist.
+      - run: npm run build
+      - name: Deploy the cloud to staging
+        working-directory: packages/cloud
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "No Cloudflare secrets in this repository yet; staging not deployed."
+            exit 0
+          fi
+          if grep -q '<staging-' wrangler.jsonc; then
+            echo "Staging is not provisioned yet (npm run provision -- --env staging); not deployed."
+            exit 0
+          fi
+          npx wrangler d1 migrations apply versioncam-cloud-staging --env staging --remote
+          npx wrangler deploy --env staging
+          curl -fsS https://api-staging.version.cam/healthz

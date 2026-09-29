@@ -15,7 +15,8 @@ export default defineConfig([
     "**/node_modules/**",
   ]),
   {
-    files: ["**/*.ts"],
+    // .tsx for the cloud's server-rendered pages (Hono JSX).
+    files: ["**/*.ts", "**/*.tsx"],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
