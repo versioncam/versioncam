@@ -90,6 +90,9 @@ page being recorded).
 ## Git identity on Peter's machine
 
 Commits here are authored `92371345+petbul@users.noreply.github.com` (repo-local config) and
-pushes authenticate as `petbul` through a repo-local credential helper.
+pushes authenticate as `petbul` through a repo-local credential helper. The
+repository is `versioncam/versioncam`, in the `versioncam` organisation that
+`petbul` owns; it moved from `petbul/versioncam` on 2026-10-04, and the old
+address redirects.
 PathGen commits as `peter-ixo`. Do not run `gh auth switch` and do not change
 either repository's remote or credential configuration.

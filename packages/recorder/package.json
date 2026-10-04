@@ -8,7 +8,7 @@
   "homepage": "https://version.cam",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/petbul/versioncam.git",
+    "url": "git+https://github.com/versioncam/versioncam.git",
     "directory": "packages/recorder"
   },
   "bugs": "https://github.com/petbul/versioncam-home/issues",

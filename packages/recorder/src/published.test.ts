@@ -22,7 +22,10 @@ const PRIVATE: [string, RegExp][] = [
     "an app it was built against, or its owner",
     /pathgen|\bixo\b|ixo\.world|ixoworld|impacts-x|open-qi|qi-agent|qi-app/i,
   ],
-  ["this private repository", /github\.com\/petbul\/versioncam(?!-home)/],
+  [
+    "this private repository",
+    /github\.com\/(?:petbul|versioncam)\/versioncam(?![\w-])/,
+  ],
   ["a personal email address", /@(gmail|icloud|me|outlook|hotmail)\.com/i],
   ["a path on someone's machine", /\/Users\/|~\/Documents/],
 ];
@@ -57,7 +60,7 @@ function shipped(): string[] {
  * manifest names it, a link only collaborators can open, and nothing else
  * may.
  */
-const REQUIRED = '"url": "git+https://github.com/petbul/versioncam.git",';
+const REQUIRED = '"url": "git+https://github.com/versioncam/versioncam.git",';
 
 describe("the published package", () => {
   it("names no client, private repository, personal address or local path", () => {
