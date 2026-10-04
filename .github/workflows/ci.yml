@@ -78,24 +78,17 @@ jobs:
         run: npx versioncam render --sequence
 
       # version.cam's own publish, used on this repository first: the
-      # recordings `check` just made, sent with GitHub's token for this run.
-      # It is what the versioncam Action's publish mode does, written out
-      # until that repository is public. Skipped until staging answers.
-      - name: Publish the example's recordings to version.cam (staging)
+      # recordings `check` just made, sent to production by the versioncam
+      # Action, as a customer's workflow sends them, with GitHub's token for
+      # this run (the job's `id-token: write`). The Action runs the versioncam
+      # this repository just built: the nearest `node_modules/.bin` above the
+      # example app is the root's, linked to packages/recorder.
+      - name: Publish the example's recordings to version.cam
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        working-directory: examples/demo-app
-        env:
-          VERSIONCAM_API: https://api-staging.version.cam
-        run: |
-          if ! curl -fsS --max-time 10 "$VERSIONCAM_API/healthz" > /dev/null 2>&1; then
-            echo "Staging is not up yet; nothing published."
-            exit 0
-          fi
-          token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=version.cam" | jq -r .value)
-          echo "::add-mask::$token"
-          VERSIONCAM_OIDC_TOKEN="$token" npx versioncam publish \
-            --report .versioncam/publish.json
+        uses: versioncam/action@v1
+        with:
+          mode: publish
+          working-directory: examples/demo-app
 
       - uses: actions/upload-artifact@v4
         if: always()
