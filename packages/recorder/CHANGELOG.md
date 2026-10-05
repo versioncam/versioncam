@@ -6,6 +6,17 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Security
+
+- The page that renders a recording or a scene now reaches nothing but its
+  own routes. Every request it makes for another origin is refused before
+  it leaves the browser, and every WebSocket is closed before it connects;
+  until now, a WebSocket from the page could reach a port on the machine
+  doing the rendering. A scene that loaded something from elsewhere, such
+  as a web font, renders without it: put what a scene draws in its module.
+
 ## 0.3.0 (2026-09-29)
 
 A minor version: a new command, a new config field, and new files beside a

@@ -14,7 +14,7 @@ import type { RenderConfig } from "../config.js";
  * whenever a file changed.
  *
  * The origin is fake. Nothing resolves it; every request for it is answered
- * here.
+ * here, and every request for anywhere else is refused here.
  */
 export const RENDER_ORIGIN = "http://versioncam.local";
 
@@ -63,12 +63,31 @@ export type ServeOptions = {
   scenesBundle?: string;
 };
 
+/**
+ * Answer the page's requests from memory, and refuse everything else.
+ *
+ * The page needs nothing but its own origin, so a request for any other is
+ * a mistake or an attack, never a dependency: version.cam renders other
+ * people's recordings with this page, on a machine where the renderer
+ * itself listens on a local port and an internal API answers. So every
+ * request is routed here, and one for another origin is aborted before it
+ * leaves the browser. Chromium's own checks are not the boundary: they
+ * stopped a fetch from this page to loopback, but not a WebSocket, and not
+ * a request to a host whose address they class as public. A WebSocket is
+ * not a request that routes see, so it has a route of its own, which closes
+ * every one without connecting it.
+ */
 export async function installRenderRoutes(
   page: Page,
   options: ServeOptions,
 ): Promise<void> {
-  await page.route(`${RENDER_ORIGIN}/**`, async (route) => {
+  await page.routeWebSocket("**", (socket) => socket.close());
+  await page.route("**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.origin !== RENDER_ORIGIN) {
+      await route.abort("blockedbyclient");
+      return;
+    }
     const path = url.pathname;
 
     if (path === "/render-config.json") {

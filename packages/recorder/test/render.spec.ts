@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 import { launchBrowser } from "../src/driver/launch.js";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import type { IncomingMessage } from "node:http";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
+import type { Duplex } from "node:stream";
 import { PNG } from "pngjs";
 import { fitFrameArea, sourceToOutput } from "../src/core/compose.js";
 import { ffprobeSync } from "../src/render/ffmpeg.js";
@@ -416,6 +420,99 @@ test.describe("rendering a recording", () => {
       );
     } finally {
       await browser.close();
+    }
+  });
+});
+
+test.describe("the render page", () => {
+  test("reaches nothing but its own origin", async () => {
+    // version.cam renders customers' recordings with this page, in a
+    // container whose runner listens on localhost:8080 and whose one
+    // reachable host is the API it calls back. Nothing the page loads may
+    // go anywhere but its own routes: a server on this machine stands in
+    // for both, and must hear nothing, whether asked by fetch, by markup or
+    // by a socket.
+    const heard: string[] = [];
+    const server = createServer((request, response) => {
+      heard.push(`${request.method} ${request.url}`);
+      response.writeHead(200, { "access-control-allow-origin": "*" });
+      response.end("reached");
+    });
+    server.on("upgrade", (request: IncomingMessage, socket: Duplex) => {
+      heard.push(`upgrade ${request.url}`);
+      socket.destroy();
+    });
+    await new Promise<void>((ready) =>
+      server.listen(0, "127.0.0.1", () => ready()),
+    );
+    const { port } = server.address() as AddressInfo;
+    const config = configWith(null);
+    const browser = await launchBrowser();
+    try {
+      const { page } = await openRenderPage(browser, config, {
+        kind: "recording",
+        id: CLIP,
+        dir: join(config.recordingsDir, CLIP),
+      });
+      const failed = new Map<string, string | undefined>();
+      page.on("requestfailed", (request) =>
+        failed.set(request.url(), request.failure()?.errorText),
+      );
+      const elsewhere = [
+        `http://127.0.0.1:${port}/render`,
+        `http://localhost:${port}/healthz`,
+        "http://localhost:8080/render",
+        "http://api.versioncam.internal/v1/internal/render/job/materials",
+      ];
+      const outcomes = await page.evaluate(
+        async ({ urls, image, socket }) => {
+          const fetched = await Promise.all(
+            urls.map((url) =>
+              fetch(url, { method: "POST", mode: "no-cors", body: "{}" }).then(
+                () => "reached",
+                () => "refused",
+              ),
+            ),
+          );
+          const drawn = await new Promise<string>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve("reached");
+            img.onerror = () => resolve("refused");
+            img.src = image;
+          });
+          const opened = await new Promise<string>((resolve) => {
+            const ws = new WebSocket(socket);
+            ws.onopen = () => resolve("reached");
+            ws.onclose = () => resolve("refused");
+          });
+          const own = (await fetch("/render-config.json")).status;
+          return { fetched, drawn, opened, own };
+        },
+        {
+          urls: elsewhere,
+          image: `http://127.0.0.1:${port}/pixel.png`,
+          socket: `ws://127.0.0.1:${port}/`,
+        },
+      );
+      expect(heard).toEqual([]);
+      expect(outcomes).toEqual({
+        fetched: elsewhere.map(() => "refused"),
+        drawn: "refused",
+        opened: "refused",
+        // Its own origin still answers.
+        own: 200,
+      });
+      // Refused by the page's own routes (Chromium names the DevTools
+      // client that blocked it), not by a closed port, a name that does not
+      // resolve here or Chromium's local-network check: in the container the
+      // port and the name both answer.
+      for (const url of [...elsewhere, `http://127.0.0.1:${port}/pixel.png`]) {
+        expect(failed.get(url), url).toMatch(/^net::ERR_BLOCKED_BY_CLIENT\b/);
+      }
+      await page.context().close();
+    } finally {
+      await browser.close();
+      await new Promise((closed) => server.close(closed));
     }
   });
 });
