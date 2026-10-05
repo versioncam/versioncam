@@ -9,7 +9,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    # One pull request a week for all of them, rather than one per action.
+    # Minor and patch releases in one pull request a week. A new major comes
+    # in a pull request of its own, since it can change what a step does
+    # (the artifact actions' majors have changed their paths and defaults).
     groups:
       actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
