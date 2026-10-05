@@ -13,6 +13,10 @@ export default defineConfig([
     "**/recordings/**",
     "**/out/**",
     "**/node_modules/**",
+    // Other sessions' worktrees (.claude/worktrees, excluded from git): from
+    // the root, eslint would lint their unfinished work as if it were this
+    // checkout's, and fail a gate on code that is not here.
+    ".claude/**",
   ]),
   {
     // .tsx for the cloud's server-rendered pages (Hono JSX).
