@@ -25,3 +25,7 @@ blob-report/
 
 # The recorder, packed for the render image by `npm run pack:renderer`.
 packages/cloud/render/versioncam.tgz
+
+# Wrangler's own state and scratch files. A deploy refuses a working tree
+# with any change, and these would make one.
+.wrangler/
