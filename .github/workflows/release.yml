@@ -9,22 +9,32 @@ name: Release
 #
 # No provenance attestation: npm generates none for a private repository, and
 # one would point at a source nobody outside can open.
+#
+# Two jobs, because any step of a job with `id-token: write` can ask for a
+# token npm accepts for `versioncam`, an install script or a test included
+# (docs/security.md S6). `build` runs every gate and packs the tarball,
+# without that permission; `publish`, in the environment `npm`, publishes
+# that tarball and installs and runs nothing else. npm's trusted publisher
+# can be held to that environment (P8 in docs/security.md).
 on:
   push:
     tags: ["v*"]
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.npm.outputs.published }}
+      tarball: ${{ steps.pack.outputs.tarball }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # The whole history, so the check below can see `main`.
           fetch-depth: 0
+          persist-credentials: false
 
       # A tag on some other branch's commit would publish that branch.
       - name: The tagged commit is on main
@@ -35,10 +45,6 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
-      - run: npm install -g npm@^11.5.1 && npm --version
 
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
@@ -60,7 +66,8 @@ jobs:
 
       # While npm/cli#9969 stands, a release is published by hand from main
       # and tagged afterwards. The tag's run then finds the version already on
-      # npm and stops here, green, having run every gate on the tagged commit.
+      # npm and stops here, green, having run every gate on the tagged commit;
+      # `publish` is skipped.
       - name: Is this version already on npm?
         id: npm
         run: |
@@ -70,10 +77,67 @@ jobs:
             echo "published=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # The tarball `publish` uploads as it is: packed here, from this
+      # commit's build, exactly as npm would pack the workspace.
+      - name: Pack the package
+        id: pack
+        if: steps.npm.outputs.published != 'true'
+        run: |
+          mkdir pack
+          npm pack -w versioncam --pack-destination pack
+          echo "tarball=$(cd pack && ls versioncam-*.tgz)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.npm.outputs.published != 'true'
+        with:
+          name: npm-package
+          path: pack
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: needs.build.outputs.published != 'true'
+    runs-on: ubuntu-latest
+    environment: npm
+    # id-token: the OIDC token npm exchanges for a publish of `versioncam`.
+    # Naming one permission removes the defaults, so contents: read is
+    # stated too.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: npm-package
+          path: pack
+
+      # Trusted publishing needs npm 11.5.1 or later. Node 22 ships npm 10,
+      # and installing a newer npm here would run the registry's code in the
+      # one job that can ask for the publish token. Node 24 ships an npm that
+      # is new enough, so this job uses the newest Node 24 and installs
+      # nothing.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          check-latest: true
+          registry-url: https://registry.npmjs.org
+      - name: This npm can publish by trusted publishing
+        run: |
+          version="$(npm --version)"
+          node -e '
+            const [major, minor, patch] = process.argv[1].split(".").map(Number);
+            const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
+            process.exit(ok ? 0 : 1);
+          ' "$version" || {
+            echo "npm $version cannot publish by trusted publishing, which needs 11.5.1 or later." >&2
+            exit 1
+          }
+
       # A trusted publish npm refuses fails with a bare 404. The verbose log
       # says why, on the lines that begin `npm verbose oidc`.
-      - if: steps.npm.outputs.published != 'true'
-        run: npm publish -w versioncam --access public --provenance=false --loglevel verbose
+      - name: Publish the tarball the build job packed
+        env:
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        run: npm publish "./pack/$TARBALL" --ignore-scripts --access public --provenance=false --loglevel verbose
 
       # version.cam's docs are built from the package as npm has it. The site
       # is a Worker that its own repository redeploys every morning, so a
