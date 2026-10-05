@@ -16,3 +16,16 @@ updates:
       actions:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+
+  # The render image's base, pinned by digest (packages/cloud/render/
+  # Dockerfile, docs/security.md S10): a new digest of the same tag, which
+  # is the base rebuilt, comes as a pull request, and the Renderer workflow
+  # builds and tests the image it makes. A new tag does not: it carries the
+  # browsers of another Playwright, and moves with the recorder's own.
+  - package-ecosystem: docker
+    directory: /packages/cloud/render
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
