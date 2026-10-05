@@ -86,7 +86,38 @@ export type CaptureConfig = {
    * whose subject *is* a canvas should set it to 1 and pay full price.
    */
   forceCaptureEvery?: number;
+  /**
+   * What the page's CSS transitions do while it is filmed.
+   *
+   * `"play"`, the default: each one runs at its authored duration and
+   * easing, on the page's own clock, from the frame the driver first sees
+   * it, so a map that zooms with a transition zooms over its frames instead
+   * of jumping. A settle waits for the ones running to finish.
+   *
+   * `"zero"`: every transition takes no time, so a change lands in the frame
+   * after it, and the renderer's crossfade at a settle is all the motion
+   * there is. What the recorder did before 0.4.0, for a clip whose app
+   * animates in ways better left out of a video.
+   */
+  transitions?: Transitions;
 };
+
+/** See `CaptureConfig.transitions`. */
+export type Transitions = "play" | "zero";
+
+/**
+ * Checked where a value enters: in the config here, and in a clip's own
+ * `capture` by `runClip`, since nothing else checks a clip's options.
+ */
+export function isTransitions(value: unknown): value is Transitions {
+  return value === "play" || value === "zero";
+}
+
+function transitionsOf(value: unknown, field: string): Transitions {
+  if (value === undefined) return "play";
+  if (isTransitions(value)) return value;
+  fail(field, `must be "play" or "zero", got ${JSON.stringify(value)}`);
+}
 
 export type ReviewConfig = {
   /**
@@ -433,6 +464,10 @@ export function resolveConfig(
     capture: {
       gate: config.capture?.gate ?? true,
       forceCaptureEvery: forceCaptureEvery,
+      transitions: transitionsOf(
+        config.capture?.transitions,
+        "capture.transitions",
+      ),
     },
     review: {
       minSeconds: config.review?.minSeconds ?? 9,

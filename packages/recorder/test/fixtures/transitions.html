@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Transitions fixture</title>
+    <style>
+      /* Flat colours and plain buttons, as in buttons.html: the tests read
+         computed transforms and compare frames by their bytes, so nothing
+         here may move unless a test moves it. Each square scales about its
+         centre, so a frame's picture is a function of the scale alone. */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      button {
+        position: absolute;
+        top: 40px;
+        width: 120px;
+        height: 40px;
+        appearance: none;
+        border: none;
+        border-radius: 0;
+        background: #dddddd;
+        color: #111111;
+        font-size: 14px;
+      }
+      .square {
+        position: absolute;
+        top: 300px;
+        width: 100px;
+        height: 100px;
+        transform: scale(1);
+      }
+      .square.big {
+        transform: scale(2);
+      }
+
+      /* Linear, so the scale at any moment says exactly how much of the
+         transition's time has passed. */
+      #box {
+        left: 60px;
+        background: #0000ff;
+        transition: transform 500ms linear;
+      }
+      #late {
+        left: 260px;
+        background: #ff0000;
+        transition: transform 300ms linear 200ms;
+      }
+      #settler {
+        left: 460px;
+        background: #00aa00;
+        transition: transform 300ms linear;
+      }
+      #instant {
+        left: 660px;
+        background: #aa00aa;
+        transition: none;
+      }
+      /* Motion offered only to those who have not asked for less, the way
+         a careful app writes it. The recorder asks for no preference. */
+      #safe {
+        left: 840px;
+        background: #ff8800;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        #safe {
+          transition: transform 300ms linear;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button id="grow" data-testid="grow" type="button" style="left: 40px">Grow</button>
+    <button id="late-button" data-testid="late-button" type="button" style="left: 180px">Later</button>
+    <button id="later" data-testid="later" type="button" style="left: 320px">After 50 ms</button>
+    <button id="instant-button" data-testid="instant-button" type="button" style="left: 460px">Instant</button>
+    <button id="safe-button" data-testid="safe-button" type="button" style="left: 600px">Safe</button>
+
+    <div id="box" class="square" data-testid="box"></div>
+    <div id="late" class="square" data-testid="late"></div>
+    <div id="settler" class="square" data-testid="settler"></div>
+    <div id="instant" class="square" data-testid="instant"></div>
+    <div id="safe" class="square" data-testid="safe"></div>
+
+    <script>
+      // Every transition event, with the page's clock when it arrived: the
+      // tests hold the recorder to when, by that clock, each one is due.
+      window.events = [];
+      for (const type of ["transitionrun", "transitionstart", "transitionend", "transitioncancel"]) {
+        document.addEventListener(type, (event) => {
+          window.events.push({
+            type,
+            id: event.target.id,
+            property: event.propertyName,
+            at: performance.now(),
+          });
+        });
+      }
+
+      const toggle = (id) => document.getElementById(id).classList.toggle("big");
+      document.getElementById("grow").addEventListener("click", () => toggle("box"));
+      document.getElementById("late-button").addEventListener("click", () => toggle("late"));
+      document.getElementById("instant-button").addEventListener("click", () => toggle("instant"));
+      document.getElementById("safe-button").addEventListener("click", () => toggle("safe"));
+      // A change the app makes on its own timer, after the click, so that a
+      // settle straight after the click sees the transition begin inside it.
+      document.getElementById("later").addEventListener("click", () => {
+        setTimeout(() => toggle("settler"), 50);
+      });
+    </script>
+  </body>
+</html>

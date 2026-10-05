@@ -36,7 +36,8 @@ const DEFAULT_YIELD_MS = 20;
  * DuckDB query "returning instantly": the wait happens, it just never reaches
  * the timeline. The cost of getting this wrong is a frame captured mid-update,
  * so the checks are deliberately conservative — DOM quiet *and* no network in
- * flight *and* fonts loaded *and* whatever the clip adds.
+ * flight *and* fonts loaded *and* no transition still running *and* whatever
+ * the clip adds.
  *
  * Each iteration advances fake time *and* yields real time. `clock.runFor()`
  * only moves the page's own timeline: it fires due timers and resolves, but it
@@ -61,23 +62,34 @@ export async function settlePage(
   let lastBlocker = "none";
 
   for (;;) {
+    // The same round trip moves the page's transitions to its clock, which
+    // the last tick advanced, and says how many are still running.
     const probe = await page.evaluate(() => ({
       mutations: window.__recorder?.mutations ?? 0,
       fontsLoaded: document.fonts ? document.fonts.status === "loaded" : true,
+      transitions: window.__recorderTransitions?.sync() ?? 0,
     }));
     const requests = inFlightRequests();
     const hookOk = options.hook ? await options.hook() : true;
 
+    // A running transition touches no DOM and no network, so the other
+    // checks would call the page finished halfway through one. Waiting it out
+    // is what makes the frame after a settle the same on every run: the
+    // settle's length depends on the machine, so a transition still running
+    // at its end would be caught at a point that does too.
     const quiet =
       probe.mutations === lastMutations &&
       requests === 0 &&
       probe.fontsLoaded &&
+      probe.transitions === 0 &&
       hookOk;
 
     if (!quiet) {
       if (probe.mutations !== lastMutations) lastBlocker = "dom";
       else if (requests > 0) lastBlocker = `requests(${requests})`;
       else if (!probe.fontsLoaded) lastBlocker = "fonts";
+      else if (probe.transitions > 0)
+        lastBlocker = `transitions(${probe.transitions})`;
       else lastBlocker = "hook";
     }
 

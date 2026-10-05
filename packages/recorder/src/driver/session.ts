@@ -29,7 +29,7 @@ import { emptyTiming } from "../core/timing.js";
 import type { RecordingTiming } from "../core/timing.js";
 import { TICK_MS, settlePage } from "./settle.js";
 import type { SettleOptions, SettleReport } from "./settle.js";
-import { FRAME_PROBE } from "./page-hooks.js";
+import { FRAME_PROBE, SYNC_TRANSITIONS } from "./page-hooks.js";
 import type { FrameProbe } from "./page-hooks.js";
 import type { CaptureConfig, ResolvedConfig } from "../config.js";
 
@@ -736,8 +736,21 @@ export class RecordingSession {
       }
       if (performance.now() > deadline) return false;
       await this.page.clock.runFor(TICK_MS);
+      await this.syncTransitions();
       await sleep(TICK_MS);
     }
+  }
+
+  /**
+   * Move the page's transitions to its clock after a wait moved it, so one
+   * that started during the wait is taken over within a tick, rather than
+   * left running, and perhaps finishing, on real time until the next frame.
+   *
+   * Best effort: a wait can straddle a navigation, which destroys the page's
+   * context under the call, and the next frame's probe syncs regardless.
+   */
+  private async syncTransitions(): Promise<void> {
+    await this.page.evaluate(SYNC_TRANSITIONS).catch(() => undefined);
   }
 
   /**
@@ -758,6 +771,7 @@ export class RecordingSession {
         // would be in any browser, and not a reason to fail the sign-in it
         // happened during.
         await this.page.clock.runFor(TICK_MS).catch(() => undefined);
+        await this.syncTransitions();
       }
     })();
     try {
@@ -835,8 +849,9 @@ export class RecordingSession {
       // One round trip, after the input and the tick, because that is the
       // state this frame will be photographed in. It scrubs the page's own CSS
       // animations to this frame's authored time — so a spinner spins at the
-      // rate the clip plays rather than the rate the machine ran — and reads
-      // back what decides whether this frame needs a screenshot.
+      // rate the clip plays rather than the rate the machine ran — moves its
+      // transitions to the page's clock, which the tick just advanced, and
+      // reads back what decides whether this frame needs a screenshot.
       const probe = await this.page.evaluate<FrameProbe>(
         FRAME_PROBE(tf, position[0], position[1]),
       );
@@ -874,8 +889,10 @@ export class RecordingSession {
       return true;
     }
     if (probe.mutations !== last.mutations) return true;
-    // A scrubbed animation repaints every frame while it runs, touching
-    // nothing the other clauses watch.
+    // A scrubbed animation, or a transition on the page's clock, repaints
+    // every frame while it runs, touching nothing the other clauses watch.
+    // Both are in this count, and the frame a transition finishes on is
+    // caught by the previous frame's.
     if (probe.animations > 0 || last.animations > 0) return true;
     // The pointer glyph is drawn in post, so the cursor moving is not a
     // change — the cursor moving onto something else is.

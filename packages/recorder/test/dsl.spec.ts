@@ -39,6 +39,7 @@ const NOT_AUTHORING_SURFACE = new Set([
   "pushHold",
   "boxOf",
   "untilVisible",
+  "syncTransitions",
   "whileTicking",
   "whyLocatorFailed",
   "resolvePoint",

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { launchBrowser } from "../src/driver/launch.js";
 import {
   FRAME_PROBE,
-  FREEZE_CSS_SCRIPT,
+  freezeCssScript,
   MUTATION_COUNTER_SCRIPT,
 } from "../src/driver/page-hooks.js";
 import type { FrameProbe } from "../src/driver/page-hooks.js";
@@ -22,7 +22,7 @@ test.describe("the frame probe", () => {
     try {
       const page = await browser.newPage();
       await page.addInitScript(MUTATION_COUNTER_SCRIPT);
-      await page.addInitScript(FREEZE_CSS_SCRIPT);
+      await page.addInitScript(freezeCssScript("play"));
       await installFixtureRoutes(page);
       await page.goto(`${FIXTURE_ORIGIN}/buttons.html`);
 
@@ -58,7 +58,7 @@ test.describe("the frame probe", () => {
     try {
       const page = await browser.newPage();
       await page.addInitScript(MUTATION_COUNTER_SCRIPT);
-      await page.addInitScript(FREEZE_CSS_SCRIPT);
+      await page.addInitScript(freezeCssScript("play"));
       await installFixtureRoutes(page);
       await page.goto(`${FIXTURE_ORIGIN}/buttons.html`);
 

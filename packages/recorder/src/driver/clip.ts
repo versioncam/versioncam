@@ -2,10 +2,15 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Browser } from "playwright";
+import { isTransitions } from "../config.js";
 import type { CaptureConfig, ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
 import type { RecordingTiming } from "../core/timing.js";
-import { FREEZE_CSS_SCRIPT, MUTATION_COUNTER_SCRIPT } from "./page-hooks.js";
+import {
+  MUTATION_COUNTER_SCRIPT,
+  TRANSITION_CLOCK_SCRIPT,
+  freezeCssScript,
+} from "./page-hooks.js";
 import { writeFailure, writeSettles, writeTargets } from "./reports.js";
 import type { SettleReport } from "./settle.js";
 import { RecordingSession } from "./session.js";
@@ -24,7 +29,9 @@ export type ClipOptions = {
   seed?: number;
   /**
    * Per-clip capture overrides. A clip that films a canvas sets
-   * `forceCaptureEvery: 1` here rather than making every other clip pay.
+   * `forceCaptureEvery: 1` here rather than making every other clip pay, and
+   * a clip whose app animates in ways better left out sets
+   * `transitions: "zero"`.
    */
   capture?: CaptureConfig;
 };
@@ -136,8 +143,17 @@ export async function runClip(
   });
   const page = await context.newPage();
 
+  // A clip's own `capture` is merged over the config's unchecked, so its
+  // switch is checked here, where a typo would otherwise play by default.
+  const transitions = capture.transitions;
+  if (!isTransitions(transitions)) {
+    throw new Error(
+      `Clip "${id}": \`capture.transitions\` must be "play" or "zero", got ${JSON.stringify(transitions)}.`,
+    );
+  }
   await page.addInitScript(MUTATION_COUNTER_SCRIPT);
-  await page.addInitScript(FREEZE_CSS_SCRIPT);
+  await page.addInitScript(freezeCssScript(transitions));
+  if (transitions === "play") await page.addInitScript(TRANSITION_CLOCK_SCRIPT);
   // Paused, not just installed. `clock.install()` leaves Playwright's fake
   // clock running on real time between the driver's own `runFor` calls, so
   // every screenshot, every probe and every stall of the machine reached the

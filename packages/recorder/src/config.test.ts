@@ -20,6 +20,27 @@ describe("resolveConfig", () => {
     expect(c.theme.presentation).toBeNull();
   });
 
+  it("plays transitions unless told to zero them, and says so when the value is wrong", () => {
+    const at = (transitions?: unknown) =>
+      resolveConfig(
+        { baseUrl: "http://x", capture: { transitions } } as Parameters<
+          typeof resolveConfig
+        >[0],
+        ROOT,
+      ).capture.transitions;
+    expect(resolveConfig({ baseUrl: "http://x" }, ROOT).capture).toEqual({
+      gate: true,
+      forceCaptureEvery: 30,
+      transitions: "play",
+    });
+    expect(at("zero")).toBe("zero");
+    expect(at("play")).toBe("play");
+    expect(() => at("Zero")).toThrow(
+      '`capture.transitions` must be "play" or "zero", got "Zero"',
+    );
+    expect(() => at(false)).toThrow(/`capture.transitions`/);
+  });
+
   it("puts everything it writes under one ignorable directory", () => {
     const c = resolveConfig({ baseUrl: "http://x" }, ROOT);
     expect(c.outDir).toBe("/tmp/app/.versioncam");

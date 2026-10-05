@@ -12,6 +12,7 @@ export type {
   ResolvedConfig,
   ResolvedWebServer,
   SettleConfig,
+  Transitions,
   WebServerConfig,
 } from "./config.js";
 export { ensureApp, withApp } from "./app-server.js";
