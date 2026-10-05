@@ -1,0 +1,15 @@
+# Keeps the workflows' actions current. Each third-party action is pinned to
+# a commit, so a tag moved by whoever controls an action cannot change what
+# runs here (docs/security.md S6); the version beside each pin is what
+# Dependabot reads and rewrites. Its pull request is the moment to read what
+# changed before it runs with this repository's tokens.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # One pull request a week for all of them, rather than one per action.
+    groups:
+      actions:
+        patterns: ["*"]
