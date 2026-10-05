@@ -108,7 +108,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `output` | `{ width: 1920 }` | The video's width. Its height follows the viewport. `threads` fixes how many threads each encoder uses: an encoder's bytes depend on it, so a fixed number renders the same recording to the same file on any machine. `VERSIONCAM_FFMPEG_THREADS` sets it for one run. |
 | `auth` | none | How the app signs in: a saved session, `{ storageState }`, or a hook, `{ login }`. |
 | `settle` | `quietMs: 150`, `timeoutMs: 15000`, `yieldMs: 20` | When a page counts as done. `ready` adds a condition of your own. |
-| `capture` | `gate: true`, `forceCaptureEvery: 30` | Which frames get a screenshot. See *Speed*. |
+| `capture` | `gate: true`, `forceCaptureEvery: 30`, `transitions: "play"` | Which frames get a screenshot (see *Speed*), and whether the app's CSS transitions play on its clock or take no time, `"zero"` (see *Determinism*). |
 | `review` | `minSeconds: 9`, `maxSeconds: 11` | How long a clip should run. `versioncam review` holds clips to it. |
 | `cursorStart` | `{ x: 0.72, y: 0.28 }` | Where the cursor rests in the first frame, as fractions of the viewport. |
 | `clock` | `time: "2026-09-01T09:00:00Z"`, `timezoneId: "UTC"`, `locale: "en-GB"` | The instant, time zone and locale the app sees. |
@@ -224,7 +224,7 @@ test holds that list to the session's code. The same reference is
 | `title` | required | The clip's name, kept in its timeline. It is not drawn: write a caption with `s.caption`. |
 | `seed` | `1` | Seeds the jitter in cursor paths, dwells and typing. A new seed is a new take of the same script. |
 | `viewport`, `dpr`, `fps` | the config's | For a clip that needs a different shape. |
-| `capture` | the config's | A clip that films a canvas sets `{ forceCaptureEvery: 1 }` here. |
+| `capture` | the config's | A clip that films a canvas sets `{ forceCaptureEvery: 1 }` here, and one whose app animates in ways better left out sets `{ transitions: "zero" }`. |
 
 ### The camera
 
@@ -498,8 +498,8 @@ how long that loop takes.
 moved. The screenshot is by far the most expensive thing a frame does: 25 ms,
 against half a millisecond for everything else. So the driver takes one only
 when the page can have changed. That is when the DOM mutated, the element
-under the cursor changed, an animation is running, input was just sent, or
-`forceCaptureEvery` frames have gone by. On the example app that skips 81% to
+under the cursor changed, an animation or a transition is running, input was
+just sent, or `forceCaptureEvery` frames have gone by. On the example app that skips 81% to
 95% of frames, and the recording is identical either way. A test records every
 clip both ways on every push and compares the bytes. The failure it guards
 against is not a crash but a video that is quietly wrong.
@@ -631,6 +631,30 @@ for the version versioncam pins is the simplest (see *In CI*).
 If two recordings of your clip on one machine differ, something outside the
 authored clock reached a frame: an unwarmed resource, a real timer, a font
 that had not finished loading. Find the cause. The next section is how.
+
+### The app's own motion
+
+The page runs on a fake clock that moves only when the recorder moves it: a
+frame's worth at a time while frames are made, and in small ticks while a
+settle waits. The app's timers and animation frames run on it, and so does
+its CSS motion:
+
+- **Transitions play** at their authored duration and easing, on the page's
+  clock, from the frame the recorder first sees each one. A menu fades in, a
+  drawer slides, a map zooms over its frames, and `transitionend` fires on
+  the frame its time runs out. A settle waits until none is running, so the
+  frame after it shows them finished. `capture: { transitions: "zero" }`
+  makes them take no time instead, as before 0.4.0, in the config or in one
+  clip.
+- **Animations are scrubbed** by the clip's time: a spinner turns at the rate
+  the video plays, whatever the machine is doing. The scrub counts from the
+  clip's start, not the animation's, so a one-off animation that starts
+  partway through a clip shows its end.
+- **Not on the clock:** animations a script makes with `element.animate()`,
+  Chromium's smooth scrolling of a mouse wheel, and transitions inside an
+  iframe, which stay zeroed since nothing drives an iframe's clock. A clip
+  that films one of the first two may differ between runs: `stability` says
+  so.
 
 ### When a clip will not reproduce
 

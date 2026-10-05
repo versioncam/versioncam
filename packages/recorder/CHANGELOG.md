@@ -8,6 +8,26 @@ and its entry here says how.
 
 ## Unreleased
 
+A minor version: clips whose app uses CSS transitions record differently.
+
+### Changed
+
+- **CSS transitions play.** Until now the recorder set every transition to
+  zero, so a change landed in the frame after it, and the only motion was
+  the renderer's crossfade at a settle. A change made inside a hold, such as
+  a map zooming on a wheel notch, jumped. Now each transition runs at its
+  authored duration and easing, on the page's own clock, from the frame the
+  recorder first sees it, the same on every run: menus, dialogs and
+  popovers open the way the app wrote them, and a map zooms over its
+  frames. `transitionend` fires on the frame the transition's time runs out,
+  so code that waits for it runs there.
+- **A settle waits for running transitions** to finish, as it waits for
+  requests, so the frame after a settle shows them finished. A settle held up
+  by them names them in `settles.json`: `transitions(1)`.
+- To record as before, set `capture: { transitions: "zero" }` in the config,
+  or in one clip's options. Transitions in an iframe stay zeroed either way,
+  since nothing drives an iframe's clock.
+
 ### Security
 
 - The page that renders a recording or a scene now reaches nothing but its

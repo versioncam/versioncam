@@ -62,8 +62,9 @@ and what a track write needs after it.
 ### `settle(options?)`
 
 Wait for the page to stop working: the DOM quiet, no requests in flight, the
-fonts loaded, and whatever `settle.ready` in the config adds. It advances the
-page's clock without capturing, so the wait never reaches the video.
+fonts loaded, no CSS transition still running, and whatever `settle.ready` in
+the config adds. It advances the page's clock without capturing, so the wait
+never reaches the video.
 
 Give every beat a `label`. `versioncam review` checks a beat sheet against the
 labels, and `sheet --at-marks` samples the frames they mark. A settle that
