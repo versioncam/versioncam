@@ -5,18 +5,25 @@ on:
     branches: [main]
   pull_request:
 
+# Nothing here writes to the repository, and no job holds a Cloudflare
+# credential: staging and production deploy from Peter's machine
+# (packages/cloud/scripts/deploy.mjs; docs/security.md, P6a and S6). The jobs
+# that hold anything more get it alone: `publish` may ask GitHub for an OIDC
+# token, and `site-clips` receives the R2 keys. The build job, which installs
+# and runs every dependency, has neither: it hands them what they need as
+# artifacts.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    # id-token: the publish step below asks GitHub for a token that names
-    # this repository and commit, which is how version.cam knows who is
-    # publishing without a stored secret. Naming one permission removes the
-    # defaults, so contents: read is stated too.
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Nothing here pushes, so the job's token is not left in .git for
+          # the dependencies to find.
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -34,6 +41,9 @@ jobs:
       # The cloud's tests run inside workerd with Miniflare's D1, R2 and KV,
       # which the root runner (plain Node) cannot host.
       - run: npm test -w @versioncam/cloud
+      # The deploy script's refusals, with its commands answered by the
+      # tests: nothing there reaches git, Docker or Cloudflare.
+      - run: npm run test:scripts -w @versioncam/cloud
 
       - run: npx versioncam install --with-deps
       - run: npm run test:integration
@@ -77,19 +87,7 @@ jobs:
         working-directory: examples/demo-app
         run: npx versioncam render --sequence
 
-      # version.cam's own publish, used on this repository first: the
-      # recordings `check` just made, sent to production by the versioncam
-      # Action, as a customer's workflow sends them, with GitHub's token for
-      # this run (the job's `id-token: write`). The Action runs the versioncam
-      # this repository just built: the nearest `node_modules/.bin` above the
-      # example app is the root's, linked to packages/recorder.
-      - name: Publish the example's recordings to version.cam
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: versioncam/action@v1
-        with:
-          mode: publish
-          working-directory: examples/demo-app
-
+      # The renders, for anyone to look at, and for `site-clips` to upload.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -97,12 +95,114 @@ jobs:
           path: examples/demo-app/.versioncam/out
           if-no-files-found: warn
 
-      # The front page of version.cam plays these renders, so what it shows is
-      # what `main` records — re-rendered on every push, never by hand. This is
-      # the hosted service's `publish` in miniature, used before it exists.
-      # Skipped until the R2 secrets are in this repository's settings.
+      # What the front page shows beside each take (its script, its timeline
+      # and this run's check), gathered here, where the checkout and the
+      # recordings are, so that `site-clips` runs nothing but the upload.
+      - name: Gather the example's take for version.cam's front page
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: node .github/scripts/take-manifest.mjs examples/demo-app take
+
+      # Handed to the jobs below, for this run only. The recordings are the
+      # clips `check` just made, without the stability and gate runs kept
+      # under `__` directories, which `publish` never reads; the recorder's
+      # build is what the Action runs as this repository's versioncam.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          name: example-take
+          path: take
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          name: example-recordings
+          path: |
+            examples/demo-app/.versioncam/recordings
+            !examples/demo-app/.versioncam/recordings/__*
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          name: recorder-dist
+          path: packages/recorder/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  # version.cam's own publish, used on this repository first: the recordings
+  # the build job's `check` made, sent to production by the versioncam Action,
+  # as a customer's workflow sends them, with GitHub's token for this run.
+  # The only job that may ask for that token, so it runs no dependency's
+  # code: it installs them without their scripts, and runs nothing it built.
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # id-token: the Action asks GitHub for a token that names this repository
+    # and commit, which is how version.cam knows who is publishing without a
+    # stored secret. Naming one permission removes the defaults, so
+    # contents: read is stated too.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # The packages, linked as npm links them, and none of their install
+      # scripts: `publish` needs no browser and no ffmpeg, and no package's
+      # script runs where the OIDC token can be asked for.
+      - run: npm ci --ignore-scripts
+
+      # Into place as the build job left them: the Action runs the nearest
+      # `node_modules/.bin/versioncam` above the example app, the root's,
+      # linked to packages/recorder, whose launcher needs its dist; and
+      # `publish` reads the recordings directory.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: recorder-dist
+          path: packages/recorder/dist
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: example-recordings
+          path: examples/demo-app/.versioncam/recordings
+
+      - name: Publish the example's recordings to version.cam
+        uses: versioncam/action@v1
+        with:
+          mode: publish
+          working-directory: examples/demo-app
+
+  # The front page of version.cam plays these renders, so what it shows is
+  # what `main` records — re-rendered on every push, never by hand. The only
+  # job that receives the R2 keys, scoped to that bucket, and it runs nothing
+  # but the AWS CLI on what the build job made: no checkout, no npm, no
+  # dependency's code. Skipped until the R2 secrets are in this repository's
+  # settings.
+  site-clips:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # Artifacts of this run download with the run's own credentials; the
+    # job's token is needed for nothing.
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: example-demos
+          path: examples/demo-app/.versioncam/out
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: example-take
+          path: take
+
       - name: Publish the example's renders to clips.version.cam
-        if: github.ref == 'refs/heads/main'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -123,9 +223,9 @@ jobs:
 
           # What the front page needs to show a take truthfully, beside its
           # video: the script that recorded it, the recording's own timeline
-          # (its steps, and the version that made it), and this run's check.
-          # The manifest goes last, so it never names a file not yet there.
-          node .github/scripts/take-manifest.mjs examples/demo-app take
+          # (its steps, and the version that made it), and this run's check,
+          # gathered by the build job. The manifest goes last, so it never
+          # names a file not yet there.
           aws s3 cp take "s3://versioncam-clips/example" --recursive \
             --endpoint-url "$R2" --exclude "*" --include "*.timeline.json" \
             --content-type "application/json" --cache-control "public, max-age=300"
@@ -135,41 +235,3 @@ jobs:
           aws s3 cp take/manifest.json "s3://versioncam-clips/example/manifest.json" \
             --endpoint-url "$R2" \
             --content-type "application/json" --cache-control "public, max-age=300"
-
-  # version.cam's staging environment follows main. It is a separate job so a
-  # deploy can never be mistaken for a test, and it does nothing until two
-  # things exist: this repository's Cloudflare secrets, and the resource ids
-  # `npm run provision -w @versioncam/cloud -- --env staging` writes into
-  # wrangler.jsonc. Production deploys only from a `cloud-v*` tag.
-  cloud-staging:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      # The Worker imports the recorder's publish types from its dist, and the
-      # render image installs the recorder packed from this commit.
-      - run: npm run build
-      - run: npm run pack:renderer -w @versioncam/cloud
-      - name: Deploy the cloud to staging
-        working-directory: packages/cloud
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "No Cloudflare secrets in this repository yet; staging not deployed."
-            exit 0
-          fi
-          if grep -q '<staging-' wrangler.jsonc; then
-            echo "Staging is not provisioned yet (npm run provision -- --env staging); not deployed."
-            exit 0
-          fi
-          npx wrangler d1 migrations apply versioncam-cloud-staging --env staging --remote
-          npx wrangler deploy --env staging
-          curl -fsS https://api-staging.version.cam/healthz
