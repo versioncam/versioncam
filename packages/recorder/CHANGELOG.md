@@ -6,7 +6,7 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.4.0 (2026-10-05)
 
 A minor version: clips whose app uses CSS transitions record differently.
 
