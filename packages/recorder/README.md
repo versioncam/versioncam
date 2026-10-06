@@ -371,18 +371,18 @@ versioncam render [id…]            composite and encode recordings and scenes
 Send what the last run recorded to [version.cam](https://version.cam), which
 renders it and keeps it at a living address. `publish` records nothing and
 renders nothing: for each clip the config defines, it sends the recording if
-the clip's last run passed, or the failure if it did not, so a clip that
-broke says so on every page that embeds it. Only the states the service has
-not seen are uploaded, so a version that changed one screen sends one
-screen.
+the clip's last run passed, or the failure if it did not, so version.cam
+knows when a clip broke (see *When a clip breaks*). Only the states the
+service has not seen are uploaded, so a version that changed one screen
+sends one screen.
 
 It needs a credential in the environment, never on the command line:
 `VERSIONCAM_OIDC_TOKEN`, which the versioncam GitHub Action requests from
 GitHub for the run (no secret to store), or `VERSIONCAM_TOKEN`, a project
-token from version.cam for any other CI. `VERSIONCAM_API` points it
-somewhere other than `https://api.version.cam`. Outside GitHub Actions it
-reads the commit and branch from git; `VERSIONCAM_COMMIT` and
-`VERSIONCAM_BRANCH` set them outright.
+token from version.cam for a repository outside GitHub (see *Other CI*).
+`VERSIONCAM_API` points it somewhere other than `https://api.version.cam`.
+Outside GitHub Actions it reads the commit and branch from git;
+`VERSIONCAM_COMMIT` and `VERSIONCAM_BRANCH` set them outright.
 
 ```
 versioncam publish [id…]           send the recordings and their checks to version.cam
@@ -408,6 +408,84 @@ running, and says to `cd` into it instead.
 versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
 versioncam --version               which versioncam this is
 ```
+
+## version.cam
+
+[version.cam](https://version.cam) renders what `versioncam publish` sends
+and keeps each clip at a living address,
+`clips.version.cam/<owner>/<repo>/<clip>`. It plays the newest version from
+your default branch that passed, so a page that embeds it never needs
+editing. Projects are managed on [app.version.cam](https://app.version.cam).
+
+### Connect a repository
+
+Sign in at [app.version.cam](https://app.version.cam) with GitHub, and
+install the Versioncam GitHub App on the repositories you choose. Then
+publish from GitHub Actions with the
+[versioncam Action](https://github.com/versioncam/action), which signs in
+with GitHub's own token, so there is no secret to store. A repository's
+project appears the first time it publishes, or when the App is installed
+on it.
+
+The App is how version.cam learns from GitHub, each time someone signs in,
+who may do what: whoever may read a repository sees its project, and
+whoever administers the repository changes the project's settings. The App
+also reports each publish on GitHub: a check on its commit, and on a pull
+request a comment naming the clips that look different and the ones that
+failed.
+
+### When a clip breaks
+
+A clip breaks when its check fails on the default branch: a control it uses
+was renamed or removed, a page moved, a step waited for something that never
+came, or the app would not start. A change in how the app looks never breaks
+a clip. It makes a new version.
+
+Your pages keep playing the last version that passed, and say nothing about
+the break. A project that wants its viewers told, open source docs perhaps,
+turns on "Tell viewers when a clip is broken" in its settings.
+
+On every plan, CI says so, and so does the dashboard: a pull request's check
+fails and the Action comments on it, the App's check on the commit says the
+clip is broken, and the summary of the job that publishes says what your
+pages play meanwhile.
+
+On Pro and Max, version.cam also tells your team, by email, in Slack or with
+a GitHub issue, as the project's settings choose. It reminds them two days
+after a clip broke and then every week, until the clip passes again or
+someone acknowledges it on the dashboard ("I know, keep the old one"). An
+acknowledged clip gets one more reminder a month later if it is still
+broken. When the clip passes again, the team is told it is fixed.
+
+### Who can see the clips
+
+| Visibility | Who can see the clips |
+|---|---|
+| public | Anyone, and search engines. |
+| unlisted | Anyone with the address, kept out of search. The address is made of names, so unlisted means not listed, not secret. |
+| private | Whoever GitHub lets read the repository, signed in at app.version.cam. |
+
+A private repository's clips start private, and a public repository's start
+public. A private clip plays only for the people who may see it, so never on
+a public page: to show a private repository's clips in public docs or on a
+landing page, make them public or unlisted in the project's settings.
+
+### Other CI
+
+A repository on GitHub publishes from GitHub Actions, whatever builds it
+otherwise. GitHub's token says which repository, commit and branch a run is
+of, and version.cam takes them from it. A project token, `VERSIONCAM_TOKEN`,
+would have to say all that itself, with nothing to check it against, so it
+speaks only for a project with no GitHub repository.
+
+So when your CI runs elsewhere, run just the clips in GitHub Actions: a
+workflow beside the CI you have, with the versioncam Action checking the
+clips on pull requests and publishing them from your default branch. The
+[Action's README](https://github.com/versioncam/action) has one to copy.
+
+A repository outside GitHub publishes with a project token, given to
+`versioncam publish` as `VERSIONCAM_TOKEN` and made on the project's page at
+app.version.cam. Its project is set up by hand: write to hello@version.cam.
 
 ## What a recording leaves behind
 
