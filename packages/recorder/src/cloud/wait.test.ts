@@ -124,6 +124,23 @@ describe("waiting for a sign-in", () => {
     expect(route.asked()).toBe(WAIT_LIMIT_MS / 5000);
   });
 
+  it("ends with the service's failure, not a timeout, when its last questions failed", async () => {
+    // A bug on the service's side, from the second question on: nobody can
+    // say whether the person approved, so the wait does not say they did not.
+    const clock = fakeClock();
+    const failing = tokenRoute(["authorization_pending", 500]);
+    await expect(
+      waitForToken(failing.client, device, clock),
+    ).rejects.toMatchObject({ status: 500 });
+    expect(clock.now()).toBe(WAIT_LIMIT_MS);
+
+    // A failure the service then answered past is only a failure on the way.
+    const recovered = tokenRoute([500, "authorization_pending"]);
+    expect(await waitForToken(recovered.client, device, fakeClock())).toEqual({
+      kind: "timeout",
+    });
+  });
+
   it("waits no longer than the code lives", async () => {
     const clock = fakeClock();
     const outcome = await waitForToken(

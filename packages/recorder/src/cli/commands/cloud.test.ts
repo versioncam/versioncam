@@ -205,6 +205,8 @@ type Fake = {
   plans: Record<string, AccountPlan>;
   /** Answer `/v1/me` as a broken proxy would: with the request, token and all. */
   echo?: boolean;
+  /** Answer a change's state as the API answers a bug: 500 `internal`. */
+  failing?: boolean;
   close(): Promise<void>;
 };
 
@@ -400,6 +402,13 @@ async function fakeApi(): Promise<Fake> {
       });
     }
     if (method === "GET" && rest === "changes/chg_test") {
+      if (fake.failing) {
+        return refuse(
+          500,
+          "internal",
+          "version.cam failed to handle this request. It is a bug on our side.",
+        );
+      }
       return send(200, { state: fake.changeStates.shift() ?? "pending" });
     }
     return refuse(404, "not_found", "There is nothing here.");
@@ -1289,6 +1298,30 @@ describe("versioncam cloud set", () => {
     expect(waited.err).toBe(expired.err);
     // The change, then a question every five seconds for ten minutes.
     expect(fake.seen.length - before).toBe(1 + 120);
+  });
+
+  it("says what failed, not that nobody approved, when the service kept failing", async () => {
+    // Every question about the change meets the service's bug: whether the
+    // person approved it is unknown, and said to be.
+    const pc = machine(fake);
+    pc.signIn();
+    fake.failing = true;
+    const { code, err } = await pc.run(
+      "set",
+      "viewers",
+      "on",
+      "--project",
+      "acme/app",
+    );
+    expect(code).toBe(1);
+    expect(err).toBe(
+      "version.cam failed to handle this request. It is a bug on our side.\n" +
+        "Whether the change was approved meanwhile, the project's settings on app.version.cam say.\n",
+    );
+    // It kept asking, all ten minutes, in case it was a moment's failure.
+    expect(
+      fake.seen.filter((r) => r.path.endsWith("/changes/chg_test")),
+    ).toHaveLength(120);
   });
 
   it("is refused for someone who may only see the project", async () => {

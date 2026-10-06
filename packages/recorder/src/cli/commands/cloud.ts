@@ -35,6 +35,7 @@ import {
   waitForChange,
   waitForToken,
   waitLimit,
+  type ChangeOutcome,
   type Clock,
 } from "../../cloud/wait.js";
 import { inheritedEnv, loadedFrom } from "../../env.js";
@@ -777,12 +778,18 @@ async function set(c: Context): Promise<number> {
       `Nothing changes until it is approved. Waiting, for up to ${minutes(waitLimit(pending.expires_in))}.\n`,
   );
 
-  const outcome = await waitForChange(
-    signed.client,
-    project,
-    pending,
-    c.io.clock,
-  );
+  let outcome: ChangeOutcome;
+  try {
+    outcome = await waitForChange(signed.client, project, pending, c.io.clock);
+  } catch (error) {
+    // The change was asked for, and its person may have approved it while
+    // the service could not say so: whether it applied is the settings'
+    // to tell, not this command's to guess.
+    c.io.err(
+      `${refusal(error)}\nWhether the change was approved meanwhile, the project's settings on app.version.cam say.\n`,
+    );
+    return 1;
+  }
   if (outcome === "applied") {
     c.io.out(
       "Approved, and applied.\n" +

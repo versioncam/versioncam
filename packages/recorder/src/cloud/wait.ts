@@ -55,6 +55,11 @@ type Step<T> = { done: T } | "again" | "slower";
  * met a failing service, is asked again at the next turn rather than ending
  * the wait: the person may be approving it at that moment, and a sign-in
  * given up on is a code they approve for nothing.
+ *
+ * But a wait whose last question failed ends with that failure, thrown,
+ * not with null. Null says nobody approved in time, which only an answer
+ * can say; a service that kept failing (its `internal` is a bug) may have
+ * been approved while it failed, and the person should hear what happened.
  */
 async function poll<T>(
   ask: () => Promise<Step<T>>,
@@ -65,6 +70,7 @@ async function poll<T>(
   const deadline = clock.now() + limitMs;
   let interval = intervalMs;
   let wait = interval;
+  let failed: CloudError | null = null;
   while (clock.now() + wait <= deadline) {
     await clock.sleep(wait);
     wait = interval;
@@ -73,9 +79,11 @@ async function poll<T>(
       step = await ask();
     } catch (error) {
       if (!transient(error)) throw error;
+      failed = error;
       wait = Math.max(interval, (error.retryAfter ?? 0) * 1000);
       continue;
     }
+    failed = null;
     if (step === "again") continue;
     if (step === "slower") {
       interval += SLOW_DOWN_MS;
@@ -84,6 +92,7 @@ async function poll<T>(
     }
     return step.done;
   }
+  if (failed) throw failed;
   return null;
 }
 
