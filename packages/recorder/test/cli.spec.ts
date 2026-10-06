@@ -1113,7 +1113,12 @@ test.describe("the versioncam CLI", () => {
     // It needs no config: the first run of the skill writes that.
     const first = run(["init"], dir);
     expect(first.status).toBe(0);
-    for (const file of ["SKILL.md", "authoring.md", "onboarding.md"]) {
+    for (const file of [
+      "SKILL.md",
+      "authoring.md",
+      "onboarding.md",
+      "platform.md",
+    ]) {
       expect(first.stdout).toContain(
         join(".claude", "skills", "versioncam", file),
       );
@@ -1172,6 +1177,7 @@ test.describe("the versioncam CLI", () => {
       "SKILL.md",
       "authoring.md",
       "onboarding.md",
+      "platform.md",
       "versioncam-reviewer.md",
     ]) {
       expect(existsSync(join(target, file))).toBe(true);

@@ -6,9 +6,9 @@ what the reviewer finds. It stops when the reviewer passes the clip or the
 rounds run out. The first time it runs in a repository, it sets the
 repository up first.
 
-Nothing here calls an API. The model is whichever agent session runs the
-skill, and the vision step is that session's file reader opening a contact
-sheet. Everything is markdown, and you can edit all of it.
+Nothing here calls a model's API. The model is whichever agent session runs
+the skill, and the vision step is that session's file reader opening a
+contact sheet. Everything is markdown, and you can edit all of it.
 
 ## Install
 
@@ -81,8 +81,28 @@ a checklist to the session's own sheet. The verdict records which, as
 `"reviewer": "restricted"`, `"unrestricted"` or `"self"`. A clip passed by its
 own author is a weaker claim, and says so.
 
-The skill never runs `git`. The clip it writes lands in your clips directory
-as an ordinary file, for you to read and commit yourself.
+Writing a clip never runs `git`. The clip lands in your clips directory as an
+ordinary file, for you to read and commit yourself.
+
+## version.cam
+
+Once a repository publishes to version.cam, the same skill reads what is
+there, and changes it, through the `versioncam cloud` commands
+(`skills/versioncam/platform.md`):
+
+```
+/versioncam status            which clips are broken, since when, and what plays meanwhile
+/versioncam fix [clip]        why one broke, a repair, and a pull request for it
+/versioncam embed <clip>      the snippet for a README, a docs page or a landing page
+```
+
+It answers questions about the project as well: who can see its clips, who
+is told when one breaks, and the plan. It changes a setting only when you
+ask, and the change waits for you to approve it in your browser. A fix ends
+in a pull request, which it opens only with your yes. The token the commands
+sign in with stays in its file, and the skill never reads or prints it.
+Paying, deleting a project and tokens for CI outside GitHub stay on
+app.version.cam.
 
 ## What it leaves behind
 

@@ -1,8 +1,8 @@
 ---
 name: versioncam
-description: Record a short demo clip — a screencast, a short video, a GIF of a feature — of this repository's web app from one sentence of what it should show, and iterate until a reviewer passes it from a contact sheet. Use when someone asks to record, film or make a demo of a feature, or to set versioncam up in a repository. Works in any repository with a web app — the first run writes versioncam.config.ts, works out how to start the app, and proves the app records the same way twice before anything is authored.
+description: Record a short demo clip — a screencast, a short video, a GIF of a feature — of this repository's web app from one sentence of what it should show, and iterate until a reviewer passes it from a contact sheet. Use when someone asks to record, film or make a demo of a feature, or to set versioncam up in a repository. Works in any repository with a web app — the first run writes versioncam.config.ts, works out how to start the app, and proves the app records the same way twice before anything is authored. Also the repository's clips on version.cam: which are broken and why, fixing one, embedding one, who can see them, who is told, and the plan (/versioncam status, /versioncam fix [clip], /versioncam embed <clip>).
 user-invocable: true
-argument-hint: "\"<what the clip should show>\" [--id <slug>] [--max-rounds 6]"
+argument-hint: "\"<what the clip should show>\" [--id <slug>] [--max-rounds 6] | status | fix [clip] | embed <clip>"
 allowed-tools:
   - Agent
   - SendMessage
@@ -28,9 +28,21 @@ the clip; a reviewer who has never seen how it was written looks at a picture
 of it and says whether it shows what it claims; and you go round again until it
 does, or the rounds run out.
 
-Follow these steps in order. Two more files sit beside this one, in this
-skill's directory: `onboarding.md` and `authoring.md`. They are briefs, read
-when a step says to.
+Follow these steps in order. Three more files sit beside this one, in this
+skill's directory: `onboarding.md`, `authoring.md` and `platform.md`. They
+are briefs, read when a step says to.
+
+## Which brief
+
+`/versioncam status`, `/versioncam fix [clip]`, `/versioncam embed <clip>`,
+and any question about this repository's clips on version.cam (which are
+broken, what plays meanwhile, who can see them, who is told when one breaks,
+the plan) are not a clip to record. Read `platform.md` and follow it instead
+of the steps below. It sends you to step 0 when it needs the app's
+directory, and back to `authoring.md` and steps 3 and 4 to fix a clip.
+
+Anything else is a clip to record, and so is a quoted sentence, whatever it
+says (`/versioncam "Show the status page"`): go on with step 0.
 
 ## 0. Where, and which phase
 

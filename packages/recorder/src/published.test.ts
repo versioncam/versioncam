@@ -92,19 +92,46 @@ describe("the published package", () => {
  */
 const PAGES = ["README.md", "dsl.md", "CHANGELOG.md", "plugin/README.md"];
 
+/**
+ * Shipped words a stranger reads that version.cam does not render: the
+ * skill's brief for the platform, whose sentences an agent passes on to the
+ * person it works for, and the sources of the commands that brief runs,
+ * whose messages a person reads in a terminal. Written under the rule, so
+ * held to it; the skill's older briefs were not, and are not checked yet.
+ */
+const COPY = [
+  "plugin/skills/versioncam/platform.md",
+  "src/cli/commands/cloud.ts",
+  ...readdirSync(join(PACKAGE, "src", "cloud"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .map((file) => `src/cloud/${file}`),
+];
+
+/** Every line of `files` with a long dash in it, as `file:line`. */
+function longDashes(files: string[]): string[] {
+  const found: string[] = [];
+  for (const file of files) {
+    const lines = readFileSync(join(PACKAGE, file), "utf8").split("\n");
+    lines.forEach((line, i) => {
+      if (line.includes("—")) found.push(`${file}:${i + 1}`);
+    });
+  }
+  return found;
+}
+
 describe("the pages version.cam renders", () => {
   // House style for anything a stranger reads: where an aside would go, a
   // sentence, a colon or a bracket, never a long dash. A page full of them
   // reads as one long parenthesis, and without a check they come back one
   // aside at a time.
   it("use no long dash", () => {
-    const found: string[] = [];
-    for (const file of PAGES) {
-      const lines = readFileSync(join(PACKAGE, file), "utf8").split("\n");
-      lines.forEach((line, i) => {
-        if (line.includes("—")) found.push(`${file}:${i + 1}`);
-      });
-    }
-    expect(found).toEqual([]);
+    expect(longDashes(PAGES)).toEqual([]);
+  });
+});
+
+describe("the platform's words", () => {
+  it("use no long dash either", () => {
+    expect(COPY.length).toBeGreaterThan(2);
+    expect(longDashes(COPY)).toEqual([]);
   });
 });
