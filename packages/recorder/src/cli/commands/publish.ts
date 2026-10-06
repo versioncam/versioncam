@@ -37,7 +37,9 @@ import {
  * The credential comes from the environment, never from a flag, so it
  * cannot end up in a shell history or a CI log line:
  * `VERSIONCAM_OIDC_TOKEN` is the GitHub token the Action requests, and
- * `VERSIONCAM_TOKEN` is a project token for any other CI.
+ * `VERSIONCAM_TOKEN` is a project token, for a repository outside GitHub:
+ * a repository on GitHub publishes with GitHub's token, whatever CI builds
+ * it, because only that token can say which repository a run is of.
  */
 export async function publish(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -114,7 +116,7 @@ export async function publish(argv: string[]): Promise<number> {
     process.stderr.write(
       "publish needs a credential in the environment: VERSIONCAM_OIDC_TOKEN, " +
         "which the versioncam Action requests from GitHub, or VERSIONCAM_TOKEN, " +
-        "a project token from version.cam for any other CI.\n",
+        "a project token from version.cam, for a repository outside GitHub.\n",
     );
     return 1;
   }
@@ -132,7 +134,7 @@ export async function publish(argv: string[]): Promise<number> {
     );
     process.stdout.write(`Published to ${api} as ${committed.project}:\n`);
     for (const version of committed.versions) {
-      process.stdout.write(`  ${describe(version)}\n`);
+      process.stdout.write(`  ${versionLine(version)}\n`);
     }
     for (const refusal of begun.refused) {
       process.stderr.write(`  ${refusal.clip}: ${refusal.reason}\n`);
@@ -162,9 +164,11 @@ export async function publish(argv: string[]): Promise<number> {
   }
 }
 
-function describe(version: PublishedVersion): string {
+/** What a publish says of one version it made, a line each. */
+export function versionLine(version: PublishedVersion): string {
   if (version.check === "fail") {
-    return `${version.clip}: failed its check, ${version.stale ? "stale" : "recorded"} at ${version.versionUrl}`;
+    // "Broken" where a person reads it; the protocol keeps its `stale`.
+    return `${version.clip}: failed its check, ${version.stale ? "broken" : "recorded"} at ${version.versionUrl}`;
   }
   const unchanged = version.unchanged ? " (unchanged)" : "";
   const refused = version.refused ? ` (not stored: ${version.refused})` : "";
@@ -173,8 +177,9 @@ function describe(version: PublishedVersion): string {
 
 /**
  * Which commit and branch these recordings are of. In GitHub Actions the
- * service reads all of this from its own token and only checks these; for
- * any other CI they are the whole story, so they can be set outright.
+ * service reads all of this from its own token and only checks these; with a
+ * project token, for a repository outside GitHub, they are the whole story,
+ * so they can be set outright.
  */
 function provenance(
   root: string,

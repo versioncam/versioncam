@@ -5,7 +5,7 @@ import type {
   PublishCommitResponse,
   PublishedVersion,
 } from "../../publish/protocol.js";
-import { publishedReport } from "./publish.js";
+import { publishedReport, versionLine } from "./publish.js";
 
 const API = "https://api.version.cam";
 
@@ -29,6 +29,23 @@ const broken: PublishedVersion = {
   stale: true,
   refused: null,
 };
+
+describe("what a publish says of each version", () => {
+  it("calls a clip that failed on the default branch broken", () => {
+    expect(versionLine(broken)).toBe(
+      "add-a-book: failed its check, broken at https://clips.version.cam/acme/shop/add-a-book@9c4e1b7a2d3f",
+    );
+    // On a pull request's branch the failure is that version's own.
+    expect(versionLine({ ...broken, stale: false })).toBe(
+      "add-a-book: failed its check, recorded at https://clips.version.cam/acme/shop/add-a-book@9c4e1b7a2d3f",
+    );
+    expect(
+      versionLine({ ...broken, check: "pass", stale: false, unchanged: true }),
+    ).toBe(
+      "add-a-book: https://clips.version.cam/acme/shop/add-a-book (unchanged)",
+    );
+  });
+});
 
 describe("the publish report", () => {
   it("is what it always was for an answer that says no more", () => {

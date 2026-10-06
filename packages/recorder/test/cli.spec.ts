@@ -503,6 +503,8 @@ test.describe("the versioncam CLI", () => {
     expect(status).toBe(1);
     expect(stderr).toContain("VERSIONCAM_OIDC_TOKEN");
     expect(stderr).toContain("VERSIONCAM_TOKEN");
+    // A project token speaks only for a project with no GitHub repository.
+    expect(stderr).toContain("for a repository outside GitHub");
   });
 
   test("cloud needs no config, and asks for a sign-in before it sends anything", () => {
