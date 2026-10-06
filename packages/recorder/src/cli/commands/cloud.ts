@@ -37,6 +37,7 @@ import {
   waitLimit,
   type Clock,
 } from "../../cloud/wait.js";
+import { inheritedEnv, loadedFrom } from "../../env.js";
 import { DEFAULT_API } from "../../publish/protocol.js";
 import { USAGE } from "../usage.js";
 
@@ -60,11 +61,25 @@ import { USAGE } from "../usage.js";
  *
  * The token never reaches the output, whatever the service says: every line
  * written passes through a filter that knows it.
+ *
+ * And the commands run in the environment the shell gave, never with what
+ * the repository's `.env.recording` or `.env` added, which the CLI loads
+ * before every command. Those files come with whatever was cloned: one that
+ * set VERSIONCAM_API could send a sign-in, and every command holding a
+ * token, to a server of the repository's choosing, and one that set
+ * XDG_CONFIG_HOME could have the token written into the repository itself.
+ * `publish` still reads the files: CI sets its environment itself.
  */
+
+/** A variable a file set that these commands read only from the shell. */
+export type Ignored = { name: string; file: string; value: string };
 
 /** What a cloud command needs from the world, so a test can hand it another one. */
 export type CloudIo = {
+  /** The shell's environment, never a repository file's. */
   env: NodeJS.ProcessEnv;
+  /** What a file tried to set, said once so that nobody wonders why it did nothing. */
+  ignored?: Ignored[];
   /** The directory the command runs in: its repository, and its `.versioncam/`. */
   cwd: string;
   out(text: string): void;
@@ -76,9 +91,26 @@ export type CloudIo = {
   timeZone?: string;
 };
 
+/**
+ * What these commands read from the environment that a file could
+ * otherwise set: where the API is, and where the sign-in is kept.
+ */
+const SHELL_ONLY = ["VERSIONCAM_API", "XDG_CONFIG_HOME"];
+
+/** The environment a cloud command runs in, and what the files tried to add to it. */
+export function shellEnvironment(): Pick<CloudIo, "env" | "ignored"> {
+  return {
+    env: inheritedEnv(),
+    ignored: SHELL_ONLY.flatMap((name) => {
+      const file = loadedFrom(name);
+      return file ? [{ name, file, value: process.env[name] ?? "" }] : [];
+    }),
+  };
+}
+
 export function cloud(argv: string[]): Promise<number> {
   return runCloud(argv, {
-    env: process.env,
+    ...shellEnvironment(),
     cwd: process.cwd(),
     out: (text) => void process.stdout.write(text),
     err: (text) => void process.stderr.write(text),
@@ -204,6 +236,10 @@ export async function runCloud(argv: string[], io: CloudIo): Promise<number> {
     return 1;
   }
 
+  // Before anything is sent, so that whoever put the value in the file
+  // knows at once why it changed nothing. On stderr, out of `--json`'s way.
+  for (const each of io.ignored ?? []) scrubbed.err(ignoredText(each));
+
   const api = (io.env.VERSIONCAM_API || DEFAULT_API).replace(/\/+$/, "");
   let origin: string;
   try {
@@ -242,6 +278,34 @@ function parseCloudArgs(argv: string[]) {
     strict: true,
     allowPositionals: true,
   });
+}
+
+/**
+ * Why a file's value did nothing, and how to set it for real. The value is
+ * the repository's, so it is never offered back as a command to paste: an
+ * address is shown only as the origin it parses to, which cannot carry
+ * anything a shell would run, and a path not at all.
+ */
+function ignoredText({ name, file, value }: Ignored): string {
+  if (name === "VERSIONCAM_API") {
+    let origin: string | null = null;
+    try {
+      const url = new URL(value);
+      if (/^https?:$/.test(url.protocol)) origin = url.origin;
+    } catch {
+      // Not an address: said without it.
+    }
+    return (
+      `${file} sets VERSIONCAM_API${origin ? ` to ${origin}` : ""}, which versioncam cloud ignores: ` +
+      "it takes the API's address only from the shell, so that no repository can send a sign-in, or a command holding a token, to a server of its choosing. " +
+      "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n"
+    );
+  }
+  return (
+    `${file} sets ${name}, which versioncam cloud ignores: ` +
+    "it keeps its sign-in where the shell's environment says, so that no repository can choose where a token is written. " +
+    `To keep it elsewhere, set ${name} in the shell.\n`
+  );
 }
 
 /** The `Manage` lines of the usage text, which are this command's. */
@@ -296,9 +360,9 @@ async function login(c: Context): Promise<number> {
   }
   const client = cloudClient({ api: c.api, fetch: c.io.fetch });
   const device = await client.device(label.slice(0, LABEL_MAX) || null);
-  // Said before the code, while it can still change the person's mind. An
-  // app's `.env` is loaded before every command, so a repository can point
-  // VERSIONCAM_API somewhere without anyone typing it, and a service in the
+  // Said before the code, while it can still change the person's mind. No
+  // repository file can set VERSIONCAM_API for these commands, but a shell
+  // still can, a script's or an agent's included, and a service in the
   // middle could pass on a real code and keep the token it buys.
   const own = apiOrigin(DEFAULT_API);
   c.io.out(

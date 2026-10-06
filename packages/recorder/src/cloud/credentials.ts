@@ -7,7 +7,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, userInfo } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 
 /**
@@ -38,8 +38,22 @@ export type Credential = {
 export function credentialsPath(env: NodeJS.ProcessEnv): string {
   const xdg = env.XDG_CONFIG_HOME;
   const config =
-    xdg && isAbsolute(xdg) ? xdg : join(env.HOME || homedir(), ".config");
+    xdg && isAbsolute(xdg) ? xdg : join(env.HOME || accountHome(), ".config");
   return join(config, "versioncam", "credentials.json");
+}
+
+/**
+ * The account's home directory, for an environment with no HOME. Not
+ * `homedir()`, which reads this process's HOME, and that one a repository's
+ * `.env` could have set when the shell did not.
+ */
+function accountHome(): string {
+  try {
+    return userInfo().homedir;
+  } catch {
+    // No entry for this user, as in some containers.
+    return homedir();
+  }
 }
 
 /**

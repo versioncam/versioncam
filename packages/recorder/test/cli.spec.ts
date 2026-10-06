@@ -32,10 +32,11 @@ import { FIXTURE_RECORDING } from "./support.js";
 const PACKAGE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = join(PACKAGE, "dist", "cli", "main.js");
 
+/** `env` is added to this process's; a name given as undefined is left out. */
 function run(
   args: string[],
   cwd: string,
-  env: Record<string, string> = {},
+  env: Record<string, string | undefined> = {},
 ): { status: number; stdout: string; stderr: string } {
   try {
     const stdout = execFileSync(process.execPath, [CLI, ...args], {
@@ -524,6 +525,35 @@ test.describe("the versioncam CLI", () => {
     expect(usage.status).toBe(1);
     expect(usage.stdout).toContain("versioncam cloud login");
     expect(existsSync(join(dir, "config"))).toBe(false);
+  });
+
+  test("cloud takes VERSIONCAM_API from the shell, never from the repository's .env", () => {
+    // A cloned repository that points the commands at a server of its own.
+    // Not signed in, so nothing is sent: what matters is which API it is.
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-cloud-"));
+    writeFileSync(join(dir, ".env"), "VERSIONCAM_API=http://127.0.0.1:9\n");
+    const shell = {
+      XDG_CONFIG_HOME: join(dir, "config"),
+      VERSIONCAM_API: undefined,
+    };
+    const status = run(["cloud", "status", "acme/app"], dir, shell);
+    expect(status.status).toBe(1);
+    expect(status.stderr).toBe(
+      ".env sets VERSIONCAM_API to http://127.0.0.1:9, which versioncam cloud ignores: " +
+        "it takes the API's address only from the shell, so that no repository can send a sign-in, or a command holding a token, to a server of its choosing. " +
+        "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n" +
+        "Not signed in to https://api.version.cam. Run `versioncam cloud login` first.\n",
+    );
+
+    // The shell's own value still counts, and then the file has nothing to
+    // say: it never overrides the shell.
+    const set = run(["cloud", "status", "acme/app"], dir, {
+      ...shell,
+      VERSIONCAM_API: "http://127.0.0.1:7",
+    });
+    expect(set.stderr).toBe(
+      "Not signed in to http://127.0.0.1:7. Run `versioncam cloud login` first.\n",
+    );
   });
 
   test("says which versioncam it is", () => {

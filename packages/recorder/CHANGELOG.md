@@ -21,7 +21,10 @@ as they were.
   `~/.config/versioncam/credentials.json`, or under `$XDG_CONFIG_HOME`: a
   file only you may read, with each API's sign-in apart, so staging and
   production sit side by side. No command prints it, and `cloud logout`
-  revokes it.
+  revokes it. `VERSIONCAM_API` chooses the API from the shell alone: unlike
+  `publish`, the `cloud` commands never take it, or `XDG_CONFIG_HOME`, from
+  a `.env` file, and say so when one sets it, so a cloned repository cannot
+  send a sign-in to a server of its choosing.
 - Reading needs nothing more. `cloud status` says of each clip whether it is
   current or broken, since when, who acknowledged it, and what your pages
   play meanwhile, then the plan and where to manage the project; outside a

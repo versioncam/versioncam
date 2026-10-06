@@ -11,9 +11,14 @@ import { resolve } from "node:path";
  * are the reason `.env.recording` is a separate file at all, and Vite gives a
  * variable already in its environment priority over the app's own `.env` —
  * so a value the recorder loaded for itself would quietly change how the app
- * it is filming behaves.
+ * it is filming behaves. And `versioncam cloud` takes nothing from a file at
+ * all: the files are the repository's, and a cloned repository must not
+ * choose where a person's sign-in goes.
+ *
+ * Each name maps to the file it came from, so a command that ignores one
+ * can say which file set it.
  */
-const fromFiles = new Set<string>();
+const fromFiles = new Map<string, string>();
 
 /**
  * Load `.env.recording`, then `.env`, before anything reads the environment.
@@ -30,7 +35,7 @@ export function loadEnvFiles(cwd: string): void {
     const before = new Set(Object.keys(process.env));
     process.loadEnvFile(file);
     for (const key of Object.keys(process.env)) {
-      if (!before.has(key)) fromFiles.add(key);
+      if (!before.has(key)) fromFiles.set(key, name);
     }
   }
 }
@@ -40,4 +45,13 @@ export function inheritedEnv(): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !fromFiles.has(key)),
   );
+}
+
+/**
+ * The file that set `name`, `.env.recording` or `.env`, or null when the
+ * shell set it or nothing did. A file never overrides the shell, so a name
+ * with a file is one the shell left unset.
+ */
+export function loadedFrom(name: string): string | null {
+  return process.env[name] === undefined ? null : (fromFiles.get(name) ?? null);
 }
