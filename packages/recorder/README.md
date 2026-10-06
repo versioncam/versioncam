@@ -390,6 +390,31 @@ versioncam publish [id…]           send the recordings and their checks to ver
     --report <file>                and write the living URLs there, as JSON
 ```
 
+### Manage
+
+What version.cam knows about a project, and its settings, from the command
+line: what the dashboard shows and does, once you have signed in with a code
+you approve in a browser. A setting changes only when you approve that one
+change in the browser too. These need no `versioncam.config.ts`, and run
+anywhere in a clone of the repository. See *From the command line*.
+
+```
+versioncam cloud login             sign in to version.cam, with a code you approve in a browser
+    --label <name>                 what the approval page calls this machine
+versioncam cloud logout            sign out: revoke the token, and delete it
+versioncam cloud status [project]  each clip, current or broken, and what plays meanwhile
+versioncam cloud failure <clip>    why a clip broke, and its picture, into .versioncam/failures/
+versioncam cloud ack <clip>        "I know, keep the old one": the reminders stop
+versioncam cloud embed <clip>      the snippets that embed a clip, and its files
+versioncam cloud set <name> <val>  change a setting, once you approve it in a browser:
+                                   visibility public|unlisted|private, retention <days>|off,
+                                   viewers on|off, alerts email|slack <address>|off,
+                                   alerts issues on|off
+versioncam cloud plan [account]    the plan, and the pages to upgrade and pay on
+    --project <owner/repo>         which project, when not this repository's
+    --json                         machine-readable, for status, failure, embed and plan
+```
+
 ### From another directory
 
 In a monorepo the app is one directory among many. A command run from

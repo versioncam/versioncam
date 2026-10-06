@@ -9,8 +9,9 @@
  *
  * Grouped by the stage of the work each command belongs to, in the order a
  * repository meets them. A flat list of seventeen commands left a newcomer to
- * work out that `inspect` comes before `record` and `sheet` after it. The
- * last group is not a stage but a way to run any of them.
+ * work out that `inspect` comes before `record` and `sheet` after it. Manage
+ * is what comes after publishing: `versioncam cloud`, whose own usage is that
+ * group. The last group is not a stage but a way to run any of them.
  */
 export const USAGE = `versioncam: record and render demo clips of a real app
 
@@ -62,6 +63,22 @@ Publish
   versioncam publish [id…]           send the recordings and their checks to version.cam
       --dry-run                      print what would be sent, and send nothing
       --report <file>                and write the living URLs there, as JSON
+
+Manage
+  versioncam cloud login             sign in to version.cam, with a code you approve in a browser
+      --label <name>                 what the approval page calls this machine
+  versioncam cloud logout            sign out: revoke the token, and delete it
+  versioncam cloud status [project]  each clip, current or broken, and what plays meanwhile
+  versioncam cloud failure <clip>    why a clip broke, and its picture, into .versioncam/failures/
+  versioncam cloud ack <clip>        "I know, keep the old one": the reminders stop
+  versioncam cloud embed <clip>      the snippets that embed a clip, and its files
+  versioncam cloud set <name> <val>  change a setting, once you approve it in a browser:
+                                     visibility public|unlisted|private, retention <days>|off,
+                                     viewers on|off, alerts email|slack <address>|off,
+                                     alerts issues on|off
+  versioncam cloud plan [account]    the plan, and the pages to upgrade and pay on
+      --project <owner/repo>         which project, when not this repository's
+      --json                         machine-readable, for status, failure, embed and plan
 
 From another directory
   versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts

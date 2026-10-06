@@ -505,6 +505,25 @@ test.describe("the versioncam CLI", () => {
     expect(stderr).toContain("VERSIONCAM_TOKEN");
   });
 
+  test("cloud needs no config, and asks for a sign-in before it sends anything", () => {
+    // Its sign-in is the person's, not the repository's: a directory with no
+    // versioncam.config.ts, and a config directory of its own.
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-cloud-"));
+    const env = {
+      XDG_CONFIG_HOME: join(dir, "config"),
+      VERSIONCAM_API: "http://127.0.0.1:9",
+    };
+    const status = run(["cloud", "status", "acme/app"], dir, env);
+    expect(status.status).toBe(1);
+    expect(status.stderr).toBe(
+      "Not signed in to http://127.0.0.1:9. Run `versioncam cloud login` first.\n",
+    );
+    const usage = run(["cloud"], dir, env);
+    expect(usage.status).toBe(1);
+    expect(usage.stdout).toContain("versioncam cloud login");
+    expect(existsSync(join(dir, "config"))).toBe(false);
+  });
+
   test("says which versioncam it is", () => {
     const { status, stdout } = run(["--version"], appDir());
     const { version } = JSON.parse(
