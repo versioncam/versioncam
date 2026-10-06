@@ -11,7 +11,7 @@
     "url": "git+https://github.com/versioncam/versioncam.git",
     "directory": "packages/recorder"
   },
-  "bugs": "https://github.com/petbul/versioncam-home/issues",
+  "bugs": "https://github.com/versioncam/versioncam-home/issues",
   "keywords": [
     "demo",
     "video",

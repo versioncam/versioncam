@@ -749,7 +749,7 @@ The words these pages use in a particular sense.
 ## Help
 
 Bugs, questions, and apps it cannot record go to the issue tracker at
-[github.com/petbul/versioncam-home](https://github.com/petbul/versioncam-home/issues).
+[github.com/versioncam/versioncam-home](https://github.com/versioncam/versioncam-home/issues).
 A clip that will not reproduce is easiest to help with alongside the two
 pictures `versioncam stability` saves.
 
