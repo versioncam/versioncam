@@ -76,7 +76,9 @@ no setting: each change waits for an approval of its own.
 when, whether someone acknowledged it, and what the public sees meanwhile:
 the version that plays, and when it was recorded. Then the clips that are
 current, the plan, and where to manage the project. Outside a clone,
-`status` lists every project the user can see.
+`status` lists every project the user can see. For a private project it
+shows no clip's address, since each is signed for an hour and opens for
+anyone who has it; `--json` still carries them, and the same goes for those.
 
 If a clip is broken, offer what comes next and wait for an answer:
 `/versioncam fix <clip>`, or acknowledging it with `cloud ack <clip>` ("I
@@ -148,8 +150,10 @@ reminders: when they ask.
 3. **Which snippet.** The Markdown one for a README, since GitHub shows no
    scripts or iframes there; the script for a docs site or a landing page
    that runs scripts; the iframe where scripts are not allowed; the video
-   for a page that wants a file. A private project's file addresses last an
-   hour: never paste one into a page.
+   for a page that wants a file. A private project's addresses, the clip's
+   own, its files' and its GIF's, are signed: each opens for anyone who has
+   it, for an hour. Never paste one into a page, a pull request, an issue or
+   a message; only the snippets go in a page.
 4. Put the snippet where the user asked, and only there, and show them the
    change.
 

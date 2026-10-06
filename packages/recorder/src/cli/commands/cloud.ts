@@ -812,17 +812,26 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
       : `${name}: ${count(answer.clips.length, "clip")}, ${broken.length} broken.`,
   ];
   if (answer.clips.length > 0) lines.push("");
+  // A private project's clip addresses are signed, and open for anyone who
+  // has one, for an hour. Listed as a clip's address, one would be pasted
+  // into a page, or a pull request, and leak the clip; so they are not.
+  const signed = answer.visibility === "private";
   const ids = answer.clips.map((clip) => plainLine(clip.clip));
   const width = Math.max(0, ...ids.map((id) => id.length));
   const pad = " ".repeat(width + 4);
   answer.clips.forEach((clip, i) => {
     lines.push(`  ${ids[i].padEnd(width)}  ${clipState(clip, answer, io)}`);
     lines.push(`${pad}${playsText(clip.plays, io)}`);
-    lines.push(`${pad}${plainLine(clip.url)}`);
+    if (!signed) lines.push(`${pad}${plainLine(clip.url)}`);
   });
   lines.push(
     "",
     `Visibility: ${VISIBILITY[answer.visibility] ?? plainLine(answer.visibility)}`,
+    ...(signed && answer.clips.length > 0
+      ? [
+          "Private clips' addresses are signed for an hour, and open for anyone who has one, so none is shown here: watch the clips from the project's page.",
+        ]
+      : []),
     `Plan: ${plainLine(answer.plan.title)} (${
       answer.plan.alerts
         ? "version.cam tells the team when a clip breaks"
@@ -972,10 +981,15 @@ function embedText(
     for (const [kind, url] of files)
       lines.push(`  ${kind.padEnd(width)}  ${plain(url)}`);
   }
+  // The snippets play the unsigned living address, which opens only for
+  // whoever may read the repository; every address in the answer itself,
+  // the clip's own and the GIF's among the files', is signed instead, and
+  // opens for anyone who has it until the hour is up.
   if (visibility === "private") {
     lines.push(
       "",
-      `${project}'s clips are private: these play only for people signed in at app.version.cam who may read the repository, so never on a public page, and the files' addresses work for an hour.`,
+      `${project}'s clips are private. These snippets play only for people signed in at app.version.cam who may read the repository, so never on a public page.`,
+      "The clip's address above and its files', the GIF's included, are signed: each opens for anyone who has it, for an hour. Use them to look, and never put one in a page, a pull request or an issue.",
       "To show the clip on a public page, its clips have to be public or unlisted: versioncam cloud set visibility unlisted",
     );
   }

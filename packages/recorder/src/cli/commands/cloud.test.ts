@@ -48,6 +48,11 @@ const NOW = Date.parse("2026-10-06T12:00:00.000Z");
 const WEEK_ON = "2026-10-13T12:00:00.000Z";
 const APP = "https://app.version.cam";
 const CLIPS = "https://clips.version.cam/acme/app";
+/**
+ * How the API signs a private project's addresses for an hour; acme/app is
+ * private, so its clips' addresses and GIF carry it, as the files do.
+ */
+const SIGNED = "exp=1791302400&sig=not-a-real-signature";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7]);
 const ESC = String.fromCharCode(27);
 const RTL = String.fromCharCode(0x202e);
@@ -80,7 +85,7 @@ function project(): ProjectStatus {
           recordedAt: "2026-10-03T11:00:00.000Z",
         },
         checkedAt: "2026-10-05T14:02:00.000Z",
-        url: `${CLIPS}/add-a-book`,
+        url: `${CLIPS}/add-a-book?${SIGNED}`,
       },
       {
         clip: "checkout",
@@ -90,7 +95,7 @@ function project(): ProjectStatus {
         acknowledged: null,
         plays: null,
         checkedAt: "2026-10-06T08:00:00.000Z",
-        url: `${CLIPS}/checkout`,
+        url: `${CLIPS}/checkout?${SIGNED}`,
       },
       {
         clip: "find-a-shipment",
@@ -104,7 +109,7 @@ function project(): ProjectStatus {
           recordedAt: "2026-10-06T09:12:00.000Z",
         },
         checkedAt: "2026-10-06T09:12:00.000Z",
-        url: `${CLIPS}/find-a-shipment`,
+        url: `${CLIPS}/find-a-shipment?${SIGNED}`,
       },
     ],
   };
@@ -115,7 +120,7 @@ function clip(api: string): ClipDetail {
     clip: "add-a-book",
     title: "Add a book",
     status: "broken",
-    url: `${CLIPS}/add-a-book`,
+    url: `${CLIPS}/add-a-book?${SIGNED}`,
     embed: {
       script: `<script type="module" src="https://clips.version.cam/embed.js"></script>\n<versioncam-clip src="${CLIPS}/add-a-book"></versioncam-clip>`,
       iframe: `<iframe src="${CLIPS}/add-a-book/embed" title="Add a book" allowfullscreen></iframe>`,
@@ -127,7 +132,7 @@ function clip(api: string): ClipDetail {
       webm: `${CLIPS}/add-a-book.webm?sig=s2`,
       poster: `${CLIPS}/add-a-book.png?sig=s3`,
       sheet: `${CLIPS}/add-a-book-sheet.png?sig=s4`,
-      gif: null,
+      gif: `${CLIPS}/add-a-book?format=gif&${SIGNED}`,
     },
     failure: {
       since: "2026-10-05T14:02:00.000Z",
@@ -841,20 +846,19 @@ describe("a sign-in that is no good", () => {
 });
 
 describe("versioncam cloud status", () => {
+  // acme/app is private: its clips' addresses are signed, and not shown.
   const TEXT =
     "acme/app: 3 clips, 2 broken.\n" +
     "\n" +
     "  add-a-book       broken since 5 Oct 2026, 14:02; acknowledged by mira on 6 Oct 2026, 09:00\n" +
     "                   plays the version recorded 3 Oct 2026, 11:00 (3f2a1c9)\n" +
-    "                   https://clips.version.cam/acme/app/add-a-book\n" +
     "  checkout         broken since 6 Oct 2026, 08:00; not acknowledged\n" +
     "                   plays nothing: no version of it has passed yet\n" +
-    "                   https://clips.version.cam/acme/app/checkout\n" +
     "  find-a-shipment  current, checked 6 Oct 2026, 09:12\n" +
     "                   plays the version recorded 6 Oct 2026, 09:12 (9c4e1b7)\n" +
-    "                   https://clips.version.cam/acme/app/find-a-shipment\n" +
     "\n" +
     "Visibility: private (whoever GitHub lets read the repository, signed in)\n" +
+    "Private clips' addresses are signed for an hour, and open for anyone who has one, so none is shown here: watch the clips from the project's page.\n" +
     "Plan: Pro (version.cam tells the team when a clip breaks)\n" +
     "Tell viewers when a clip is broken: off\n" +
     "Alerts: email to ops@acme.dev, Slack\n" +
@@ -870,6 +874,8 @@ describe("versioncam cloud status", () => {
     expect(err).toBe("");
     expect(code).toBe(0);
     expect(out).toBe(TEXT);
+    // No signed address, which anyone could open for the next hour.
+    expect(out).not.toContain("sig=");
     expect(fake.seen).toEqual([
       {
         method: "GET",
@@ -916,7 +922,15 @@ describe("versioncam cloud status", () => {
       plan: { name: "free", title: "Free", alerts: false },
       alerts: null,
       usage: { publishes: 1, renderSeconds: 30, storageBytes: 400_000 },
-      clips: [{ ...project().clips[0], acknowledged: null }],
+      // A public project's addresses are its living ones, unsigned, and
+      // shown, since they are the ones to paste.
+      clips: [
+        {
+          ...project().clips[0],
+          acknowledged: null,
+          url: `${CLIPS}/add-a-book`,
+        },
+      ],
     };
     expect((await pc.run("status", "acme/app")).out).toBe(
       "acme/app: 1 clip, 1 broken.\n" +
@@ -1103,7 +1117,7 @@ describe("versioncam cloud embed", () => {
     expect(code).toBe(0);
     const embed = fake.clip.embed!;
     expect(out).toBe(
-      `add-a-book, at ${CLIPS}/add-a-book\n` +
+      `add-a-book, at ${CLIPS}/add-a-book?${SIGNED}\n` +
         "\n" +
         "A player that sizes itself, for a page that runs scripts:\n" +
         `${embed.script}\n` +
@@ -1122,8 +1136,10 @@ describe("versioncam cloud embed", () => {
         `  webm    ${CLIPS}/add-a-book.webm?sig=s2\n` +
         `  poster  ${CLIPS}/add-a-book.png?sig=s3\n` +
         `  sheet   ${CLIPS}/add-a-book-sheet.png?sig=s4\n` +
+        `  gif     ${CLIPS}/add-a-book?format=gif&${SIGNED}\n` +
         "\n" +
-        "acme/app's clips are private: these play only for people signed in at app.version.cam who may read the repository, so never on a public page, and the files' addresses work for an hour.\n" +
+        "acme/app's clips are private. These snippets play only for people signed in at app.version.cam who may read the repository, so never on a public page.\n" +
+        "The clip's address above and its files', the GIF's included, are signed: each opens for anyone who has it, for an hour. Use them to look, and never put one in a page, a pull request or an issue.\n" +
         "To show the clip on a public page, its clips have to be public or unlisted: versioncam cloud set visibility unlisted\n",
     );
   });
