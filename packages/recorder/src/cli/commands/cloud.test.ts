@@ -210,6 +210,46 @@ type Fake = {
   close(): Promise<void>;
 };
 
+/**
+ * Why the API would refuse `value` for the setting `key`, in its words, or
+ * null when it takes it: its rules, from claude/wp13-q4-api's `changeOf`.
+ */
+function settingRefused(key: string, value: unknown): string | null {
+  switch (key) {
+    case "visibility":
+      return ["public", "unlisted", "private"].includes(value as string)
+        ? null
+        : "visibility is public, unlisted or private.";
+    case "retentionDays":
+      return value === null ||
+        (typeof value === "number" &&
+          Number.isInteger(value) &&
+          value >= 1 &&
+          value <= 9999)
+        ? null
+        : "retentionDays is a whole number of days from 1 to 9999, or null to keep every version the plan allows.";
+    case "showBroken":
+      return typeof value === "boolean" ? null : "showBroken is true or false.";
+    case "alertEmail":
+      return value === null ||
+        (typeof value === "string" && value.includes("@"))
+        ? null
+        : "alertEmail is one email address, or null for none.";
+    case "slackWebhook":
+      return value === null ||
+        (typeof value === "string" &&
+          value.startsWith("https://hooks.slack.com/"))
+        ? null
+        : "slackWebhook is a Slack incoming webhook, https://hooks.slack.com/…, or null for none.";
+    case "staleIssues":
+      return typeof value === "boolean"
+        ? null
+        : "staleIssues is true or false.";
+    default:
+      return "Give exactly one setting to change.";
+  }
+}
+
 async function body(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(chunk as Buffer);
@@ -299,17 +339,19 @@ async function fakeApi(): Promise<Fake> {
     const token = authorization.startsWith("Bearer ")
       ? authorization.slice("Bearer ".length)
       : null;
+    // Signing out, as the API does it: any token sent as one is answered
+    // 204, a revoked or forgotten one included, since gone is what was
+    // asked; only a request with no token is refused.
+    if (method === "DELETE" && path === "/v1/cli/token" && token) {
+      if (fake.tokens.delete(token)) fake.revoked.push(token);
+      return send(204);
+    }
     if (!token || !fake.tokens.has(token)) {
       return refuse(
         401,
         "unauthorized",
         "This sign-in has expired or was revoked. Run `versioncam cloud login` to sign in again.",
       );
-    }
-    if (method === "DELETE" && path === "/v1/cli/token") {
-      fake.tokens.delete(token);
-      fake.revoked.push(token);
-      return send(204);
     }
     if (method === "GET" && path === "/v1/me") return send(200, ME);
 
@@ -389,6 +431,13 @@ async function fakeApi(): Promise<Fake> {
       if (keys.length !== 1) {
         return refuse(400, "invalid_request", "One setting at a time.");
       }
+      // What the API takes for each setting, and nothing else: a numeric
+      // string for retentionDays is refused, as there.
+      const refused = settingRefused(
+        keys[0],
+        (sent as Record<string, unknown>)[keys[0]],
+      );
+      if (refused) return refuse(400, "invalid_request", refused);
       return send(202, {
         change: "chg_test",
         user_code: "WXYZ-2345",
@@ -675,12 +724,15 @@ describe("versioncam cloud logout", () => {
     });
   });
 
-  it("removes a token the service already refuses, or one past its expiry", async () => {
+  it("removes a token the service had already forgotten, or one past its expiry", async () => {
+    // The API answers signing out with 204 for a token it no longer has,
+    // since gone is what was asked.
     const pc = machine(fake);
     fake.tokens.clear();
     pc.signIn();
     expect((await pc.run("logout")).code).toBe(0);
     expect(existsSync(credentialsPath(pc.env))).toBe(false);
+    expect(fake.revoked).toEqual([]);
 
     pc.signIn({ expiresAt: "2026-10-01T12:00:00.000Z" });
     const lapsed = await pc.run("logout");
@@ -1360,10 +1412,18 @@ describe("versioncam cloud set", () => {
     ] as const) {
       fake.changeStates = ["applied"];
       const result = await pc.run("set", ...args, "--project", "acme/app");
-      expect(result.code, args.join(" ")).toBe(0);
-      expect(fake.seen.at(-2)?.body).toEqual(sent);
+      // The fake refuses what the API refuses, a numeric string for
+      // retentionDays among them, so a pass here is the API's 202.
+      expect(result.code, `${args.join(" ")}: ${result.err}`).toBe(0);
+      expect(fake.seen.at(-2)?.body).toStrictEqual(sent);
       expect(result.out + result.err).not.toContain("hooks.slack.com");
     }
+    const days = fake.seen.find(
+      (r) => (r.body as { retentionDays?: unknown })?.retentionDays === 30,
+    );
+    expect(
+      typeof (days?.body as { retentionDays: unknown }).retentionDays,
+    ).toBe("number");
   });
 
   it("says a new alert address is asked first", async () => {
