@@ -885,9 +885,11 @@ function meText(me: Me): string {
     `Signed in as ${plainLine(me.login)}. No project named, and this directory is not a clone of a GitHub repository, so here is every project you can see:`,
   ];
   for (const account of me.accounts) {
+    // No plan is an account whose plan the dashboard would not show this
+    // person either: named, and nothing said of its plan.
     lines.push(
       "",
-      `${plainLine(account.login)}, on ${plainLine(account.plan.title)}`,
+      `${plainLine(account.login)}${account.plan ? `, on ${plainLine(account.plan.title)}` : ""}`,
     );
     const names = account.projects.map((p) => plainLine(p.project));
     const width = Math.max(0, ...names.map((name) => name.length));
@@ -938,7 +940,17 @@ function embedText(
   visibility: Visibility,
   project: string,
 ): string {
-  const snippets: [string, string][] = [
+  // Nothing of the clip has passed on the default branch yet, so its page
+  // has nothing to play, and there is nothing to embed: a plain answer,
+  // not a failure, since nothing is wrong with asking.
+  if (!answer.embed) {
+    const id = plainLine(answer.clip);
+    return (
+      `${id} has no version to embed yet: none has passed on ${project}'s default branch.\n` +
+      `Once one passes, versioncam cloud embed ${id} prints its snippets.\n`
+    );
+  }
+  const snippets: [string, string | null][] = [
     [
       "A player that sizes itself, for a page that runs scripts",
       answer.embed.script,

@@ -58,7 +58,8 @@ export type Me = {
   login: string;
   accounts: {
     login: string;
-    plan: { name: string; title: string };
+    /** Null when the dashboard would not show this person the account's plan. */
+    plan: { name: string; title: string } | null;
     projects: {
       project: string;
       visibility: Visibility;
@@ -83,6 +84,7 @@ export type ClipStatus = {
   acknowledged: Acknowledgment | null;
   plays: Plays | null;
   checkedAt: string | null;
+  /** The living address; signed for an hour on a private project. */
   url: string;
 };
 
@@ -123,17 +125,27 @@ export type ClipDetail = {
   clip: string;
   title: string;
   status: "current" | "broken";
+  /** The living address; signed for an hour on a private project. */
   url: string;
-  /** What the clip's page offers to paste. */
-  embed: { script: string; iframe: string; video: string; markdown: string };
-  /** Signed for an hour on a private project. */
+  /**
+   * What the clip's page offers to paste, or null while nothing of the clip
+   * has passed on the default branch, when there is nothing to embed.
+   * `video` is null when the version has no MP4.
+   */
+  embed: {
+    script: string;
+    iframe: string;
+    video: string | null;
+    markdown: string;
+  } | null;
+  /** Signed for an hour on a private project, the GIF's too; null as `embed` is. */
   files: {
     mp4: string | null;
     webm: string | null;
     poster: string | null;
     sheet: string | null;
     gif: string | null;
-  };
+  } | null;
   failure: ClipFailure | null;
 };
 

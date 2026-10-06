@@ -155,6 +155,9 @@ const ME: Me = {
       ],
     },
     { login: "peter", plan: { name: "free", title: "Free" }, projects: [] },
+    // An account the person reaches but none of whose projects they may
+    // see, nor bill: the API keeps its plan from them, as the dashboard does.
+    { login: "globex", plan: null, projects: [] },
   ],
 };
 
@@ -325,12 +328,25 @@ async function fakeApi(): Promise<Fake> {
       const status = fake.project.clips.find((each) => each.clip === id);
       if (!status) return refuse(404, "not_found", `No clip ${id} in ${name}.`);
       if (method === "GET" && !clipRoute[2]) {
-        return send(
-          200,
-          id === fake.clip.clip
-            ? fake.clip
-            : { ...fake.clip, clip: id, failure: null, status: status.status },
-        );
+        if (id === fake.clip.clip) return send(200, fake.clip);
+        // As the API answers a clip nothing of which has passed on the
+        // default branch: nothing to embed, and no files.
+        if (status.plays === null) {
+          return send(200, {
+            ...fake.clip,
+            clip: id,
+            status: status.status,
+            embed: null,
+            files: null,
+            failure: status.status === "broken" ? fake.clip.failure : null,
+          });
+        }
+        return send(200, {
+          ...fake.clip,
+          clip: id,
+          failure: null,
+          status: status.status,
+        });
       }
       if (method === "POST" && clipRoute[2]) {
         if (!fake.project.plan.alerts) {
@@ -933,6 +949,10 @@ describe("versioncam cloud status", () => {
         "peter, on Free\n" +
         "  no projects yet\n" +
         "\n" +
+        // Its plan kept from this person: named, and no plan said.
+        "globex\n" +
+        "  no projects yet\n" +
+        "\n" +
         "versioncam cloud status owner/repo says more about one.\n",
     );
     expect(JSON.parse((await pc.run("status", "--json")).out)).toEqual(ME);
@@ -1081,20 +1101,21 @@ describe("versioncam cloud embed", () => {
     pc.clone("git@github.com:acme/app.git");
     const { code, out } = await pc.run("embed", "add-a-book");
     expect(code).toBe(0);
+    const embed = fake.clip.embed!;
     expect(out).toBe(
       `add-a-book, at ${CLIPS}/add-a-book\n` +
         "\n" +
         "A player that sizes itself, for a page that runs scripts:\n" +
-        `${fake.clip.embed.script}\n` +
+        `${embed.script}\n` +
         "\n" +
         "An iframe, for a page that does not:\n" +
-        `${fake.clip.embed.iframe}\n` +
+        `${embed.iframe}\n` +
         "\n" +
         "The video alone:\n" +
-        `${fake.clip.embed.video}\n` +
+        `${embed.video}\n` +
         "\n" +
         "Markdown, for a README:\n" +
-        `${fake.clip.embed.markdown}\n` +
+        `${embed.markdown}\n` +
         "\n" +
         "Files:\n" +
         `  mp4     ${CLIPS}/add-a-book.mp4?sig=s1\n` +
@@ -1105,6 +1126,34 @@ describe("versioncam cloud embed", () => {
         "acme/app's clips are private: these play only for people signed in at app.version.cam who may read the repository, so never on a public page, and the files' addresses work for an hour.\n" +
         "To show the clip on a public page, its clips have to be public or unlisted: versioncam cloud set visibility unlisted\n",
     );
+  });
+
+  it("says plainly that a clip nothing of which has passed has no version to embed", async () => {
+    // `checkout` broke before any version of it passed: the API answers
+    // its embed and its files as null.
+    const pc = machine(fake);
+    pc.signIn();
+    const { code, out, err } = await pc.run(
+      "embed",
+      "checkout",
+      "--project",
+      "acme/app",
+    );
+    expect(err).toBe("");
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "checkout has no version to embed yet: none has passed on acme/app's default branch.\n" +
+        "Once one passes, versioncam cloud embed checkout prints its snippets.\n",
+    );
+    const answer = JSON.parse(
+      (await pc.run("embed", "checkout", "--project", "acme/app", "--json"))
+        .out,
+    );
+    expect(answer).toMatchObject({
+      clip: "checkout",
+      embed: null,
+      files: null,
+    });
   });
 
   it("says nothing of privacy for a public project, and gives the answer with --json", async () => {
