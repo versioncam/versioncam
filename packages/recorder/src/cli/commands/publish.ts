@@ -20,6 +20,8 @@ import {
   PUBLISH_PROTOCOL,
   type ClipManifest,
   type PublishBegin,
+  type PublishBeginResponse,
+  type PublishCommitResponse,
   type PublishedVersion,
 } from "../../publish/protocol.js";
 
@@ -136,14 +138,7 @@ export async function publish(argv: string[]): Promise<number> {
       process.stderr.write(`  ${refusal.clip}: ${refusal.reason}\n`);
     }
     if (reportPath) {
-      writeReport(reportPath, {
-        recorder: RECORDER_VERSION,
-        api,
-        project: committed.project,
-        versions: committed.versions,
-        refused: begun.refused,
-        error: null,
-      });
+      writeReport(reportPath, publishedReport(api, begun, committed));
     }
     return 0;
   } catch (error) {
@@ -238,6 +233,32 @@ function filesFor(files: Map<string, RecordingFiles>): PublishFiles {
     targets: async (clip) => required(of(clip).targets, `${clip}'s targets`),
     failure: async (clip) =>
       required(of(clip).failure, `${clip}'s failure picture`),
+  };
+}
+
+/**
+ * The report of a publish that went through: version.cam's answer, every
+ * field of it, and beside it what only this side knows. The answer grows,
+ * with where the project is managed, who can see its clips, or whether its
+ * plan tells anyone when a clip breaks, and the Action's job summary reads
+ * each field when it is there. So the answer is passed on whole, as its
+ * `versions` always were, and a field the service adds reaches the summary
+ * without a release of this package to carry it. This side's own fields are
+ * written last, so no answer can change what they say.
+ */
+export function publishedReport(
+  api: string,
+  begun: PublishBeginResponse,
+  committed: PublishCommitResponse,
+): Record<string, unknown> {
+  return {
+    ...committed,
+    recorder: RECORDER_VERSION,
+    api,
+    project: committed.project,
+    versions: committed.versions,
+    refused: begun.refused,
+    error: null,
   };
 }
 
