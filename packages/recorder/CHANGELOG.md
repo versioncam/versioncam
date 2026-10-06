@@ -6,6 +6,17 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## 0.4.1 (2026-10-06)
+
+A patch version: nothing records or renders differently.
+
+### Changed
+
+- The issue tracker lives in the versioncam organisation now, at
+  [github.com/versioncam/versioncam-home](https://github.com/versioncam/versioncam-home/issues).
+  The package's `bugs` link and the README's *Help* say so; the old address
+  redirects.
+
 ## 0.4.0 (2026-10-05)
 
 A minor version: clips whose app uses CSS transitions record differently.
