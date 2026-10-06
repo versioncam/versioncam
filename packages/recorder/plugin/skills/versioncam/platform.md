@@ -59,6 +59,11 @@ what it prints. They open the address on any device, sign in with GitHub if
 asked, check that the page shows the same code, and approve. The sign-in
 lasts seven days.
 
+If `login` says that it signs in somewhere other than
+`https://api.version.cam`, tell the user so before they approve anything:
+`VERSIONCAM_API` sends it there, perhaps from a `.env` file in the
+repository, and a sign-in should go only to a service they trust.
+
 A sign-in lets the commands read, and acknowledge a broken clip. It changes
 no setting: each change waits for an approval of its own.
 

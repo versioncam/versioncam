@@ -401,6 +401,7 @@ function machine(fake: Fake) {
     home,
     sleeps,
     cwd: mkdtempSync(join(tmpdir(), "versioncam-cloud-cwd-")),
+    fetch: globalThis.fetch,
     /** Make the working directory a clone whose origin is `remote`. */
     clone(remote: string) {
       execFileSync("git", ["init", "-q", self.cwd], { env });
@@ -424,7 +425,7 @@ function machine(fake: Fake) {
         cwd: self.cwd,
         out: (text) => out.push(text),
         err: (text) => err.push(text),
-        fetch: globalThis.fetch,
+        fetch: self.fetch,
         clock: {
           now: () => now,
           sleep: async (ms) => {
@@ -471,7 +472,8 @@ describe("versioncam cloud login", () => {
     expect(err).toBe("");
     expect(code).toBe(0);
     expect(out).toBe(
-      "To sign in this command line to version.cam, open this address on any device:\n" +
+      `This signs in to ${fake.url}, which VERSIONCAM_API names, rather than https://api.version.cam.\n` +
+        "To sign in this command line to version.cam, open this address on any device:\n" +
         "  https://app.version.cam/device?code=ABCD-EFGH\n" +
         "and approve the code ABCD-EFGH. Only approve a code you started yourself.\n" +
         "(Or open https://app.version.cam/device and enter the code there.)\n" +
@@ -507,6 +509,27 @@ describe("versioncam cloud login", () => {
     const status = await pc.run("status", "acme/app");
     expect(status.code).toBe(0);
     expect(fake.seen.at(-1)?.authorization).toBe(`Bearer ${ISSUED}`);
+  });
+
+  it("says nothing of where it signs in when that is version.cam's own API", async () => {
+    // The default API, reached through the fake: no network in a test.
+    const pc = machine(fake);
+    delete pc.env.VERSIONCAM_API;
+    pc.fetch = ((url: string | URL | Request, init?: RequestInit) =>
+      globalThis.fetch(
+        String(url).replace("https://api.version.cam", fake.url),
+        init,
+      )) as typeof fetch;
+    fake.tokenAnswers = ["token"];
+    const { code, out } = await pc.run("login");
+    expect(code).toBe(0);
+    expect(out.split("\n")[0]).toBe(
+      "To sign in this command line to version.cam, open this address on any device:",
+    );
+    expect(out).toContain("Signed in to https://api.version.cam as peter");
+    expect(readCredential(pc.env, "https://api.version.cam")?.token).toBe(
+      ISSUED,
+    );
   });
 
   it("names the machine as --label says", async () => {

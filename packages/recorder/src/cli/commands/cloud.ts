@@ -296,8 +296,16 @@ async function login(c: Context): Promise<number> {
   }
   const client = cloudClient({ api: c.api, fetch: c.io.fetch });
   const device = await client.device(label.slice(0, LABEL_MAX) || null);
+  // Said before the code, while it can still change the person's mind. An
+  // app's `.env` is loaded before every command, so a repository can point
+  // VERSIONCAM_API somewhere without anyone typing it, and a service in the
+  // middle could pass on a real code and keep the token it buys.
+  const own = apiOrigin(DEFAULT_API);
   c.io.out(
-    "To sign in this command line to version.cam, open this address on any device:\n" +
+    (c.origin === own
+      ? ""
+      : `This signs in to ${c.origin}, which VERSIONCAM_API names, rather than ${own}.\n`) +
+      "To sign in this command line to version.cam, open this address on any device:\n" +
       `  ${plain(device.verification_uri_complete)}\n` +
       `and approve the code ${plainLine(device.user_code)}. Only approve a code you started yourself.\n` +
       `(Or open ${plain(device.verification_uri)} and enter the code there.)\n` +
