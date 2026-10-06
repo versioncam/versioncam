@@ -621,6 +621,11 @@ async function ack(c: Context): Promise<number> {
   if (!signed) return 1;
 
   const { acknowledged } = await signed.client.ack(project, clip);
+  // Whoever said it first is who it stays said by, and the service answers
+  // with theirs: someone else's means it was said already, not just now.
+  // GitHub's logins are the same name in any case.
+  const already =
+    acknowledged.by.toLowerCase() !== signed.credential.login.toLowerCase();
   // What keeps playing is the project's answer, not the acknowledgment's,
   // and an acknowledgment that went through is worth saying without it.
   let plays: Plays | null | undefined;
@@ -636,14 +641,17 @@ async function ack(c: Context): Promise<number> {
   const reminder = Number.isFinite(at)
     ? `on ${day(new Date(at + 30 * DAY_MS).toISOString(), c.io)}`
     : "in thirty days";
+  const who = `${plainLine(acknowledged.by)} on ${when(acknowledged.at, c.io)}`;
   c.io.out(
-    `Acknowledged ${clip}, as ${plainLine(acknowledged.by)} on ${when(acknowledged.at, c.io)}.\n` +
+    (already
+      ? `${clip} was acknowledged already, by ${who}.\n`
+      : `Acknowledged ${clip}, as ${who}.\n`) +
       (plays === undefined
         ? ""
         : plays === null
           ? "Nothing plays meanwhile: no version of it has passed yet.\n"
           : `Your pages keep playing the version recorded ${when(plays.recordedAt, c.io)} (${commitOf(plays.commit)}).\n`) +
-      `The reminders stop. If it is still broken ${reminder}, version.cam reminds the team once more.\n`,
+      `${already ? "The reminders stopped then" : "The reminders stop"}. If it is still broken ${reminder}, version.cam reminds the team once more.\n`,
   );
   return 0;
 }

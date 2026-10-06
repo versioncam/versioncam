@@ -365,9 +365,13 @@ async function fakeApi(): Promise<Fake> {
         if (status.status !== "broken") {
           return refuse(409, "not_broken", `${id} is not broken.`);
         }
-        return send(200, {
-          acknowledged: { by: "peter", at: "2026-10-06T12:00:00.000Z" },
-        });
+        // Whoever said it first is who it stays said by: again, it answers
+        // with theirs.
+        status.acknowledged ??= {
+          by: "peter",
+          at: "2026-10-06T12:00:00.000Z",
+        };
+        return send(200, { acknowledged: status.acknowledged });
       }
     }
 
@@ -1065,6 +1069,8 @@ describe("versioncam cloud ack", () => {
     const pc = machine(fake);
     pc.signIn();
     pc.clone("git@github.com:acme/app.git");
+    // Nobody has said it yet.
+    fake.project.clips[0].acknowledged = null;
     const { code, out } = await pc.run("ack", "add-a-book");
     expect(code).toBe(0);
     expect(out).toBe(
@@ -1077,6 +1083,24 @@ describe("versioncam cloud ack", () => {
       path: "/v1/projects/acme/app/clips/add-a-book/ack",
       body: null,
     });
+  });
+
+  it("names whoever acknowledged first, when someone already had", async () => {
+    // mira said it at nine; the API answers peter's ack with hers.
+    const pc = machine(fake);
+    pc.signIn();
+    const { code, out } = await pc.run(
+      "ack",
+      "add-a-book",
+      "--project",
+      "acme/app",
+    );
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "add-a-book was acknowledged already, by mira on 6 Oct 2026, 09:00.\n" +
+        "Your pages keep playing the version recorded 3 Oct 2026, 11:00 (3f2a1c9).\n" +
+        "The reminders stopped then. If it is still broken on 5 Nov 2026, version.cam reminds the team once more.\n",
+    );
   });
 
   it("passes on a refusal: a clip that is not broken, or a plan without reminders", async () => {
@@ -1104,6 +1128,13 @@ describe("versioncam cloud ack", () => {
       err:
         "Acknowledging a broken clip is on Pro and Max: on Free, nobody is reminded.\n" +
         "Upgrade: https://app.version.cam/upgrade?account=acme\n",
+    });
+    // A clip that is not there is said so first, whatever the plan.
+    const missing = await pc.run("ack", "add-a-movie", "--project", "acme/app");
+    expect(missing).toEqual({
+      code: 1,
+      out: "",
+      err: "No clip add-a-movie in acme/app.\n",
     });
   });
 });
