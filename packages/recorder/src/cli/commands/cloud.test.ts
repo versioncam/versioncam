@@ -1394,18 +1394,19 @@ describe("versioncam cloud plan", () => {
     pc.signIn();
     fake.plans.peter = {
       account: "peter",
+      // Free covers one private project, as the API counts it.
       plan: {
         name: "free",
         title: "Free",
         source: "free",
         until: null,
-        quantity: null,
+        quantity: 1,
       },
       upgrade: `${APP}/upgrade?account=peter`,
       billing: null,
     };
     expect((await pc.run("plan")).out).toBe(
-      "peter: Free.\n" +
+      "peter: Free for 1 private project.\n" +
         "Upgrade or change plans: https://app.version.cam/upgrade?account=peter\n" +
         "Billing: for whoever may bill peter.\n",
     );
@@ -1414,9 +1415,11 @@ describe("versioncam cloud plan", () => {
     );
   });
 
-  it("names how each plan came about", async () => {
+  it("names how each plan came about, and how many private projects it covers", async () => {
     const pc = machine(fake);
     pc.signIn();
+    // The API's counts: Pro in the beta covers ten, Max up to ten, and
+    // Enterprise any number, which it answers as null.
     fake.plans.acme = {
       ...planOf("acme"),
       plan: {
@@ -1424,7 +1427,7 @@ describe("versioncam cloud plan", () => {
         title: "Pro",
         source: "beta",
         until: "2026-11-01T00:00:00.000Z",
-        quantity: 1,
+        quantity: 10,
       },
     };
     fake.plans.globex = {
@@ -1438,11 +1441,24 @@ describe("versioncam cloud plan", () => {
       },
       billing: null,
     };
+    fake.plans.initech = {
+      ...planOf("initech"),
+      plan: {
+        name: "enterprise",
+        title: "Enterprise",
+        source: "override",
+        until: "2027-10-01T00:00:00.000Z",
+        quantity: null,
+      },
+    };
     expect((await pc.run("plan", "acme")).out.split("\n")[0]).toBe(
-      "acme: Pro for 1 private project, during the beta, until 1 Nov 2026.",
+      "acme: Pro for 10 private projects, during the beta, until 1 Nov 2026.",
     );
     expect((await pc.run("plan", "globex")).out.split("\n")[0]).toBe(
       "globex: Max for up to 10 private projects, set by version.cam.",
+    );
+    expect((await pc.run("plan", "initech")).out.split("\n")[0]).toBe(
+      "initech: Enterprise for any number of private projects, set by version.cam, until 1 Oct 2027.",
     );
   });
 });

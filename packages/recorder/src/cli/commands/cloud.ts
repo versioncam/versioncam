@@ -1014,11 +1014,15 @@ const SOURCE: Record<AccountPlan["plan"]["source"], string> = {
 
 function planText(answer: AccountPlan, io: CloudIo): string {
   const { plan } = answer;
-  // Max is Pro for up to ten private projects: its quantity is a ceiling.
+  // The private projects the plan covers, as the service counts them: Free
+  // one, Pro as many as it pays for (ten in the beta or when version.cam
+  // sets it), Max up to ten, which is a ceiling, and null for any number.
   const quantity =
-    plan.name !== "free" && typeof plan.quantity === "number"
-      ? ` for ${plan.name === "max" ? "up to " : ""}${count(plan.quantity, "private project")}`
-      : "";
+    plan.quantity === null
+      ? " for any number of private projects"
+      : typeof plan.quantity === "number"
+        ? ` for ${plan.name === "max" ? "up to " : ""}${count(plan.quantity, "private project")}`
+        : "";
   const until = plan.until ? `, until ${day(plan.until, io)}` : "";
   const lines = [
     `${plainLine(answer.account)}: ${plainLine(plan.title)}${quantity}${SOURCE[plan.source] ?? ""}${until}.`,
