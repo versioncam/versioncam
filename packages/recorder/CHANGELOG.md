@@ -6,6 +6,59 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+A minor version: commands for version.cam, and the skill learns to use them.
+Nothing records or renders differently, and the config and the clip DSL are
+as they were.
+
+### Added
+
+- **`versioncam cloud`** does from a terminal, or from an agent's shell, what
+  the dashboard at app.version.cam does. `cloud login` signs the command
+  line in with a code you approve in a browser, on any device, so it works
+  over SSH and in a sandbox. The token lasts seven days and is kept in
+  `~/.config/versioncam/credentials.json`, or under `$XDG_CONFIG_HOME`: a
+  file only you may read, with each API's sign-in apart, so staging and
+  production sit side by side. No command prints it, and `cloud logout`
+  revokes it.
+- Reading needs nothing more. `cloud status` says of each clip whether it is
+  current or broken, since when, who acknowledged it, and what your pages
+  play meanwhile, then the plan and where to manage the project; outside a
+  clone it lists every project you can see. `cloud failure <clip>` says
+  which step stopped a broken clip and why, and saves the page as it was to
+  `.versioncam/failures/<clip>.png`. `cloud ack <clip>` is the dashboard's
+  "I know, keep the old one". `cloud embed <clip>` prints the snippets that
+  embed a clip, and its files, and `cloud plan` the plan and the pages to
+  upgrade and pay on. Each read takes `--json`, and `--project owner/repo`
+  names a project when the repository's `origin` on GitHub is not the one.
+- **`cloud set`** changes a project's visibility, retention, "Tell viewers
+  when a clip is broken" or alerts, and only once you approve that one change
+  in the browser: it prints the change in a sentence, an address and a code,
+  and waits up to ten minutes. Paying, deleting a project and tokens for CI
+  outside GitHub stay on app.version.cam.
+- **The skill's `platform.md`**, which `versioncam init` installs beside the
+  other briefs: `/versioncam status`, `/versioncam fix [clip]` (why a clip
+  broke, a repair, and a pull request for it) and `/versioncam embed <clip>`,
+  and any question about the project on version.cam. It changes nothing you
+  did not ask for, leaves every approval to you, and never touches the
+  token. A skill already installed gets it from `versioncam init --force`,
+  which also overwrites any brief you edited.
+- The README's **`## version.cam`** section: connecting a repository, what
+  happens when a clip breaks on each plan, who can see the clips, the
+  `cloud` commands, and a repository whose CI runs elsewhere.
+
+### Changed
+
+- `publish --report` writes version.cam's whole answer, not only its
+  `project` and `versions`, so a field the service adds reaches the
+  Action's job summary without a release of this package to carry it:
+  where to manage the project, who can see its clips, whether its plan tells
+  anyone when a clip breaks, and what a broken clip's pages play.
+- `publish` calls a clip whose check failed on the default branch "broken",
+  not "stale", and says that a project token, `VERSIONCAM_TOKEN`, is for a
+  repository outside GitHub.
+
 ## 0.4.1 (2026-10-06)
 
 A patch version: nothing records or renders differently.
