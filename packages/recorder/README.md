@@ -495,6 +495,53 @@ public. A private clip plays only for the people who may see it, so never on
 a public page: to show a private repository's clips in public docs or on a
 landing page, make them public or unlisted in the project's settings.
 
+### From the command line
+
+`versioncam cloud` does what the dashboard does, from a terminal, and so
+from an agent working in one:
+
+```bash
+npx versioncam cloud login              # a code you approve in a browser, once a week
+npx versioncam cloud status             # this repository's clips: current or broken, and what plays
+npx versioncam cloud failure checkout   # where a broken clip stopped, and the page as it was
+```
+
+**Signing in.** `cloud login` prints an address and a code. Open the address
+on any device, sign in with GitHub, check that the page shows the same code,
+and approve it. Nothing calls back to the machine that runs the command, so
+it works over SSH and in a sandbox. The command line then holds a token that
+lasts seven days, in `~/.config/versioncam/credentials.json`, or under
+`$XDG_CONFIG_HOME` when that is set: a file only you may read, which no
+command prints. `cloud logout` revokes it. `VERSIONCAM_API` points the
+commands at another version.cam, as it does `publish`, and each one's
+sign-in is kept apart.
+
+**Reading** needs nothing more. `status` lists the clips: current or broken,
+since when, who acknowledged a broken one, and the version your pages play
+meanwhile; then the plan, and where to manage the project. `failure <clip>`
+says which step stopped a broken clip and why, and saves the page as it was
+then to `.versioncam/failures/<clip>.png`. `embed <clip>` prints the
+snippets that embed it, and `plan` says which plan, why and until when, and
+where to upgrade and pay. Each takes `--json`. They act on the repository
+they run in, from its `origin` remote on GitHub, or on the one that
+`--project owner/repo` names. `ack <clip>` is the dashboard's "I know, keep
+the old one".
+
+**A setting changes only once you approve it in the browser,** one change at
+a time. `cloud set visibility public` prints the change in a sentence, an
+address and a code, and waits up to ten minutes. The page shows exactly that
+change, so an agent running the commands for you cannot change a project
+without you seeing what it asked for. The settings are `visibility`,
+`retention`, `viewers` ("Tell viewers when a clip is broken") and `alerts`,
+by email, in Slack or with a GitHub issue.
+
+Three things stay a click on app.version.cam: paying (`cloud plan` prints
+the page), deleting a project, and making a project token for CI outside
+GitHub.
+
+The authoring skill runs these commands too: `/versioncam status`,
+`/versioncam fix [clip]` and `/versioncam embed <clip>`.
+
 ### Other CI
 
 A repository on GitHub publishes from GitHub Actions, whatever builds it
