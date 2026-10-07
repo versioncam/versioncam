@@ -6,7 +6,7 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.5.0 (2026-10-07)
 
 A minor version: commands for version.cam, and the skill learns to use them.
 Nothing records or renders differently, and the config and the clip DSL are
