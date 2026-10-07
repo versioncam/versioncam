@@ -29,3 +29,9 @@ packages/cloud/render/versioncam.tgz
 # Wrangler's own state and scratch files. A deploy refuses a working tree
 # with any change, and these would make one.
 .wrangler/
+
+# A design review's screenshots and the design skill's question logs belong
+# to that one review; the next makes its own. The surface briefs, DESIGN.md
+# and design.json are the design's record, and are kept.
+**/.impeccable/review/
+**/.impeccable/questions/
