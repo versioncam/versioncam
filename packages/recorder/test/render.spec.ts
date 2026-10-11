@@ -1,7 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { launchBrowser } from "../src/driver/launch.js";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -418,6 +425,52 @@ test.describe("rendering a recording", () => {
       expect(hash(tile)).toBe(
         hash(await renderFrame(browser, config, target, 85)),
       );
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+test.describe("a settle whose page did not change", () => {
+  test("renders no dissolve, and no dip", async () => {
+    // 0.5.0 drew the state at the crossfade's alpha over the backdrop when
+    // the state before the cut was the state after it (a menu already open):
+    // a sixth of the picture on the frame after the cut, almost black, and
+    // back over six frames. Found recording Vpogled's clips.
+    const config = configWith(null);
+    const dir = join(config.recordingsDir, CLIP);
+    const file = join(dir, "timeline.json");
+    const timeline = JSON.parse(readFileSync(file, "utf8")) as {
+      frames: number[];
+      cuts: number[];
+    };
+    // A cut where the next six frames show the state the cut does.
+    const cut = timeline.frames.findIndex(
+      (state, frame) =>
+        frame > 0 &&
+        frame + 6 < timeline.frames.length &&
+        !timeline.cuts.some((c) => Math.abs(c - frame) <= 6) &&
+        timeline.frames.slice(frame, frame + 7).every((s) => s === state),
+    );
+    expect(cut).toBeGreaterThan(0);
+
+    // Each frame of what would be the dissolve, as it renders with no cut,
+    // then with the cut: the same picture, to the byte.
+    const target = { kind: "recording" as const, id: CLIP, dir };
+    const hash = (png: Buffer) => createHash("sha1").update(png).digest("hex");
+    const browser = await launchBrowser();
+    try {
+      const window = [1, 2, 3, 4, 5, 6].map((k) => cut + k);
+      const without: string[] = [];
+      for (const frame of window)
+        without.push(hash(await renderFrame(browser, config, target, frame)));
+      timeline.cuts = [...timeline.cuts, cut].sort((a, b) => a - b);
+      writeFileSync(file, JSON.stringify(timeline));
+      for (const [k, frame] of window.entries())
+        expect(
+          hash(await renderFrame(browser, config, target, frame)),
+          `frame ${frame}`,
+        ).toBe(without[k]);
     } finally {
       await browser.close();
     }

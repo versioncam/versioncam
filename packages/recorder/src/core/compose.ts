@@ -1,5 +1,5 @@
 import { clamp01 } from "./easing.js";
-import type { Rect, Vec2 } from "./timeline.js";
+import type { Rect, Timeline, Vec2 } from "./timeline.js";
 
 /**
  * Mapping from the captured page into the output frame.
@@ -88,6 +88,51 @@ export function crossfadeAlpha(
 ): number {
   if (length <= 0) return 1;
   return clamp01((frame - cutFrame + 1) / length);
+}
+
+/**
+ * Which state to show at `frame`, and what to crossfade it with.
+ *
+ * Only a settle produces a crossfade. Everywhere else a change between
+ * consecutive frames is a real one-frame change and must stay crisp —
+ * blurring those would smear the cursor's own motion.
+ *
+ * A settle whose page did not change (a menu already open, a form already
+ * filled) has the same state on both sides of its cut, and that is no
+ * crossfade at all. Reporting it as one had the renderer skip the previous
+ * state, which equals the current, and draw the current at the crossfade's
+ * alpha over the backdrop: about a sixth on the frame after the cut, a dip
+ * almost to black and back over six frames (0.5.0, found recording Vpogled's
+ * clips).
+ *
+ * Where two settles' windows overlap, the frame follows the later one, whose
+ * change it is showing. Following the earlier ran its dissolve to the end and
+ * then the later one's from part way, so the new state faded in, back out a
+ * little, and in again.
+ */
+export function stateForFrame(
+  timeline: Pick<Timeline, "cuts" | "frames">,
+  frame: number,
+  crossfadeFrames: number,
+): { current: number; previous: number | null; alpha: number } {
+  const current = timeline.frames[frame];
+  let from: number | null = null;
+  for (const cut of timeline.cuts) {
+    if (
+      frame > cut &&
+      frame <= cut + crossfadeFrames &&
+      timeline.frames[cut] !== current &&
+      (from === null || cut > from)
+    ) {
+      from = cut;
+    }
+  }
+  if (from === null) return { current, previous: null, alpha: 1 };
+  return {
+    current,
+    previous: timeline.frames[from],
+    alpha: crossfadeAlpha(frame, from + 1, crossfadeFrames),
+  };
 }
 
 /** Linear fade in/out envelope, in seconds, for captions and highlights. */

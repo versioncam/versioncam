@@ -2,10 +2,10 @@ import { evalCamera } from "../src/core/camera.js";
 import { evalCursor } from "../src/core/cursor.js";
 import {
   cameraToStatePixels,
-  crossfadeAlpha,
   fadeEnvelope,
   rectToOutput,
   sourceToOutput,
+  stateForFrame,
 } from "../src/core/compose.js";
 import { timeAt } from "../src/core/timeline.js";
 import type { Rect, Timeline, Vec2 } from "../src/core/timeline.js";
@@ -56,30 +56,6 @@ function drawBackdrop(
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-/**
- * Which state to show at `frame`, and what to crossfade it with.
- *
- * Only a settle produces a crossfade. Everywhere else a change between
- * consecutive frames is a real one-frame change and must stay crisp —
- * blurring those would smear the cursor's own motion.
- */
-export function stateForFrame(
-  timeline: Timeline,
-  frame: number,
-  crossfadeFrames: number,
-): { current: number; previous: number | null; alpha: number } {
-  for (const cut of timeline.cuts) {
-    if (frame > cut && frame <= cut + crossfadeFrames) {
-      return {
-        current: timeline.frames[frame],
-        previous: timeline.frames[cut],
-        alpha: crossfadeAlpha(frame, cut + 1, crossfadeFrames),
-      };
-    }
-  }
-  return { current: timeline.frames[frame], previous: null, alpha: 1 };
-}
-
 function drawApp(
   ctx: Canvas2D,
   timeline: Timeline,
@@ -121,7 +97,10 @@ function drawApp(
     );
   };
 
-  if (previous !== null && previous !== current) paint(previous, 1);
+  // A crossfade is always between two different states (stateForFrame), so
+  // the current one is only ever drawn see-through over the one it replaces,
+  // never over the backdrop.
+  if (previous !== null) paint(previous, 1);
   paint(current, previous === null ? 1 : alpha);
   ctx.globalAlpha = 1;
   ctx.restore();
