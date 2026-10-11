@@ -6,7 +6,7 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.5.1 (2026-10-11)
 
 A patch version: two clips that came out wrong now record and render as
 they should. The config and the clip DSL are as they were.
