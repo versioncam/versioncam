@@ -6,6 +6,28 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+A patch version: two clips that came out wrong now record and render as
+they should. The config and the clip DSL are as they were.
+
+### Fixed
+
+- A settle whose page did not change, a menu already open or a form already
+  filled, no longer dims the whole picture almost to black for a tenth of a
+  second after it. The renderer dissolved from the page into itself, drawing
+  it see-through over the background. Where two settles come within the
+  dissolve of each other, the dissolve now follows the later one, rather than
+  fading the new page in, a little back out, and in again.
+- A CSS animation that has run its course now finishes, so its `finished`
+  promise resolves, as in a browser nobody is filming. Components that
+  unmount once their exit animation has finished, Base UI's Dialog, Popover,
+  Menu and Tooltip among them, stayed mounted after they closed: a closed
+  dialog's invisible backdrop stayed over the page and took the next click,
+  so a link seemed to do nothing and the step after it failed with
+  `Nothing matched`. A clip that finished the animations itself to get past
+  this no longer needs to.
+
 ## 0.5.0 (2026-10-07)
 
 A minor version: commands for version.cam, and the skill learns to use them.
