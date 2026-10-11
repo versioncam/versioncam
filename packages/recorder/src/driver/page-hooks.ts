@@ -23,10 +23,40 @@ export const MUTATION_COUNTER_SCRIPT = `(() => {
       if (!id) { id = state.nextId++; state.ids.set(el, id); }
       return id;
     },
+    // A CSS animation is paused and scrubbed to authored time (freezeCss), and
+    // a paused animation never finishes by itself: its \`finished\` promise
+    // never resolves. Components that unmount once their exit animation has
+    // finished, Base UI's dialogs, popovers, menus and tooltips among them,
+    // waited on it for ever, and a closed dialog's backdrop, scrubbed to
+    // opacity 0, stayed over the page and took the next click (0.5.0). So a
+    // finite animation whose time is up is finished, as it would be in a
+    // browser nobody is filming; one still under way keeps its scrub, and
+    // one that repeats for ever never reaches an end. Transitions have their
+    // clock (TRANSITION_CLOCK_SCRIPT), and animations a script made with
+    // \`element.animate()\` are the app's own.
+    finishEnded() {
+      let finished = 0;
+      for (const animation of document.getAnimations()) {
+        if (!("animationName" in animation) || !animation.effect) continue;
+        if (animation.playState === "finished") continue;
+        const timing = animation.effect.getComputedTiming();
+        if (!Number.isFinite(timing.endTime)) continue;
+        if (timing.localTime === null || timing.localTime < timing.endTime) continue;
+        try {
+          animation.finish();
+          finished += 1;
+        } catch {
+          // An animation the page cancelled meanwhile: nothing to finish.
+        }
+      }
+      return finished;
+    },
     probe(t, x, y) {
       document.documentElement.style.setProperty("--recorder-t", t);
-      // Before the counts: a transition whose time is up is finished here,
-      // and is no longer running when the animations are counted.
+      // Before the counts: an animation or a transition whose time is up is
+      // finished here, and is no longer running when the animations are
+      // counted.
+      state.finishEnded();
       const clock = window.__recorderTransitions;
       const transitions = clock ? clock.sync() : 0;
       return {
@@ -137,12 +167,14 @@ export const TRANSITION_CLOCK_SCRIPT = `(() => {
 })();`;
 
 /**
- * Moves every running transition to the page's clock, for the driver's waits
- * that move the clock without making a frame. The frame probe and the settle
- * loop sync as part of what they already ask the page.
+ * Moves every running transition to the page's clock, and finishes every CSS
+ * animation whose time is up, for the driver's waits that move the clock
+ * without making a frame. The frame probe and the settle loop do both as
+ * part of what they already ask the page.
  */
 export const SYNC_TRANSITIONS =
-  "window.__recorderTransitions ? window.__recorderTransitions.sync() : 0";
+  "(window.__recorder ? window.__recorder.finishEnded() : 0) + " +
+  "(window.__recorderTransitions ? window.__recorderTransitions.sync() : 0)";
 
 /**
  * Puts the page's CSS motion under the recorder's control.
@@ -236,6 +268,7 @@ declare global {
   interface Window {
     __recorder?: {
       mutations: number;
+      finishEnded(): number;
       probe(t: string, x: number, y: number): FrameProbe;
     };
     __recorderTransitions?: {

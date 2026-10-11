@@ -801,7 +801,10 @@ its CSS motion:
 - **Animations are scrubbed** by the clip's time: a spinner turns at the rate
   the video plays, whatever the machine is doing. The scrub counts from the
   clip's start, not the animation's, so a one-off animation that starts
-  partway through a clip shows its end.
+  partway through a clip shows its end. Once a one-off animation's time is
+  up it finishes, as in a browser nobody is filming: its `finished` promise
+  resolves and `animationend` fires, so a dialog that unmounts after its exit
+  animation goes, and does not sit invisibly over the page.
 - **Not on the clock:** animations a script makes with `element.animate()`,
   Chromium's smooth scrolling of a mouse wheel, and transitions inside an
   iframe, which stay zeroed since nothing drives an iframe's clock. A clip

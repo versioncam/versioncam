@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dialogs fixture</title>
+    <style>
+      /* A dialog over a link, as a component library draws one: a backdrop
+         over the whole page that leaves with a CSS animation and unmounts
+         only once the animation has finished. `?unmount=finished` waits the
+         way Base UI does, on the element's animations' `finished` promises;
+         `?unmount=animationend` waits the way Radix Presence and Headless UI
+         do, on the `animationend` event. The spinner never finishes. */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      #link {
+        position: absolute;
+        top: 300px;
+        left: 60px;
+        width: 200px;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        background: #dddddd;
+        color: #111111;
+      }
+      #status {
+        position: absolute;
+        top: 360px;
+        left: 60px;
+      }
+      #spinner {
+        position: absolute;
+        top: 300px;
+        left: 400px;
+        width: 40px;
+        height: 40px;
+        background: #0000ff;
+        animation: spin 1s linear infinite;
+      }
+      #backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+      }
+      #backdrop[data-ending-style] {
+        animation: leave 200ms ease-out forwards;
+      }
+      #close {
+        position: absolute;
+        top: 40px;
+        left: 60px;
+        width: 120px;
+        height: 40px;
+        appearance: none;
+        border: none;
+        border-radius: 0;
+        background: #ffffff;
+        font-size: 14px;
+      }
+      @keyframes leave {
+        to {
+          opacity: 0;
+        }
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a id="link" href="#arrived" data-testid="link">Go</a>
+    <div id="status" data-testid="status">here</div>
+    <div id="spinner"></div>
+    <div id="backdrop" data-testid="backdrop">
+      <button id="close" data-testid="close">Close</button>
+    </div>
+    <script>
+      const unmount = new URLSearchParams(location.search).get("unmount");
+      const backdrop = document.getElementById("backdrop");
+      document.getElementById("close").addEventListener("click", () => {
+        backdrop.setAttribute("data-ending-style", "");
+        if (unmount === "animationend") {
+          backdrop.addEventListener("animationend", () => backdrop.remove(), {
+            once: true,
+          });
+        } else {
+          Promise.all(backdrop.getAnimations().map((a) => a.finished)).then(
+            () => backdrop.remove(),
+          );
+        }
+      });
+      addEventListener("hashchange", () => {
+        document.getElementById("status").textContent = location.hash.slice(1);
+      });
+    </script>
+  </body>
+</html>

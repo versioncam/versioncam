@@ -62,13 +62,18 @@ export async function settlePage(
   let lastBlocker = "none";
 
   for (;;) {
-    // The same round trip moves the page's transitions to its clock, which
-    // the last tick advanced, and says how many are still running.
-    const probe = await page.evaluate(() => ({
-      mutations: window.__recorder?.mutations ?? 0,
-      fontsLoaded: document.fonts ? document.fonts.status === "loaded" : true,
-      transitions: window.__recorderTransitions?.sync() ?? 0,
-    }));
+    // The same round trip finishes the CSS animations whose time is up, so
+    // whatever waits on them (a closed dialog unmounting) runs, and shows as
+    // DOM work on the next tick; moves the page's transitions to its clock,
+    // which the last tick advanced; and says how many are still running.
+    const probe = await page.evaluate(() => {
+      window.__recorder?.finishEnded();
+      return {
+        mutations: window.__recorder?.mutations ?? 0,
+        fontsLoaded: document.fonts ? document.fonts.status === "loaded" : true,
+        transitions: window.__recorderTransitions?.sync() ?? 0,
+      };
+    });
     const requests = inFlightRequests();
     const hookOk = options.hook ? await options.hook() : true;
 
