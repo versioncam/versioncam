@@ -156,11 +156,11 @@ jobs:
       # `node_modules/.bin/versioncam` above the example app, the root's,
       # linked to packages/recorder, whose launcher needs its dist; and
       # `publish` reads the recordings directory.
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: recorder-dist
           path: packages/recorder/dist
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: example-recordings
           path: examples/demo-app/.versioncam/recordings
@@ -185,11 +185,11 @@ jobs:
     # job's token is needed for nothing.
     permissions: {}
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: example-demos
           path: examples/demo-app/.versioncam/out
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: example-take
           path: take
