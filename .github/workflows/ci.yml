@@ -79,6 +79,17 @@ jobs:
         working-directory: examples/demo-app
         run: npx versioncam render --sequence
 
+      # The clip at the top of the README: the three product clips as one GIF,
+      # beside the renders, so that `site-clips` publishes it with them and the
+      # README's picture is whatever `main` last recorded.
+      - name: The README's hero clip, as a GIF
+        working-directory: examples/demo-app
+        run: |
+          ../../.github/scripts/hero-gif.sh .versioncam/out/hero.gif \
+            .versioncam/out/01-create-a-shipment.mp4 \
+            .versioncam/out/02-find-a-shipment.mp4 \
+            .versioncam/out/03-cancel-a-shipment.mp4
+
       # The renders, for anyone to look at, and for `site-clips` to upload.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -209,7 +220,7 @@ jobs:
           # The top-level renders only; the sheets' tile directories stay out.
           aws s3 sync examples/demo-app/.versioncam/out "s3://versioncam-clips/example" \
             --endpoint-url "$R2" \
-            --exclude "*" --include "*.mp4" --include "*.webm" --include "*.png" \
+            --exclude "*" --include "*.mp4" --include "*.webm" --include "*.png" --include "*.gif" \
             --exclude "*/*" \
             --cache-control "public, max-age=300"
 
