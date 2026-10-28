@@ -30,6 +30,17 @@ Or, without copying anything, load the plugin directory as it is:
 claude --plugin-dir node_modules/versioncam/plugin
 ```
 
+Or install it as a plugin from the repository's own marketplace, in a Claude
+Code session (2.1.275 or later):
+
+```
+/plugin install versioncam --marketplace versioncam/versioncam
+```
+
+Loaded either of these two ways, the skill carries the plugin's name as a
+prefix: `/versioncam:versioncam "<intent>"`. Installed by `init`, it is
+`/versioncam`, as the examples below write it.
+
 ## Run it
 
 ```

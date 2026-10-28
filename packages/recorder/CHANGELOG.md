@@ -14,6 +14,10 @@ and its entry here says how.
   commands, and what to tell the person about the licence. Bugs and
   questions go to github.com/versioncam/versioncam, where the source is
   public since 2026-10-28.
+- The skill installs as a Claude Code plugin from that repository's own
+  marketplace, `/plugin install versioncam --marketplace versioncam/versioncam`,
+  beside `versioncam init` and `--plugin-dir`; the plugin's manifest carries
+  the package's version.
 
 ## 0.5.1 (2026-10-11)
 

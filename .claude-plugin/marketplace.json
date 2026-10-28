@@ -1,0 +1,23 @@
+{
+  "name": "versioncam",
+  "description": "Short, true product videos, recorded by your CI: the authoring skill that writes a clip of your web app from one sentence, records it, and has a reviewer pass it from a contact sheet.",
+  "owner": {
+    "name": "Versioncam",
+    "url": "https://version.cam"
+  },
+  "plugins": [
+    {
+      "name": "versioncam",
+      "source": "./packages/recorder/plugin",
+      "description": "Record a short, true demo clip of a web app from one sentence: a skill that sets the repository up on its first run, writes the clip, and has a reviewer pass it from a contact sheet.",
+      "version": "0.5.1",
+      "author": {
+        "name": "Peter Bulovec"
+      },
+      "homepage": "https://version.cam",
+      "repository": "https://github.com/versioncam/versioncam",
+      "license": "FSL-1.1-ALv2",
+      "keywords": ["demo", "recording", "playwright", "screencast", "video", "ci"]
+    }
+  ]
+}

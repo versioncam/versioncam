@@ -17,6 +17,14 @@ npx versioncam check      # seconds, in CI: do the clips still match the app?
 npx versioncam render     # the videos
 ```
 
+Or, as a Claude Code plugin from this repository's own marketplace, with
+nothing copied into the repo:
+
+```bash
+claude plugin marketplace add versioncam/versioncam
+claude plugin install versioncam@versioncam     # then /versioncam:versioncam "<intent>"
+```
+
 The clip above was recorded by
 [this repository's own CI](https://github.com/versioncam/versioncam/actions/workflows/ci.yml)
 on the last push to `main`: the three clips of [the example app](examples/demo-app),
