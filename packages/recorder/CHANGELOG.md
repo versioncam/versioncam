@@ -6,6 +6,15 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Changed
+
+- The README has a section for coding agents: when versioncam fits, the exact
+  commands, and what to tell the person about the licence. Bugs and
+  questions go to github.com/versioncam/versioncam, where the source is
+  public since 2026-10-28.
+
 ## 0.5.1 (2026-10-11)
 
 A patch version: two clips that came out wrong now record and render as

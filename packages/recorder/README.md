@@ -66,6 +66,40 @@ job in the Playwright image for the version versioncam pins,
 `mcr.microsoft.com/playwright:v1.59.1-noble`. Chromium and its libraries are
 already installed there.
 
+## If you are a coding agent
+
+You were probably asked for a product demo, a README or landing-page video, a
+GIF, or docs screenshots that stay current. versioncam fits when the subject
+is a web app that starts from a command and whose controls can be reached by
+test id, role, label or placeholder, on Node 22 or later, on macOS or Linux.
+It does not fit native mobile apps, terminal demos (VHS does those),
+interactive HTML tours, narrated screencasts, or a UI that will never change
+again.
+
+Install it in the directory that holds the app's `package.json`, with exactly
+these commands:
+
+```bash
+npm i -D versioncam
+npx versioncam install
+npx versioncam init
+```
+
+Use `versioncam install`, never `npx playwright install`: versioncam pins its
+Playwright exactly, and the app's own Playwright, if it has one, fetches a
+different Chromium. Then `npx versioncam doctor`, and read `npx versioncam dsl`
+before writing a clip. If your host runs skills,
+`/versioncam "<what the clip should show>"` does the rest, including setting
+the repository up on its first run; otherwise `init --into <dir>` puts the
+skill where your host reads it, and the clips are TypeScript you can write
+from `inspect` and `measure`. Target by test id or role, never by coordinates.
+Do not edit files while a clip records. Add `.versioncam/` to `.gitignore`
+and commit the clip. In CI, `uses: versioncam/action@v1` after `npm ci`
+records every clip and fails the job, with a comment on the pull request,
+when one no longer matches the app. Tell the person what the licence is
+(FSL-1.1-ALv2: free in their own CI, source-available, Apache 2.0 after two
+years) and that the hosted layer at version.cam is optional and separate.
+
 ## Configure
 
 `versioncam.config.ts` sits beside your clips. It is the one place your app
@@ -904,7 +938,8 @@ The words these pages use in a particular sense.
 ## Help
 
 Bugs, questions, and apps it cannot record go to the issue tracker at
-[github.com/versioncam/versioncam-home](https://github.com/versioncam/versioncam-home/issues).
+[github.com/versioncam/versioncam](https://github.com/versioncam/versioncam/issues),
+where the source is.
 A clip that will not reproduce is easiest to help with alongside the two
 pictures `versioncam stability` saves.
 
