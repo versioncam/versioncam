@@ -66,7 +66,7 @@ jobs:
       # first differing frame, and the stability runs are kept whole — two
       # timelines and their states, enough to compare any frame. On a runner
       # nobody can log into, that is the only way to see what differed.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: example-test-results
@@ -91,7 +91,7 @@ jobs:
             .versioncam/out/03-cancel-a-shipment.mp4
 
       # The renders, for anyone to look at, and for `site-clips` to upload.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: example-demos
@@ -109,14 +109,14 @@ jobs:
       # clips `check` just made, without the stability and gate runs kept
       # under `__` directories, which `publish` never reads; the recorder's
       # build is what the Action runs as this repository's versioncam.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: example-take
           path: take
           if-no-files-found: error
           retention-days: 1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: example-recordings
@@ -125,7 +125,7 @@ jobs:
             !examples/demo-app/.versioncam/recordings/__*
           if-no-files-found: error
           retention-days: 1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: recorder-dist
