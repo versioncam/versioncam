@@ -747,10 +747,16 @@ describe("versioncam cloud logout", () => {
     const pc = machine(fake);
     pc.signIn();
     // The machine still points at this address, where nothing answers now;
-    // a new fake stands in for the checks that run after every test.
+    // a new fake stands in for the checks that run after every test. The
+    // kernel may hand the new one the port just freed, and then the machine
+    // would reach it and sign out cleanly: on GitHub's runner it did, once in
+    // two runs. So the new fake is made again until it answers elsewhere.
     await fake.close();
     const closed = fake.url;
-    fake = await fakeApi();
+    do {
+      fake = await fakeApi();
+      if (fake.url === closed) await fake.close();
+    } while (fake.url === closed);
     const { code, err } = await pc.run("logout");
     expect(code).toBe(1);
     expect(err).toContain(`Could not reach ${closed}: ECONNREFUSED.`);
