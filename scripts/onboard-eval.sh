@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # The first run, headless: `/versioncam` in a copy of the example app that has
-# no config, no clips and no skill — the Step 7 procedure of
-# docs/wp6-versioncam.md, with nobody at the keyboard.
+# no config, no clips and no skill, the way a new user meets it, with nobody
+# at the keyboard.
 #
 # It makes a throwaway worktree of this repository at HEAD, strips the example
 # app back to an app, installs the skill the way a user would (`versioncam
@@ -36,10 +36,10 @@ if curl -sf -o /dev/null http://localhost:5174/; then
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT/docs/evals/$(date +%Y-%m-%d)"
+OUT="$ROOT/.versioncam/evals/$(date +%Y-%m-%d)"
 # The run's clip, config and transcripts are a trial run's build products:
 # kept where the example app keeps its own, which git ignores, and never in
-# docs/ beside the JSON that is committed.
+# .versioncam/ beside the JSON.
 KEEP="$ROOT/examples/demo-app/.versioncam/author/onboard-eval-$(date +%Y-%m-%d)"
 mkdir -p "$OUT"
 

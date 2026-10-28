@@ -5,13 +5,11 @@ on:
     branches: [main]
   pull_request:
 
-# Nothing here writes to the repository, and no job holds a Cloudflare
-# credential: staging and production deploy from Peter's machine
-# (packages/cloud/scripts/deploy.mjs; docs/security.md, P6a and S6). The jobs
-# that hold anything more get it alone: `publish` may ask GitHub for an OIDC
-# token, and `site-clips` receives the R2 keys. The build job, which installs
-# and runs every dependency, has neither: it hands them what they need as
-# artifacts.
+# Nothing here writes to the repository, and no job holds a credential for
+# anything but the one upload it does. The jobs that hold anything get it
+# alone: `publish` may ask GitHub for an OIDC token, and `site-clips`
+# receives the R2 keys. The build job, which installs and runs every
+# dependency, has neither: it hands them what they need as artifacts.
 permissions:
   contents: read
 
@@ -38,12 +36,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
-      # The cloud's tests run inside workerd with Miniflare's D1, R2 and KV,
-      # which the root runner (plain Node) cannot host.
-      - run: npm test -w @versioncam/cloud
-      # The deploy script's refusals, with its commands answered by the
-      # tests: nothing there reaches git, Docker or Cloudflare.
-      - run: npm run test:scripts -w @versioncam/cloud
 
       - run: npx versioncam install --with-deps
       - run: npm run test:integration

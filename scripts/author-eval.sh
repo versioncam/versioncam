@@ -29,7 +29,7 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/examples/demo-app"
 PLUGIN="$ROOT/packages/recorder/plugin"
-OUT="$ROOT/docs/evals/$(date +%Y-%m-%d)"
+OUT="$ROOT/.versioncam/evals/$(date +%Y-%m-%d)"
 mkdir -p "$OUT"
 
 # A 401 costs three minutes per intent before it gives up, because the CLI

@@ -7,15 +7,16 @@ name: Release
 # npm also requires the package's `repository.url` to name this repository;
 # without it the publish is refused with a 404 that gives no reason.
 #
-# No provenance attestation: npm generates none for a private repository, and
-# one would point at a source nobody outside can open.
+# No provenance attestation yet: npm generated none while this repository
+# was private. Turning it on, now that the source is public, is a release
+# change of its own.
 #
 # Two jobs, because any step of a job with `id-token: write` can ask for a
-# token npm accepts for `versioncam`, an install script or a test included
-# (docs/security.md S6). `build` runs every gate and packs the tarball,
+# token npm accepts for `versioncam`, an install script or a test included.
+# `build` runs every gate and packs the tarball,
 # without that permission; `publish`, in the environment `npm`, publishes
 # that tarball and installs and runs nothing else. npm's trusted publisher
-# can be held to that environment (P8 in docs/security.md).
+# can be held to that environment.
 on:
   push:
     tags: ["v*"]

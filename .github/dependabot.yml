@@ -1,6 +1,6 @@
 # Keeps the workflows' actions current. Each third-party action is pinned to
 # a commit, so a tag moved by whoever controls an action cannot change what
-# runs here (docs/security.md S6); the version beside each pin is what
+# runs here; the version beside each pin is what
 # Dependabot reads and rewrites. Its pull request is the moment to read what
 # changed before it runs with this repository's tokens.
 version: 2
@@ -17,15 +17,3 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  # The render image's base, pinned by digest (packages/cloud/render/
-  # Dockerfile, docs/security.md S10): a new digest of the same tag, which
-  # is the base rebuilt, comes as a pull request, and the Renderer workflow
-  # builds and tests the image it makes. A new tag does not: it carries the
-  # browsers of another Playwright, and moves with the recorder's own.
-  - package-ecosystem: docker
-    directory: /packages/cloud/render
-    schedule:
-      interval: weekly
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
