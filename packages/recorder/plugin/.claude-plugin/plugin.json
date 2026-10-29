@@ -1,6 +1,6 @@
 {
   "name": "versioncam",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Record a short, true demo clip of a web app from one sentence: a skill that sets the repository up on its first run, writes the clip, and has a reviewer pass it from a contact sheet.",
   "author": {
     "name": "Peter Bulovec"

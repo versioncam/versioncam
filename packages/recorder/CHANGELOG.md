@@ -6,7 +6,11 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.5.2 (2026-10-29)
+
+A patch version: the config and the clip DSL are as they were. The README
+now speaks to coding agents, the skill installs from the repository's own
+marketplace, and the browser install is a third of what it was.
 
 ### Changed
 
