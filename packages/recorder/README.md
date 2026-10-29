@@ -500,6 +500,18 @@ also reports each publish on GitHub: a check on its commit, and on a pull
 request a comment naming the clips that look different and the ones that
 failed.
 
+### Plans
+
+Priced per project, never per seat, and planned until the first bill
+confirms them. Free, for public repositories: three projects, ten clips a
+project, thirty days of history, clips to sixty seconds, a gigabyte, the
+pull request check and the badge. Pro, $39 a project a month or $390 a
+year: private repositories too, unlimited history, a hundred clips a
+project, and the team told by email, Slack or a GitHub issue when a clip
+breaks. Max, $149 a month for ten projects with everything Pro has. The
+recorder and the Action are free whatever the plan, and sign-up is private
+while the beta runs.
+
 ### When a clip breaks
 
 A clip breaks when its check fails on the default branch: a control it uses
