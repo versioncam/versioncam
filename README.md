@@ -2,6 +2,8 @@
 
 <a href="https://clips.version.cam/example/sequence.mp4"><img src="https://clips.version.cam/example/hero.gif" width="960" alt="Three clips of the example app, recorded by this repository's CI on its last push to main: a shipment created, found and cancelled"></a>
 
+[![demo verified](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.version.cam%2Fv1%2Fbadge%2Fversioncam%2Fversioncam&cacheSeconds=300)](https://clips.version.cam/versioncam/versioncam)
+
 Short, true product videos, recorded by your CI.
 
 **Versioncam** records short, true product videos. A clip is a script in your
