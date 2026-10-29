@@ -64,7 +64,8 @@
   },
   "dependencies": {
     "esbuild": "^0.25.0",
-    "playwright": "1.59.1"
+    "playwright": "1.59.1",
+    "playwright-core": "1.59.1"
   },
   "optionalDependencies": {
     "ffmpeg-static": "^5.2.0"

@@ -18,6 +18,12 @@ and its entry here says how.
   marketplace, `/plugin install versioncam --marketplace versioncam/versioncam`,
   beside `versioncam init` and `--plugin-dir`; the plugin's manifest carries
   the package's version.
+- `versioncam install` fetches the headless shell alone, the Chromium that
+  records: 190 MB on a Mac, where both builds were 528. `login` and `preview`,
+  the two commands that open a window, fetch the full browser the first time
+  they run and say so first; `versioncam install --full` fetches both at once.
+  `doctor` reports the shell as `chromium`, and under `window` whether the
+  full browser is there, which is never a failure.
 
 ## 0.5.1 (2026-10-11)
 

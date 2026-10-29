@@ -43,6 +43,12 @@ Playwright exactly, because a new Chromium changes every captured pixel. Your
 app may have a Playwright of its own at another version, and
 `npx playwright install` fetches that one's Chromium.
 
+`versioncam install` fetches the headless shell, the Chromium that records:
+190 MB on a Mac. `login` and `preview` open a window, which needs the full
+browser, 340 MB more; they fetch it the first time they run, or
+`npx versioncam install --full` fetches both now, for a machine that will be
+offline then.
+
 ### In CI
 
 The same install, then `check`. It records every clip and fails the job on the
@@ -324,8 +330,9 @@ prints the same list.
 Once per machine, and once per repository.
 
 ```
-versioncam install                 the Chromium this version of versioncam records with
+versioncam install                 the headless Chromium this version of versioncam records with
     --with-deps                    and its system libraries (Linux CI)
+    --full                         and the full browser, which login and preview open
 versioncam init                    install the authoring skill into .claude/
     --into <dir>                   into <dir>/versioncam/ instead, for another host
     --force                        overwrite files that are already there

@@ -1,5 +1,4 @@
-import { chromium } from "playwright";
-import { existsSync } from "node:fs";
+import { browserPaths } from "./install.js";
 import { ffmpegStatus } from "../../render/ffmpeg.js";
 import { ensureApp, probe } from "../../app-server.js";
 import type { ResolvedConfig } from "../../config.js";
@@ -125,17 +124,22 @@ export async function doctor(): Promise<number> {
     fix: "Install Node 22 or newer.",
   });
 
-  let chromiumPath = "";
-  try {
-    chromiumPath = chromium.executablePath();
-  } catch {
-    chromiumPath = "";
-  }
+  // The headless shell is what records; `install` fetches it and nothing
+  // else. The full browser only `login` and `preview` need, and they fetch it
+  // themselves, so its absence is reported and is not a failure.
+  const browsers = browserPaths();
   checks.push({
     name: "chromium",
-    ok: chromiumPath !== "" && existsSync(chromiumPath),
-    detail: chromiumPath || "not installed",
+    ok: browsers.shell !== null,
+    detail: browsers.shell ?? "not installed",
     fix: "npx versioncam install",
+  });
+  checks.push({
+    name: "window",
+    ok: true,
+    detail: browsers.full
+      ? `full Chromium at ${browsers.full}`
+      : "full Chromium not fetched yet; login and preview fetch it on first use, or `npx versioncam install --full`",
   });
 
   const { ffmpeg, ffprobe } = ffmpegStatus();

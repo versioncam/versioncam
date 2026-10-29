@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
+import { ensureFullBrowser } from "./install.js";
 import { loadConfig } from "../../loader.js";
 import { renderConfigOf } from "../../config.js";
 import { bundleScenes, loadSceneIds } from "../../loader.js";
@@ -51,6 +52,10 @@ export async function preview(argv: string[]): Promise<number> {
     }
   }
 
+  // A window needs the full browser, which `install` leaves to the first
+  // command that opens one; after the checks above, so nothing is fetched
+  // for a recording that is not there.
+  if (!(await ensureFullBrowser())) return 1;
   const browser = await launchBrowser({ headless: false });
   const context = await browser.newContext({
     viewport: { width: 1400, height: 1000 },

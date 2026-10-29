@@ -16,8 +16,9 @@
 export const USAGE = `versioncam: record and render demo clips of a real app
 
 Set up
-  versioncam install                 the Chromium this version of versioncam records with
+  versioncam install                 the headless Chromium this version of versioncam records with
       --with-deps                    and its system libraries (Linux CI)
+      --full                         and the full browser, which login and preview open
   versioncam init                    install the authoring skill into .claude/
       --into <dir>                   into <dir>/versioncam/ instead, for another host
       --force                        overwrite files that are already there

@@ -1,4 +1,5 @@
 import { launchBrowser } from "../../driver/launch.js";
+import { ensureFullBrowser } from "./install.js";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadConfig } from "../../loader.js";
@@ -26,6 +27,9 @@ export async function login(): Promise<number> {
   }
 
   const storageState = auth.storageState;
+  // A window needs the full browser, which `install` leaves to the first
+  // command that opens one; fetched before the app is started, not under it.
+  if (!(await ensureFullBrowser())) return 1;
   return drivingApp(config, async () => {
     const browser = await launchBrowser({ headless: false });
     try {
