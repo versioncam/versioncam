@@ -98,8 +98,10 @@ decide.
 **What is paid?** The recorder and the Action are free and run in your CI.
 version.cam, the hosted layer, keeps a published clip at an address that
 only ever plays the newest version from your default branch that passed, for
-READMEs, docs and pull requests. The plan is Free and Pro at $39 per project
-per month; nobody has paid yet and sign-up is not open.
+READMEs, docs and pull requests. The plan is Free for public repositories and
+Pro at $35 per project per month for private ones; nobody has paid yet. The
+beta is private: Free works once you sign in, and the first ten accounts that
+ask have Pro free until it ends.
 
 ## The idea in one paragraph
 

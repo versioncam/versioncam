@@ -11,7 +11,8 @@ and its entry here says how.
 ### Changed
 
 - The README's version.cam section states the plans, as planned: Free for
-  public repositories, Pro for private ones, Max for ten projects.
+  public repositories, Pro for private ones at $35 a project a month, Max
+  for ten projects at $145, and how the private beta gives Pro away.
 
 ## 0.5.2 (2026-10-29)
 
