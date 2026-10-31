@@ -26,7 +26,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest: the recorder's bytes depend on the image,
+    # and GitHub's latest became 26.04 in October 2026, where Playwright 1.59 has
+    # no system-library list, so versioncam install --with-deps stops there.
+    runs-on: ubuntu-24.04
     outputs:
       published: ${{ steps.npm.outputs.published }}
       tarball: ${{ steps.pack.outputs.tarball }}
@@ -97,7 +100,7 @@ jobs:
   publish:
     needs: build
     if: needs.build.outputs.published != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: npm
     # id-token: the OIDC token npm exchanges for a publish of `versioncam`.
     # Naming one permission removes the defaults, so contents: read is

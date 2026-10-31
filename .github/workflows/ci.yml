@@ -15,7 +15,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest: the recorder's bytes depend on the image,
+    # and GitHub's latest became 26.04 in October 2026, where Playwright 1.59 has
+    # no system-library list, so versioncam install --with-deps stops there.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -141,7 +144,7 @@ jobs:
   publish:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # id-token: the Action asks GitHub for a token that names this repository
     # and commit, which is how version.cam knows who is publishing without a
     # stored secret. Naming one permission removes the defaults, so
@@ -191,7 +194,7 @@ jobs:
   site-clips:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Artifacts of this run download with the run's own credentials; the
     # job's token is needed for nothing.
     permissions: {}
