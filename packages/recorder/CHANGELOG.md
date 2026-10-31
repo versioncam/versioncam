@@ -8,6 +8,16 @@ and its entry here says how.
 
 ## Unreleased
 
+### Fixed
+
+- `versioncam install` on an Ubuntu newer than its Playwright knows, which
+  is GitHub's `ubuntu-latest` since it became 26.04 in October 2026: where
+  Playwright refuses the OS outright, the installer runs again as
+  `ubuntu24.04`, the newest Ubuntu it knows, whose build and system
+  libraries record the same. `login` and `preview` fetch their browser the
+  same way. An override set by hand in `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE`
+  is left alone.
+
 ### Changed
 
 - The README's version.cam section states the plans, as planned: Free for

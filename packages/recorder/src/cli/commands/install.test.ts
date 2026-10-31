@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   browserPaths,
   ensureFullBrowser,
+  fallbackPlatform,
   fullBrowserArgv,
   installArgv,
   pinnedPlaywright,
+  runWithFallback,
 } from "./install.js";
 
 const manifest = JSON.parse(
@@ -87,7 +89,7 @@ describe("a command that opens a window", () => {
       has: () => true,
       run: async (command, args) => {
         ran.push([command, ...args]);
-        return 0;
+        return { code: 0, output: "" };
       },
       write: () => {},
     });
@@ -102,7 +104,7 @@ describe("a command that opens a window", () => {
       has: () => false,
       run: async (command, args) => {
         ran.push([command, ...args]);
-        return 0;
+        return { code: 0, output: "" };
       },
       write: (text) => (said += text),
     });
@@ -116,9 +118,92 @@ describe("a command that opens a window", () => {
   it("reports a fetch that failed, so the command stops before a window", async () => {
     const ok = await ensureFullBrowser({
       has: () => false,
-      run: async () => 1,
+      run: async () => ({ code: 1, output: "" }),
       write: () => {},
     });
     expect(ok).toBe(false);
+  });
+});
+
+describe("an OS Playwright does not know", () => {
+  // What Playwright 1.59 printed on GitHub's ubuntu-latest, Ubuntu 26.04
+  // since October 2026, for the browser as for the system libraries.
+  const refusal =
+    "Error: ERROR: Playwright does not support chromium-headless-shell on ubuntu26.04-x64";
+
+  it("names 24.04 for a newer Ubuntu, same architecture, and nothing else", () => {
+    expect(fallbackPlatform(refusal)).toBe("ubuntu24.04-x64");
+    expect(fallbackPlatform(refusal.replace("x64", "arm64"))).toBe(
+      "ubuntu24.04-arm64",
+    );
+    expect(fallbackPlatform(refusal.replace("26.04", "24.10"))).toBe(
+      "ubuntu24.04-x64",
+    );
+    // An older Ubuntu it refused is refused for another reason.
+    expect(fallbackPlatform(refusal.replace("26.04", "18.04"))).toBeNull();
+    // A distribution it never knew has no stand-in known to work.
+    expect(
+      fallbackPlatform(refusal.replace("ubuntu26.04", "debian13")),
+    ).toBeNull();
+    expect(fallbackPlatform("E: Unable to locate package libx11-6")).toBeNull();
+  });
+
+  it("runs the installer again as that platform, and says so first", async () => {
+    const runs: { args: string[]; env?: Record<string, string> }[] = [];
+    let said = "";
+    const code = await runWithFallback("node", ["cli.js", "install"], {
+      run: async (_command, args, env) => {
+        runs.push({ args, env });
+        return runs.length === 1
+          ? { code: 1, output: refusal }
+          : { code: 0, output: "" };
+      },
+      write: (text) => (said += text),
+    });
+    expect(code).toBe(0);
+    expect(runs).toHaveLength(2);
+    expect(runs[1].env).toEqual({
+      PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: "ubuntu24.04-x64",
+    });
+    expect(said).toContain("does not know this OS yet");
+    expect(said).toContain(
+      "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 node cli.js install",
+    );
+  });
+
+  it("leaves any other failure as it was, after one run", async () => {
+    let runs = 0;
+    let said = "";
+    const code = await runWithFallback("node", ["cli.js", "install"], {
+      run: async () => {
+        runs += 1;
+        return {
+          code: 100,
+          output: "E: Could not get lock /var/lib/dpkg/lock",
+        };
+      },
+      write: (text) => (said += text),
+    });
+    expect(code).toBe(100);
+    expect(runs).toBe(1);
+    expect(said).toBe("");
+  });
+
+  it("does not second-guess an override the person set", async () => {
+    process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE = "ubuntu22.04-x64";
+    try {
+      let runs = 0;
+      const code = await runWithFallback("node", ["cli.js", "install"], {
+        run: async () => {
+          runs += 1;
+          return { code: 1, output: refusal };
+        },
+        write: () => {},
+      });
+      expect(code).toBe(1);
+      expect(runs).toBe(1);
+    } finally {
+      delete process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE;
+    }
   });
 });

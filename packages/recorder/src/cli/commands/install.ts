@@ -74,22 +74,99 @@ export function browserPaths(): { shell: string | null; full: string | null } {
   return { shell: where("chromium-headless-shell"), full: where("chromium") };
 }
 
-/** Playwright's installer, with its output on this terminal; its exit code. */
-export function runInstaller(command: string, args: string[]): Promise<number> {
-  return new Promise((resolve) => {
-    const child = spawn(command, args, { stdio: "inherit" });
+/** How a run of Playwright's installer ended, and what it said. */
+export type Installed = { code: number; output: string };
+
+/**
+ * Playwright's installer. `env` is added to this process's environment for
+ * that run alone.
+ */
+export type Installer = (
+  command: string,
+  args: string[],
+  env?: Record<string, string>,
+) => Promise<Installed>;
+
+/**
+ * Playwright's installer, its output on this terminal as it runs and kept
+ * as well, for `fallbackPlatform` to read what it refused. The exit code
+ * comes with `close`, not `exit`: the last of the output arrives between
+ * the two.
+ */
+export const runInstaller: Installer = (command, args, env = {}) =>
+  new Promise((resolve) => {
+    let output = "";
+    const child = spawn(command, args, {
+      stdio: ["inherit", "pipe", "pipe"],
+      env: { ...process.env, ...env },
+    });
+    const tee = (to: NodeJS.WriteStream) => (chunk: Buffer) => {
+      output += chunk.toString();
+      to.write(chunk);
+    };
+    child.stdout?.on("data", tee(process.stdout));
+    child.stderr?.on("data", tee(process.stderr));
     child.on("error", (error) => {
       process.stderr.write(`Could not run the installer: ${error.message}\n`);
-      resolve(1);
+      resolve({ code: 1, output });
     });
-    child.on("exit", (code) => resolve(code ?? 1));
+    child.on("close", (code) => resolve({ code: code ?? 1, output }));
   });
+
+/**
+ * The platform to run the installer again as, when Playwright refused this
+ * one; null when there is none to try.
+ *
+ * Playwright knows the Ubuntu releases of its day and refuses a newer one
+ * outright, the browser as well as the system libraries: "Playwright does
+ * not support chromium-headless-shell on ubuntu26.04-x64". GitHub's
+ * ubuntu-latest became 26.04 in October 2026, and Playwright 1.59 says
+ * exactly that there. Told through PLAYWRIGHT_HOST_PLATFORM_OVERRIDE that
+ * the host is 24.04, the newest it knows, it installs that build and that
+ * list of libraries, and the clips record the same (a run of
+ * petbul/notify-test on 2026-10-31). Only Ubuntu, and only a newer one: for
+ * a distribution Playwright never knew there is no stand-in known to work,
+ * and its own message stands.
+ */
+export function fallbackPlatform(output: string): string | null {
+  const refused = /does not support \S+ on ubuntu(\d+)\.(\d+)-([a-z0-9]+)/.exec(
+    output,
+  );
+  if (!refused) return null;
+  const [, major, minor, arch] = refused;
+  const newer =
+    Number(major) > 24 || (Number(major) === 24 && Number(minor) > 4);
+  return newer ? `ubuntu24.04-${arch}` : null;
+}
+
+/**
+ * The installer, and once more as a platform Playwright knows where it
+ * refused this one (`fallbackPlatform`), saying so between the two. An
+ * override the person set themselves is theirs: nothing second-guesses it.
+ */
+export async function runWithFallback(
+  command: string,
+  args: string[],
+  io: Pick<InstallerIO, "run" | "write">,
+): Promise<number> {
+  const first = await io.run(command, args);
+  if (first.code === 0 || process.env.PLAYWRIGHT_HOST_PLATFORM_OVERRIDE)
+    return first.code;
+  const as = fallbackPlatform(first.output);
+  if (as === null) return first.code;
+  io.write(
+    `Playwright ${pinnedPlaywright().version} does not know this OS yet. Installing as ${as}, the newest Ubuntu it does, whose build and libraries record the same here:\n` +
+      `  PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=${as} ${[command, ...args].join(" ")}\n`,
+  );
+  return (
+    await io.run(command, args, { PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: as })
+  ).code;
 }
 
 /** What `ensureFullBrowser` touches, so a test can stand in for all of it. */
 export type InstallerIO = {
   has: () => boolean;
-  run: (command: string, args: string[]) => Promise<number>;
+  run: Installer;
   write: (text: string) => void;
 };
 
@@ -114,7 +191,7 @@ export async function ensureFullBrowser(
       `Fetching it once, for Playwright ${playwright.version}:\n` +
       `  ${[command, ...args].join(" ")}\n`,
   );
-  return (await io.run(command, args)) === 0;
+  return (await runWithFallback(command, args, io)) === 0;
 }
 
 /**
@@ -144,5 +221,8 @@ export async function install(argv: string[]): Promise<number> {
       : `The headless Chromium versioncam records with, for Playwright ${playwright.version}:\n`) +
       `  ${[command, ...args].join(" ")}\n`,
   );
-  return runInstaller(command, args);
+  return runWithFallback(command, args, {
+    run: runInstaller,
+    write: (text) => process.stdout.write(text),
+  });
 }
