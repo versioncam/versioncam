@@ -6,7 +6,13 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.7.0 (2026-11-02)
+
+A minor version: the config gains `replay`, the clip DSL gains
+`s.fileWindow`, a second form of `s.drag` and `modifiers` on `s.click`,
+and `record` and `stability` take `--replay`. A config without `replay`
+records as it did with 0.6.0, and the render config is unchanged, so a
+publish needs nothing new of version.cam.
 
 ### Added
 
