@@ -6,7 +6,13 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.6.0 (2026-11-02)
+
+A minor version: the clip DSL gains `s.scroll`, the config gains
+`theme.cursor` and `motion.scrollDurationMs`, and a page's own smooth
+scrolling is instant while it is recorded. A config that sets none of
+the new fields renders and publishes as it did with 0.5.3, and records
+the same unless its app scrolls smoothly from a script.
 
 ### Added
 
