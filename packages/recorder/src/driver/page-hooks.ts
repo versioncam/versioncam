@@ -203,7 +203,9 @@ export const SYNC_TRANSITIONS =
  * deterministically, at exactly the rate the timeline says.
  *
  * `scroll-behavior: auto` is here for the same reason: a smooth-scrolling
- * container animates outside our control.
+ * container animates outside our control. It covers what the stylesheet
+ * asks for; what a script asks for, `{ behavior: "smooth" }`, is
+ * `INSTANT_SCROLL_SCRIPT`'s.
  */
 export function freezeCss(zeroTransitions: boolean): string {
   const transitions = zeroTransitions
@@ -231,6 +233,40 @@ export function freezeCssScript(transitions: Transitions): string {
   else document.addEventListener("DOMContentLoaded", inject, { once: true });
 })();`;
 }
+
+/**
+ * Makes a script's smooth scroll instant, as the freeze stylesheet makes a
+ * stylesheet's.
+ *
+ * `scroll-behavior` in CSS only decides a scroll that does not say how to
+ * scroll. An app that calls `scrollIntoView({ behavior: "smooth" })`, or
+ * `scrollTo` with it, says, and the browser animates that scroll on the
+ * compositor's real clock whatever the stylesheet holds: a chat that keeps
+ * its newest message in view does it on every message, and the frames while
+ * it moved showed the pane wherever the machine had got it to. So the five
+ * methods a script scrolls with take `"smooth"` as `"instant"`, and every
+ * other argument through untouched. The scroll still happens, at once,
+ * which is what a clip on authored time can show the same way twice;
+ * `s.scroll` is how a clip shows one move.
+ */
+export const INSTANT_SCROLL_SCRIPT = `(() => {
+  const instant = (options) =>
+    options && typeof options === "object" && options.behavior === "smooth"
+      ? { ...options, behavior: "instant" }
+      : options;
+  const take = (owner, name) => {
+    const original = owner[name];
+    if (typeof original !== "function") return;
+    owner[name] = function (...args) {
+      if (args.length === 1) args[0] = instant(args[0]);
+      return original.apply(this, args);
+    };
+  };
+  for (const name of ["scroll", "scrollTo", "scrollBy", "scrollIntoView"]) {
+    take(Element.prototype, name);
+  }
+  for (const name of ["scroll", "scrollTo", "scrollBy"]) take(window, name);
+})();`;
 
 /**
  * What the driver learns from the page once per frame.

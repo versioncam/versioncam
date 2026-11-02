@@ -209,6 +209,20 @@ test.describe("scroll()", () => {
     ]);
   });
 
+  test("an app's own smooth scrollIntoView lands at once", async () => {
+    let row: { start: number } | null = null;
+    await record(browser, "scroll-app-smooth", async (s) => {
+      await s.click(s.byTestId("jump"));
+      // One frame. A smooth scroll on the compositor would have moved the
+      // pane a little of the way in it, and a different little every run.
+      await s.hold(1000 / 60);
+      row = await rowInPane(s, 30);
+    });
+    expect(
+      Math.abs((row as unknown as { start: number }).start),
+    ).toBeLessThanOrEqual(1);
+  });
+
   test("leaves a recording without a scroll as it was", async () => {
     const result = await record(browser, "scroll-none", async (s) => {
       await s.hold(100);

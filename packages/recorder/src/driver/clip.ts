@@ -7,6 +7,7 @@ import type { CaptureConfig, ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
 import type { RecordingTiming } from "../core/timing.js";
 import {
+  INSTANT_SCROLL_SCRIPT,
   MUTATION_COUNTER_SCRIPT,
   TRANSITION_CLOCK_SCRIPT,
   freezeCssScript,
@@ -153,6 +154,7 @@ export async function runClip(
   }
   await page.addInitScript(MUTATION_COUNTER_SCRIPT);
   await page.addInitScript(freezeCssScript(transitions));
+  await page.addInitScript(INSTANT_SCROLL_SCRIPT);
   if (transitions === "play") await page.addInitScript(TRANSITION_CLOCK_SCRIPT);
   // Paused, not just installed. `clock.install()` leaves Playwright's fake
   // clock running on real time between the driver's own `runFor` calls, so

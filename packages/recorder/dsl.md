@@ -184,7 +184,9 @@ nearly always a wrapper around the one that scrolls, which `inspect` shows.
 The cursor stays where it is. For a scroll that reads as a mouse wheel, move
 the cursor over the pane first. Never scroll with `offCamera` and
 `scrollIntoView` or `mouse.wheel`: the browser animates those on its own
-clock, and the frames inside them differ between runs.
+clock, and the frames inside them differ between runs. While recording, a
+page's own smooth scrolling, from its stylesheet or from its script, is
+instant.
 
 | Option | Default | What it sets |
 |---|---|---|

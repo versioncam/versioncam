@@ -19,6 +19,16 @@ and its entry here says how.
   its scrolls in the timeline's new `scrolls`, which a recording without one
   does not have.
 
+### Changed
+
+- A page's script can no longer scroll smoothly while it is recorded:
+  `scrollIntoView`, `scrollTo`, `scrollBy` and `scroll` given
+  `{ behavior: "smooth" }` scroll at once, as a stylesheet's
+  `scroll-behavior: smooth` already did. The browser animated those scrolls
+  on its own clock, so the frames during one differed between runs. A clip
+  whose app scrolled itself that way now shows the scroll land in a frame;
+  `s.scroll` is how a clip shows one move.
+
 ## 0.5.3 (2026-11-01)
 
 A patch version: the config and the clip DSL are as they were. The browser
