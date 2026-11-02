@@ -6,6 +6,24 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Added
+
+- `replay` in the config records a clip's responses the first time it runs
+  and serves them on every run after, so a map's tiles, a model's answer or
+  a job's status are the same in every recording. `record` names the
+  requests by URL; each clip's replay is a HAR in `replay/` beside the
+  config, with binary bodies under `replay/bodies/` by hash, and is meant to
+  be committed. A request the replay covers and does not hold fails the clip
+  and names it. `pace` delivers a streamed response, an event stream over
+  `fetch` or `EventSource`, or lines of JSON, a piece at a time on the
+  page's clock. Authorization, cookie and API key headers are never written,
+  and `redact` leaves query parameters out.
+- `versioncam record` and `stability` take `--replay auto|record|replay|live`.
+  `doctor` lists each clip's replay, and `check` points out one older than
+  ninety days.
+
 ## 0.6.0 (2026-11-02)
 
 A minor version: the clip DSL gains `s.scroll`, the config gains

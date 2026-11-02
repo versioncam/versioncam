@@ -193,7 +193,9 @@ happened again the first time an agent used it.
 |---|---|
 | locator not found at step N | `inspect` at that moment; pick a control that exists; if none does, the beat is wrong |
 | beat produced no new state | missing `settle`, wrong target, or effect off-screen; check cuts and states |
-| settle timed out on `X` | add a `ready` hook, raise the timeout, or the source is live — record a HAR |
+| settle timed out on `X` | add a `ready` hook, raise the timeout, or the source is live: name it in `replay.record` so its answer is recorded once and served after |
+| two runs differ where the app fetched something (tiles, a count, an answer) | `replay.record` the request; `replay.pace` it too if the page reads it over time |
+| the clip fails with "its replay does not hold" | the app fetches something new; `versioncam record <id> --replay record` and look at the diff of `replay/<id>.har` |
 | document reloaded mid-clip | something navigated; find the trigger and avoid it |
 | drag or lasso selected nothing | `measure`, re-author geometry as fractions of the real box |
 | the frames inside a scroll differ between runs, or the page scrolls on its own | `s.scroll(pane, { by })`, `{ to }` or `{ into }`; never `scrollIntoView` or `mouse.wheel` from `offCamera`, which the browser animates on its own clock |

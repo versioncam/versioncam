@@ -160,9 +160,15 @@ What you may fix, in the config:
   already fixed (`clock.time`), so a timestamp that still moves came from an
   API, and that is the next item.
 
-What you may not: **live data** — a feed, a count that changes, a model's
-answer. That needs recorded network replay, which versioncam does not have
-yet. Say so, and ask whether to go on regardless.
+- **Live data**: a feed, a count that changes, a map's tiles, a model's
+  answer. When the two pictures differ where the app fetched something, name
+  the requests in the config's `replay.record` (a URL glob each, as the
+  README's *Live data* shows) and run `stability` again: the first run
+  records the answers into `replay/`, and every run after serves them. A
+  stream the page reads over time also goes in `replay.pace`. Say which
+  requests you named and why. The replay holds the server's answers of the
+  day it was recorded; tell the person it belongs in the repository, and
+  that it may hold what those answers held.
 
 **Never author on an unstable app without saying so** — in the report now,
 and in `summary.json` at the end, as `"stable": false`. A clip written against
