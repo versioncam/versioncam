@@ -12,6 +12,8 @@ import {
   TRANSITION_CLOCK_SCRIPT,
   freezeCssScript,
 } from "./page-hooks.js";
+import { ClipReplay } from "./replay.js";
+import type { ReplayMode } from "./replay.js";
 import { writeFailure, writeSettles, writeTargets } from "./reports.js";
 import type { SettleReport } from "./settle.js";
 import { RecordingSession } from "./session.js";
@@ -114,6 +116,11 @@ export type RunClipOptions = {
    * capture it stands in for fails on a media query.
    */
   draft?: boolean;
+  /**
+   * The replay's mode for this run, over the config's: what `--replay` on
+   * the command line sets.
+   */
+  replay?: ReplayMode;
 };
 
 export async function runClip(
@@ -131,6 +138,12 @@ export async function runClip(
   const fps = draft ? 15 : (options.fps ?? config.fps);
   const capture = { ...config.capture, ...options.capture };
 
+  // Made first, because it refuses a clip told to replay a file that does
+  // not exist, and nothing is open yet to close.
+  const replay = config.replay
+    ? new ClipReplay(config.replay, id, RECORDER_VERSION, runOptions.replay)
+    : null;
+
   const context = await browser.newContext({
     viewport,
     deviceScaleFactor: dpr,
@@ -142,6 +155,11 @@ export async function runClip(
     locale: config.clock.locale,
     storageState: config.auth?.storageState,
   });
+  // Installed on the context before the page exists, so the page's first
+  // request is caught. A clip's own `page.route` mocks are tried before it,
+  // as Playwright tries a page's routes before its context's: what a clip
+  // answers itself never reaches the replay.
+  await replay?.install(context);
   const page = await context.newPage();
 
   // A clip's own `capture` is merged over the config's unchecked, so its
@@ -156,6 +174,8 @@ export async function runClip(
   await page.addInitScript(freezeCssScript(transitions));
   await page.addInitScript(INSTANT_SCROLL_SCRIPT);
   if (transitions === "play") await page.addInitScript(TRANSITION_CLOCK_SCRIPT);
+  const pacing = replay?.pacingScript();
+  if (pacing) await page.addInitScript(pacing);
   // Paused, not just installed. `clock.install()` leaves Playwright's fake
   // clock running on real time between the driver's own `runFor` calls, so
   // every screenshot, every probe and every stall of the machine reached the
@@ -194,10 +214,22 @@ export async function runClip(
     capture,
     draft,
     config,
+    replay,
   });
 
   try {
-    await body(session.forClipBody());
+    try {
+      await body(session.forClipBody());
+    } catch (error) {
+      // A request the replay could not answer failed in the page, and the
+      // page then failed the clip somewhere else: a locator that never
+      // appeared, a settle that ran out. The missing response is the cause.
+      const missing = replay?.failure();
+      if (missing) (error as Error).message += `\n\n${missing}`;
+      throw error;
+    }
+    const missing = replay?.failure();
+    if (missing) throw new Error(missing);
     if (documentLoads > 1) {
       throw new Error(
         `The document reloaded ${documentLoads - 1} time(s) during "${id}". ` +
@@ -209,6 +241,7 @@ export async function runClip(
     const timeline = session.finish();
     writeSettles(dir, session.settles);
     writeTargets(dir, session.evidence().targets);
+    replay?.write();
     return { timeline, dir, cost: session.cost, settles: session.settles };
   } catch (error) {
     // Here rather than in the caller, because the context closes below and the

@@ -45,6 +45,11 @@ export { sseBody } from "./core/sse.js";
 export type { SseFixtureEvent } from "./core/sse.js";
 export { MOTION } from "./core/motion-defaults.js";
 export type {
+  ReplayConfig,
+  ReplayMode,
+  ReplayPattern,
+} from "./driver/replay.js";
+export type {
   Caption,
   CameraKey,
   Highlight,

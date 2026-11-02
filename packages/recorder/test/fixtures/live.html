@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Live fixture</title>
+    <style>
+      /* Large plain text, so each number and each streamed line is a
+         different picture. Nothing moves unless the server's answer does. */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #111111;
+      }
+      #count,
+      #other {
+        position: absolute;
+        left: 80px;
+        font-size: 48px;
+      }
+      #count {
+        top: 60px;
+      }
+      #other {
+        top: 140px;
+      }
+      #log {
+        position: absolute;
+        top: 240px;
+        left: 80px;
+        font-size: 28px;
+        line-height: 40px;
+      }
+      button {
+        position: absolute;
+        top: 600px;
+        width: 140px;
+        height: 40px;
+        appearance: none;
+        border: none;
+        border-radius: 0;
+        background: #dddddd;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="count" data-testid="count">…</div>
+    <div id="other" data-testid="other">…</div>
+    <div id="log" data-testid="log"></div>
+    <button data-testid="stream" style="left: 80px">Stream</button>
+    <button data-testid="events" style="left: 240px">Events</button>
+    <button data-testid="missing" style="left: 400px">Missing</button>
+    <script>
+      // The server is a real one on another port, named in the query, so its
+      // requests reach the network unless the replay answers them.
+      const api = new URLSearchParams(location.search).get("api");
+      const log = document.getElementById("log");
+      const line = (text) => {
+        const div = document.createElement("div");
+        div.textContent = text;
+        log.appendChild(div);
+      };
+      fetch(`${api}/counter`)
+        .then((r) => r.json())
+        .then((body) => {
+          document.getElementById("count").textContent = `count ${body.n}`;
+        });
+      // Only when asked: a request no replay covers, which stays live.
+      if (new URLSearchParams(location.search).has("other")) {
+        fetch(`${api}/other`)
+          .then((r) => r.json())
+          .then((body) => {
+            document.getElementById("other").textContent = `other ${body.n}`;
+          });
+      }
+      // A streamed answer, read as an app reads one: chunk by chunk, an
+      // event per block.
+      document
+        .querySelector('[data-testid="stream"]')
+        .addEventListener("click", async () => {
+          const response = await fetch(`${api}/stream`);
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffered = "";
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffered += decoder.decode(value, { stream: true });
+            let end;
+            while ((end = buffered.indexOf("\n\n")) >= 0) {
+              const block = buffered.slice(0, end);
+              buffered = buffered.slice(end + 2);
+              line(block.replace(/^data: /, "stream "));
+            }
+          }
+        });
+      document
+        .querySelector('[data-testid="events"]')
+        .addEventListener("click", () => {
+          const source = new EventSource(`${api}/stream`);
+          source.onmessage = (event) => line(`event ${event.data}`);
+          source.onerror = () => source.close();
+        });
+      document
+        .querySelector('[data-testid="missing"]')
+        .addEventListener("click", () => {
+          fetch(`${api}/counter?page=2`).then(
+            () => line("missing answered"),
+            () => line("missing failed"),
+          );
+        });
+    </script>
+  </body>
+</html>

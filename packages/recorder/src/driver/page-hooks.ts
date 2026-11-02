@@ -310,5 +310,9 @@ declare global {
     __recorderTransitions?: {
       sync(): number;
     };
+    /** Set by the replay's pacing script (replay.ts). */
+    __recorderReplay?: {
+      pending: number;
+    };
   }
 }

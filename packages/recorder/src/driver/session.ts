@@ -54,6 +54,11 @@ export type SessionOptions = {
    */
   draft: boolean;
   config: ResolvedConfig;
+  /**
+   * The clip's replay, when the config has one: the frame loop waits for its
+   * answers, so a request made in a frame is answered in that frame.
+   */
+  replay?: { idle(): Promise<void> } | null;
 };
 
 type ScheduledAction = { t: number; run: () => Promise<void> };
@@ -1105,6 +1110,10 @@ export class RecordingSession {
       }
 
       await this.page.clock.runFor(frameMs);
+      // A response the replay is serving reaches the page in this frame on
+      // every run, rather than in whichever frame the disk or the network
+      // let it: before the probe, so the picture is taken with it in.
+      await this.options.replay?.idle();
 
       // One round trip, after the input and the tick, because that is the
       // state this frame will be photographed in. It scrubs the page's own CSS

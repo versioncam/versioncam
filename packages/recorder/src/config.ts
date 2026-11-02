@@ -3,6 +3,12 @@ import type { Page } from "playwright";
 import { DEFAULT_CURSOR } from "./core/cursor.js";
 import type { CursorLook, CursorStyle } from "./core/cursor.js";
 import { MOTION } from "./core/motion-defaults.js";
+import { patternOf } from "./driver/replay.js";
+import type {
+  ReplayConfig,
+  ReplayMode,
+  ResolvedReplay,
+} from "./driver/replay.js";
 
 /**
  * The one place an app describes itself to the recorder.
@@ -235,6 +241,12 @@ export type RecorderConfig = {
    */
   output?: { width?: number; threads?: number };
   motion?: Partial<Motion>;
+  /**
+   * Responses recorded once and served on every run after: a map's tiles, a
+   * model's answer, a job's status. See `ReplayConfig` and the README's
+   * *Live data*.
+   */
+  replay?: ReplayConfig;
   /** Module whose default export is `Record<string, Scene>`. */
   scenes?: string;
   /** Clip ids, in order, for `versioncam render --sequence`. */
@@ -271,6 +283,7 @@ export type ResolvedConfig = {
   /** Threads per encoder, or null for ffmpeg's own choice. */
   encoderThreads: number | null;
   motion: Motion;
+  replay: ResolvedReplay | null;
   scenes: string | null;
   sequence: string[] | null;
 };
@@ -307,6 +320,88 @@ function cursorOf(
     );
   }
   return { style, ripple };
+}
+
+const REPLAY_MODES: readonly ReplayMode[] = [
+  "auto",
+  "record",
+  "replay",
+  "live",
+];
+
+export function isReplayMode(value: unknown): value is ReplayMode {
+  return REPLAY_MODES.includes(value as ReplayMode);
+}
+
+/**
+ * Checked field by field, because each wrong value fails far from here and
+ * quietly: a pattern that is not a string or a RegExp matches nothing, so the
+ * clip goes live without a word; a pace of no milliseconds delivers a whole
+ * stream in one frame.
+ */
+function replayOf(
+  given: ReplayConfig | undefined,
+  root: string,
+): ResolvedReplay | null {
+  if (given === undefined) return null;
+  const patterns = (field: string, list: unknown): RegExp[] => {
+    if (!Array.isArray(list))
+      fail(field, "must be a list of URL globs or regular expressions");
+    return list.map((item, i) => {
+      if (typeof item === "string" && item.length > 0) return patternOf(item);
+      if (item instanceof RegExp) return item;
+      fail(
+        `${field}[${i}]`,
+        `must be a URL glob or a regular expression, got ${JSON.stringify(item)}`,
+      );
+    });
+  };
+  const record = patterns("replay.record", given.record);
+  if (record.length === 0) fail("replay.record", "must name at least one URL");
+  const mode = given.mode ?? "auto";
+  if (!isReplayMode(mode)) {
+    fail(
+      "replay.mode",
+      `must be "auto", "record", "replay" or "live", got ${JSON.stringify(mode)}`,
+    );
+  }
+  const pace = (given.pace ?? []).map((rule, i) => {
+    const [url] = patterns(`replay.pace[${i}].url`, [rule?.url]);
+    const chunkMs = rule?.chunkMs;
+    if (
+      typeof chunkMs !== "number" ||
+      !Number.isFinite(chunkMs) ||
+      chunkMs <= 0
+    ) {
+      fail(
+        `replay.pace[${i}].chunkMs`,
+        `must be milliseconds, more than 0, got ${JSON.stringify(chunkMs)}`,
+      );
+    }
+    return { url, chunkMs };
+  });
+  const redact = given.redact ?? [];
+  if (
+    !Array.isArray(redact) ||
+    redact.some((name) => typeof name !== "string")
+  ) {
+    fail("replay.redact", "must be a list of query parameter names");
+  }
+  const onMissing = given.onMissing ?? "fail";
+  if (onMissing !== "fail" && onMissing !== "live") {
+    fail(
+      "replay.onMissing",
+      `must be "fail" or "live", got ${JSON.stringify(onMissing)}`,
+    );
+  }
+  return {
+    record,
+    mode,
+    dir: resolve(root, given.dir ?? "replay"),
+    pace,
+    redact,
+    onMissing,
+  };
 }
 
 /**
@@ -543,6 +638,7 @@ export function resolveConfig(
     output: outputSize(viewport, outputWidth),
     encoderThreads,
     motion,
+    replay: replayOf(config.replay, root),
     scenes: config.scenes ? abs(config.scenes) : null,
     sequence: config.sequence ?? null,
   };

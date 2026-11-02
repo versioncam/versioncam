@@ -72,6 +72,7 @@ export async function settlePage(
         mutations: window.__recorder?.mutations ?? 0,
         fontsLoaded: document.fonts ? document.fonts.status === "loaded" : true,
         transitions: window.__recorderTransitions?.sync() ?? 0,
+        replays: window.__recorderReplay?.pending ?? 0,
       };
     });
     const requests = inFlightRequests();
@@ -87,6 +88,9 @@ export async function settlePage(
       requests === 0 &&
       probe.fontsLoaded &&
       probe.transitions === 0 &&
+      // A paced body still arriving: between two of its pieces the page is
+      // quiet, and a settle would call it finished halfway through.
+      probe.replays === 0 &&
       hookOk;
 
     if (!quiet) {
@@ -95,6 +99,7 @@ export async function settlePage(
       else if (!probe.fontsLoaded) lastBlocker = "fonts";
       else if (probe.transitions > 0)
         lastBlocker = `transitions(${probe.transitions})`;
+      else if (probe.replays > 0) lastBlocker = `replay(${probe.replays})`;
       else lastBlocker = "hook";
     }
 
