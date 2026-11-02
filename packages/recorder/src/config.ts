@@ -435,6 +435,22 @@ export function resolveConfig(
     checkCaptionInset(presentation.captionInset, outputWidth);
   }
 
+  const motion: Motion = { ...MOTION, ...config.motion };
+  // Checked because a scroll's duration decides how many frames it takes,
+  // and a negative or missing one would make every scroll a two-frame jump
+  // without a word. The settings older than this one are taken as given.
+  const scrollMs = motion.scrollDurationMs;
+  if (
+    typeof scrollMs !== "number" ||
+    !(scrollMs >= 0) ||
+    !Number.isFinite(scrollMs)
+  ) {
+    fail(
+      "motion.scrollDurationMs",
+      `must be milliseconds, 0 or more, got ${JSON.stringify(scrollMs)}`,
+    );
+  }
+
   return {
     root,
     baseUrl,
@@ -490,7 +506,7 @@ export function resolveConfig(
     },
     output: outputSize(viewport, outputWidth),
     encoderThreads,
-    motion: { ...MOTION, ...config.motion },
+    motion,
     scenes: config.scenes ? abs(config.scenes) : null,
     sequence: config.sequence ?? null,
   };

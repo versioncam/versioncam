@@ -116,6 +116,26 @@ describe("resolveConfig", () => {
     expect(c.motion.zoomDurationMs).toBe(2000);
     expect(c.motion.crossfadeFrames).toBe(6);
   });
+
+  it("gives a scroll 700 ms unless told otherwise, and refuses a length it cannot use", () => {
+    expect(
+      resolveConfig({ baseUrl: "http://x" }, ROOT).motion.scrollDurationMs,
+    ).toBe(700);
+    expect(
+      resolveConfig(
+        { baseUrl: "http://x", motion: { scrollDurationMs: 0 } },
+        ROOT,
+      ).motion.scrollDurationMs,
+    ).toBe(0);
+    for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY, "500"]) {
+      expect(() =>
+        resolveConfig(
+          { baseUrl: "http://x", motion: { scrollDurationMs: bad as number } },
+          ROOT,
+        ),
+      ).toThrow(/`motion.scrollDurationMs` must be milliseconds, 0 or more/);
+    }
+  });
 });
 
 describe("where a caption over the app sits", () => {

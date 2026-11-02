@@ -93,6 +93,26 @@ export type Mark = { frame: number; label: string };
  */
 export type Step = { frame: number; call: string };
 
+/**
+ * One `scroll()`: the element it moved, along which axis, and from where to
+ * where, in that element's scroll offsets.
+ *
+ * The renderer draws nothing from it, since the scroll is in the captured
+ * pages already. It is here so a reader of the timeline can tell a page that
+ * moved because the clip scrolled it from one that moved by itself, and so
+ * the recorded `to` is the position the page really reached: clamped to what
+ * the element can scroll, not the number the script asked for.
+ */
+export type Scroll = {
+  t0: number;
+  t1: number;
+  /** The scrolling element's box, or the viewport for the page. */
+  rect: Rect;
+  axis: "x" | "y";
+  from: number;
+  to: number;
+};
+
 export type Timeline = {
   version: 1;
   clipId: string;
@@ -113,6 +133,11 @@ export type Timeline = {
   marks: Mark[];
   /** The script's calls, in order. Absent from recordings made before 0.1.3. */
   steps?: Step[];
+  /**
+   * The clip's scrolls, in order. Absent from a recording that has none, so
+   * a recording without one is the same bytes it was before 0.6.0.
+   */
+  scrolls?: Scroll[];
   cursor: CursorTrack;
   pointer: PointerAction[];
   camera: CameraKey[];

@@ -6,6 +6,19 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Added
+
+- `s.scroll(target, where, options?)` scrolls a pane, or the page, on the
+  clip's clock: `{ by: px }`, `{ to: "top" | "bottom" | px }`, or
+  `{ into: locator, block? }`, one eased step a frame, so the frames inside
+  a scroll are the same on every run. The end is clamped to what the element
+  can scroll, and an element that cannot scroll at all is refused by name.
+  `motion.scrollDurationMs` (700) is its default length. A recording keeps
+  its scrolls in the timeline's new `scrolls`, which a recording without one
+  does not have.
+
 ## 0.5.3 (2026-11-01)
 
 A patch version: the config and the clip DSL are as they were. The browser

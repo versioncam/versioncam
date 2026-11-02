@@ -28,6 +28,15 @@ export const MOTION = {
   lassoDurationMs: 1400,
 
   /**
+   * A `scroll()`. Slow enough that a viewer's eye can follow the content up
+   * the pane instead of losing its place, which much below half a second it
+   * cannot; much past a second and the page reads as crawling. The same
+   * judgement as a camera move, for a smaller thing moving. Two frames at
+   * the least, whatever is asked: a scroll in one frame is a jump.
+   */
+  scrollDurationMs: 700,
+
+  /**
    * Camera moves. Longer than a cursor move on purpose: the camera carries the
    * whole frame, so at 700ms it reads as a snap even with min-jerk easing and
    * geometric interpolation. Around a second is where it stops calling

@@ -163,6 +163,34 @@ selection from a frame after the loop closes.
 | `duration` | `1400` | How long the stroke takes, from press to release. |
 | `modifiers` | none | Keys held through the stroke: `["Shift"]`, `["Alt"]`, or both. |
 
+### `scroll(target, where, options?)`
+
+Scroll a pane, or the page, on the clip's clock: one eased step a frame, so
+the frames inside the scroll are the same on every run. `target` is the
+element that scrolls, as a locator, or `"page"` for the document. `where` is
+one of three:
+
+- `{ by: px }` from where it is now: `{ by: 400 }` goes down, `{ by: -400 }`
+  back up.
+- `{ to: "top" | "bottom" | px }` to one end, or to an offset.
+- `{ into: locator, block? }` until that element sits at the `"start"`,
+  `"center"` or `"end"` of the pane's visible box. The default is
+  `"center"`.
+
+The end is clamped to what the element can scroll, and the recording keeps
+the end it reached. An element with nothing to scroll is refused: it is
+nearly always a wrapper around the one that scrolls, which `inspect` shows.
+
+The cursor stays where it is. For a scroll that reads as a mouse wheel, move
+the cursor over the pane first. Never scroll with `offCamera` and
+`scrollIntoView` or `mouse.wheel`: the browser animates those on its own
+clock, and the frames inside them differ between runs.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `duration` | `700` | How long the scroll takes. Two frames at the least. `motion.scrollDurationMs` sets the default. |
+| `axis` | `"y"` | `"x"` scrolls sideways. `"top"` is then the left end and `"bottom"` the right. |
+
 ## Keyboard
 
 ### `typeInto(target, text)`

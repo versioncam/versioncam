@@ -1,4 +1,4 @@
-import type { Locator, Page } from "playwright";
+import type { ElementHandle, Locator, Page } from "playwright";
 import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import {
   targetPoint,
 } from "../core/cursor.js";
 import { zoomRect } from "../core/camera.js";
+import { clamp, minjerk } from "../core/easing.js";
 import { cameraTrack } from "../core/camera-track.js";
 import type { CameraWrite } from "../core/camera-track.js";
 import { resolveFollow } from "../core/follow.js";
@@ -56,6 +57,133 @@ export type SessionOptions = {
 };
 
 type ScheduledAction = { t: number; run: () => Promise<void> };
+
+/**
+ * Where a `scroll()` goes: by some pixels from where the element is, to a
+ * position or one of its two ends, or until a target is in view.
+ */
+export type ScrollWhere =
+  | { by: number }
+  | { to: "top" | "bottom" | number }
+  | { into: Locator; block?: "start" | "center" | "end" };
+
+export type ScrollOptions = { duration?: number; axis?: "y" | "x" };
+
+/** A `ScrollWhere`, checked, as the one form it is. */
+type ScrollAsk =
+  | { kind: "by"; px: number }
+  | { kind: "to"; to: "top" | "bottom" | number }
+  | { kind: "into"; target: Locator; block: "start" | "center" | "end" };
+
+/**
+ * Checked before anything is measured, because each wrong shape would
+ * otherwise scroll nowhere and say nothing: `{ by: "40" }` is a string
+ * concatenated onto an offset, `{}` is a scroll by zero, and `{ by, to }`
+ * would quietly pick one of the two.
+ */
+function scrollAskOf(where: ScrollWhere): ScrollAsk {
+  const given = (where ?? {}) as Record<string, unknown>;
+  const forms = (["by", "to", "into"] as const).filter(
+    (key) => given[key] !== undefined,
+  );
+  const shapes =
+    '`{ by: px }`, `{ to: "top" | "bottom" | px }` or `{ into: locator }`';
+  if (forms.length !== 1) {
+    throw new TypeError(
+      `scroll: say where with one of ${shapes}, got { ${Object.keys(given).join(", ")} }.`,
+    );
+  }
+  const value = given[forms[0]];
+  if (forms[0] === "by") {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new TypeError(`scroll: \`by\` is pixels, got ${String(value)}.`);
+    }
+    return { kind: "by", px: value };
+  }
+  if (forms[0] === "to") {
+    const end = value === "top" || value === "bottom";
+    if (!end && (typeof value !== "number" || !Number.isFinite(value))) {
+      throw new TypeError(
+        `scroll: \`to\` is "top", "bottom" or pixels, got ${JSON.stringify(value)}.`,
+      );
+    }
+    return { kind: "to", to: value as "top" | "bottom" | number };
+  }
+  if (typeof (value as Locator | null)?.elementHandle !== "function") {
+    throw new TypeError(
+      "scroll: `into` is a locator, such as `s.byTestId(...)`.",
+    );
+  }
+  const block = given.block ?? "center";
+  if (block !== "start" && block !== "center" && block !== "end") {
+    throw new TypeError(
+      `scroll: \`block\` is "start", "center" or "end", got ${JSON.stringify(block)}.`,
+    );
+  }
+  return { kind: "into", target: value as Locator, block };
+}
+
+/** What a scroll needs to know of its element, read once, as it starts. */
+type ScrollGeometry = {
+  /** The scroll offset now. */
+  at: number;
+  /** The furthest it can go. */
+  max: number;
+  /** How far the `into` target is from where it is asked to be; else null. */
+  offBy: number | null;
+};
+
+/**
+ * Measured in the page, in one round trip: the element's offset and range
+ * along the axis, and for `into`, how far the target's box is from the place
+ * in the element's visible box that `block` names.
+ *
+ * The element's visible box is its client area (inside its borders, without
+ * its scrollbar), which `locator.boundingBox()` cannot give: that box
+ * includes both. For the page it is the viewport.
+ */
+function measureScroll(
+  el: Element,
+  args: { axis: "x" | "y"; into: Element | null; block: string },
+): ScrollGeometry {
+  const y = args.axis === "y";
+  const at = y ? el.scrollTop : el.scrollLeft;
+  const max = y
+    ? el.scrollHeight - el.clientHeight
+    : el.scrollWidth - el.clientWidth;
+  if (!args.into) return { at, max, offBy: null };
+  const page = el === document.scrollingElement;
+  const box = el.getBoundingClientRect();
+  const start = page
+    ? 0
+    : y
+      ? box.top + el.clientTop
+      : box.left + el.clientLeft;
+  const size = y ? el.clientHeight : el.clientWidth;
+  const target = args.into.getBoundingClientRect();
+  const from = y ? target.top : target.left;
+  const length = y ? target.height : target.width;
+  const offBy =
+    args.block === "start"
+      ? from - start
+      : args.block === "end"
+        ? from + length - (start + size)
+        : from + length / 2 - (start + size / 2);
+  return { at, max, offBy };
+}
+
+/**
+ * Sets the offset outright. `instant` overrides a `scroll-behavior: smooth`
+ * the element has, which would otherwise make each of these steps an
+ * animation of its own, on the compositor's clock.
+ */
+function setScroll(el: Element, args: { axis: "x" | "y"; to: number }): void {
+  el.scrollTo(
+    args.axis === "y"
+      ? { top: args.to, behavior: "instant" }
+      : { left: args.to, behavior: "instant" },
+  );
+}
 
 /** Members a script calls that are not steps: locator factories, and the driver's own. */
 const NOT_A_STEP =
@@ -530,6 +658,138 @@ export class RecordingSession {
 
     for (const modifier of options.modifiers ?? []) {
       await this.page.keyboard.up(modifier);
+    }
+  }
+
+  /**
+   * Scroll a pane, or the page, on the clip's clock.
+   *
+   * There was no way to do this that held still between runs. A wheel turned
+   * from `offCamera`, or `scrollIntoView`, hands the motion to the browser,
+   * whose smooth scrolling is an animation on the compositor's real clock,
+   * so the frames inside it showed the page wherever the machine had got it
+   * to, and two recordings of one clip differed there. Here the driver sets
+   * the offset itself, one minimum-jerk step a frame, before the frame's tick
+   * and its picture, so the same frame shows the same offset every run.
+   *
+   * The end is clamped to what the element can scroll, and the clamped
+   * value is what the timeline records. An element that cannot scroll at
+   * all is refused: it is nearly always the wrong element, a wrapper around
+   * the one that overflows, and a scroll that silently did nothing would
+   * pass every check and show nothing.
+   *
+   * The cursor holds where it is. A clip that wants this to read as a wheel
+   * moves the cursor over the pane first.
+   */
+  async scroll(
+    target: Locator | "page",
+    where: ScrollWhere,
+    options: ScrollOptions = {},
+  ): Promise<void> {
+    const ask = scrollAskOf(where);
+    const axis = options.axis ?? "y";
+    if (axis !== "y" && axis !== "x") {
+      throw new TypeError(
+        `scroll: \`axis\` is "y" or "x", got ${JSON.stringify(axis)}.`,
+      );
+    }
+    const durationMs = options.duration ?? this.motion.scrollDurationMs;
+    if (!(Number.isFinite(durationMs) && durationMs >= 0)) {
+      throw new TypeError(
+        `scroll: \`duration\` is milliseconds, 0 or more, got ${durationMs}.`,
+      );
+    }
+
+    // Measured through `boxOf` first, so a target that is not there fails
+    // here with the step named, and the box the step is known by is the
+    // pane's.
+    const rect: Rect =
+      target === "page"
+        ? {
+            x: 0,
+            y: 0,
+            w: this.options.viewport.width,
+            h: this.options.viewport.height,
+          }
+        : await this.boxOf(target);
+    if (ask.kind === "into") await this.boxOf(ask.target);
+    const element: ElementHandle<Element> | null =
+      target === "page"
+        ? (
+            await this.page.evaluateHandle(
+              () => document.scrollingElement ?? document.documentElement,
+            )
+          ).asElement()
+        : await target.elementHandle();
+    const into = ask.kind === "into" ? await ask.target.elementHandle() : null;
+
+    try {
+      if (!element || (ask.kind === "into" && !into)) {
+        throw new Error(
+          `scroll: ${target === "page" ? "the page" : target.toString()} left the page as the scroll began.`,
+        );
+      }
+      const geometry = await element.evaluate(measureScroll, {
+        axis,
+        into,
+        block: ask.kind === "into" ? ask.block : "center",
+      });
+      if (geometry.max <= 0) {
+        const name = target === "page" ? "The page" : target.toString();
+        throw new Error(
+          `${name} does not scroll ${axis === "y" ? "vertically" : "horizontally"}: ` +
+            "everything in it fits. The element that scrolls is usually one inside " +
+            "it, with `overflow: auto`; `versioncam inspect` at this moment shows it.",
+        );
+      }
+      const from = geometry.at;
+      const asked =
+        ask.kind === "by"
+          ? from + ask.px
+          : ask.kind === "into"
+            ? from + (geometry.offBy ?? 0)
+            : ask.to === "top"
+              ? 0
+              : ask.to === "bottom"
+                ? geometry.max
+                : ask.to;
+      const to = clamp(asked, 0, geometry.max);
+
+      // One step a frame, keyed to the frames themselves: the step for frame
+      // f is due at exactly the time `advanceTo` gives frame f, so each frame
+      // takes one step, never two and never none. The last step is the end
+      // itself, rather than arithmetic that lands a hair beside it.
+      const fps = this.options.fps;
+      const frames = Math.max(2, Math.round((durationMs / 1000) * fps));
+      const t1 = timeAt(this.frame + frames, fps);
+      for (let step = 1; step <= frames; step += 1) {
+        const offset =
+          step === frames ? to : from + (to - from) * minjerk(step / frames);
+        this.queue.push({
+          t: timeAt(this.frame + step, fps),
+          run: async () => {
+            await element.evaluate(setScroll, { axis, to: offset });
+            // A scrolled pane changes no node, and moves nothing under a
+            // cursor parked elsewhere, so the capture gate would see an
+            // unchanged page and skip every frame of the scroll. The driver
+            // knows it moved the page, as it knows when it pressed a key.
+            this.inputPending = true;
+          },
+        });
+      }
+      (this.timeline.scrolls ??= []).push({
+        t0: this.t,
+        t1,
+        rect,
+        axis,
+        from,
+        to,
+      });
+      this.pushHold(t1);
+      await this.advanceTo(t1);
+    } finally {
+      await element?.dispose();
+      await into?.dispose();
     }
   }
 

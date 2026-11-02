@@ -26,7 +26,12 @@ export type {
   ClipOptions,
   RunClipResult,
 } from "./driver/clip.js";
-export type { RecordingSession, SessionOptions } from "./driver/session.js";
+export type {
+  RecordingSession,
+  ScrollOptions,
+  ScrollWhere,
+  SessionOptions,
+} from "./driver/session.js";
 export { createGate } from "./driver/gate.js";
 export type { Gate } from "./driver/gate.js";
 export type { SettleOptions, SettleReport } from "./driver/settle.js";
@@ -47,6 +52,7 @@ export type {
   Mark,
   PointerAction,
   Rect,
+  Scroll,
   Timeline,
   Vec2,
 } from "./core/timeline.js";
