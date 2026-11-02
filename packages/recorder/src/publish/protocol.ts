@@ -73,10 +73,18 @@ export type PublishedRenderConfig = {
   theme: {
     accent: string;
     cursorScale: number;
+    /**
+     * The config's `theme.cursor`, from 0.6.0, and only when it is not the
+     * default; a renderer draws the default without it.
+     */
+    cursor?: { style: "light" | "dark"; ripple: boolean };
     /** The config's `theme.presentation`, or null when it is off. */
     presentation: Record<string, unknown> | null;
   };
-  /** The config's motion, every default filled in. */
+  /**
+   * The config's motion, every default filled in, but for the settings
+   * added since 0.5.3, which are sent only when they are not the default.
+   */
   motion: Record<string, unknown>;
   clock: { timezoneId: string; locale: string };
 };

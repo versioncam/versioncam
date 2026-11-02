@@ -124,3 +124,24 @@ export function cursorEnd(track: CursorTrack, fallback: Vec2): Vec2 {
   const last = track[track.length - 1];
   return last.kind === "move" ? last.to : last.at;
 }
+
+/**
+ * How the renderer draws the pointer: its arrow, and whether a click
+ * ripples.
+ *
+ * `"light"` is the white arrow with a dark outline every version has drawn;
+ * `"dark"` is the system's own, black with a hairline of white, which is
+ * what a screen recording of a Mac shows, and what a recording laid beside
+ * one has to show not to read as a different kind of video first. The
+ * ripple marks a click for a viewer who cannot hear it; a screen recording
+ * has none.
+ */
+export type CursorStyle = "light" | "dark";
+export type CursorLook = { style: CursorStyle; ripple: boolean };
+
+/**
+ * What a config that says nothing about the cursor gets, and so what every
+ * recording rendered before 0.6.0 shows. Here, in a module the render page
+ * also reads, so the two sides cannot disagree about it.
+ */
+export const DEFAULT_CURSOR: CursorLook = { style: "light", ripple: true };

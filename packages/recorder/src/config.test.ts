@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { outputSize, resolveConfig } from "./config.js";
+import { outputSize, renderConfigOf, resolveConfig } from "./config.js";
 
 const ROOT = "/tmp/app";
 
@@ -305,5 +305,75 @@ describe("webServer", () => {
     expect(bad({ command: "x", url: "localhost:5174" })).toThrow(
       /`webServer.url`/,
     );
+  });
+});
+
+describe("the cursor's look", () => {
+  it("is the white arrow with a ripple unless the config says otherwise", () => {
+    const c = resolveConfig({ baseUrl: "http://x" }, ROOT);
+    expect(c.theme.cursor).toEqual({ style: "light", ripple: true });
+    const dark = resolveConfig(
+      { baseUrl: "http://x", theme: { cursor: { style: "dark" } } },
+      ROOT,
+    );
+    expect(dark.theme.cursor).toEqual({ style: "dark", ripple: true });
+  });
+
+  it("refuses a style or a ripple the renderer cannot draw, by name", () => {
+    expect(() =>
+      resolveConfig(
+        { baseUrl: "http://x", theme: { cursor: { style: "black" as never } } },
+        ROOT,
+      ),
+    ).toThrow(/`theme.cursor.style` must be "light" or "dark", got "black"/);
+    expect(() =>
+      resolveConfig(
+        { baseUrl: "http://x", theme: { cursor: { ripple: "no" as never } } },
+        ROOT,
+      ),
+    ).toThrow(/`theme.cursor.ripple` must be true or false, got "no"/);
+  });
+});
+
+describe("the render config", () => {
+  // What `versioncam publish` sends, so what version.cam's strict schema
+  // checks: a default config must send no key 0.5.3 did not.
+  it("leaves out a setting added since 0.5.3 while it holds its default", () => {
+    const render = renderConfigOf(resolveConfig({ baseUrl: "http://x" }, ROOT));
+    expect(render.theme).not.toHaveProperty("cursor");
+    expect(render.motion).not.toHaveProperty("scrollDurationMs");
+    const named = renderConfigOf(
+      resolveConfig(
+        {
+          baseUrl: "http://x",
+          theme: { cursor: { style: "light", ripple: true } },
+          motion: { scrollDurationMs: 700 },
+        },
+        ROOT,
+      ),
+    );
+    expect(named).toEqual(render);
+  });
+
+  it("sends one the config changed", () => {
+    const render = renderConfigOf(
+      resolveConfig(
+        {
+          baseUrl: "http://x",
+          theme: { cursor: { style: "dark", ripple: false } },
+          motion: { scrollDurationMs: 900 },
+        },
+        ROOT,
+      ),
+    );
+    expect(render.theme.cursor).toEqual({ style: "dark", ripple: false });
+    expect(render.motion.scrollDurationMs).toBe(900);
+    const rippleOnly = renderConfigOf(
+      resolveConfig(
+        { baseUrl: "http://x", theme: { cursor: { ripple: false } } },
+        ROOT,
+      ),
+    );
+    expect(rippleOnly.theme.cursor).toEqual({ style: "light", ripple: false });
   });
 });

@@ -1,5 +1,5 @@
 import { evalCamera } from "../src/core/camera.js";
-import { evalCursor } from "../src/core/cursor.js";
+import { DEFAULT_CURSOR, evalCursor } from "../src/core/cursor.js";
 import {
   cameraToStatePixels,
   fadeEnvelope,
@@ -15,7 +15,8 @@ import {
   overlayCaptionAnchor,
 } from "../src/render/presentation.js";
 import type { RenderConfig } from "../src/config.js";
-import { CHROME, withAlpha } from "./theme.js";
+import { CHROME, CURSOR, withAlpha } from "./theme.js";
+import type { CursorPalette } from "./theme.js";
 
 export type Canvas2D = CanvasRenderingContext2D;
 
@@ -241,13 +242,14 @@ function drawCursor(
   at: Vec2,
   scale: number,
   cursorScale: number,
+  palette: CursorPalette,
 ): void {
   const s = cursorScale * scale;
   ctx.save();
   ctx.translate(at[0], at[1]);
   ctx.scale(s, s);
 
-  ctx.shadowColor = CHROME.cursorShadow;
+  ctx.shadowColor = palette.shadow;
   ctx.shadowBlur = 6 / s;
   ctx.shadowOffsetY = 2 / s;
 
@@ -261,10 +263,10 @@ function drawCursor(
   ctx.lineTo(12.1, 11.5);
   ctx.closePath();
 
-  ctx.fillStyle = CHROME.cursorFill;
+  ctx.fillStyle = palette.fill;
   ctx.fill();
   ctx.shadowColor = "transparent";
-  ctx.strokeStyle = CHROME.cursorStroke;
+  ctx.strokeStyle = palette.stroke;
   ctx.lineWidth = 1 / s;
   ctx.stroke();
   ctx.restore();
@@ -361,13 +363,19 @@ export function drawRecordingFrame(
   if (presentation?.frame) drawHairline(ctx, frameArea);
   drawHighlights(ctx, timeline, t, camera, frameArea, config);
 
+  // A config that never named a cursor sends none, from the recorder and
+  // from version.cam alike, and gets the one every earlier version drew.
+  const cursor = config.theme.cursor ?? DEFAULT_CURSOR;
   const { scale, ripples } = pointerStateAt(timeline, t, config);
-  drawRipples(ctx, ripples, camera, frameArea, config);
+  // The press scale stays when the ripple goes: the glyph shrinking under a
+  // held button is the cursor itself, the ring is something drawn on top.
+  if (cursor.ripple) drawRipples(ctx, ripples, camera, frameArea, config);
   drawCursor(
     ctx,
     sourceToOutput(evalCursor(timeline.cursor, t), camera, frameArea),
     scale,
     config.theme.cursorScale,
+    CURSOR[cursor.style],
   );
 
   drawCaption(ctx, timeline, t, frameArea, canvas, config);

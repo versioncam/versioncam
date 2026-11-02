@@ -168,6 +168,43 @@ describe("a recording's manifest", () => {
     ).toBeNull();
   });
 
+  it("sends, for a config that changes nothing, exactly the keys 0.5.3 sent", () => {
+    // version.cam refuses a render config with a key its renderer does not
+    // know. Every version.cam before cloud-v1.8.0 knows these and only
+    // these, so a default config from this version must publish to them.
+    const published = publishedRenderConfig(config());
+    expect(Object.keys(published).sort()).toEqual(
+      ["clock", "motion", "output", "theme"].sort(),
+    );
+    expect(Object.keys(published.theme).sort()).toEqual(
+      ["accent", "cursorScale", "presentation"].sort(),
+    );
+    expect(Object.keys(published.motion).sort()).toEqual(
+      [
+        "hoverDwellMs",
+        "clickDwellMinMs",
+        "clickDwellMaxMs",
+        "pressMinMs",
+        "pressMaxMs",
+        "lassoDurationMs",
+        "zoomDurationMs",
+        "defaultZoom",
+        "maxZoom",
+        "zoomPad",
+        "followZoom",
+        "followDeadZone",
+        "followSmoothingMs",
+        "highlightMs",
+        "rippleMs",
+        "rippleRadius",
+        "pressScale",
+        "pressScaleMs",
+        "crossfadeFrames",
+        "captionFadeS",
+      ].sort(),
+    );
+  });
+
   it("leaves the scenes module out of the render config", () => {
     const withScenes = resolveConfig(
       { baseUrl: "http://fixture.local", scenes: "demos/scenes.ts" },

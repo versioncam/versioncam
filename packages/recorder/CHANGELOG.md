@@ -18,6 +18,11 @@ and its entry here says how.
   `motion.scrollDurationMs` (700) is its default length. A recording keeps
   its scrolls in the timeline's new `scrolls`, which a recording without one
   does not have.
+- `theme.cursor: { style, ripple }` in the config. `style: "dark"` draws
+  the system's black arrow with a white hairline, as a screen recording of
+  a Mac shows it, and `ripple: false` draws no ring on a click. The default,
+  `{ style: "light", ripple: true }`, is the white arrow and the ring every
+  earlier version drew, to the byte.
 
 ### Changed
 
@@ -28,6 +33,11 @@ and its entry here says how.
   on its own clock, so the frames during one differed between runs. A clip
   whose app scrolled itself that way now shows the scroll land in a frame;
   `s.scroll` is how a clip shows one move.
+- `versioncam publish` sends `theme.cursor` and `motion.scrollDurationMs`
+  only when the config changes them, so a config that changes neither
+  publishes exactly what 0.5.3 did. One that changes either needs
+  version.cam from cloud-v1.8.0, which knows both; before it, the publish
+  is refused with a message that names the key.
 
 ## 0.5.3 (2026-11-01)
 

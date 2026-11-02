@@ -431,6 +431,89 @@ test.describe("rendering a recording", () => {
   });
 });
 
+test.describe("the cursor", () => {
+  /** A config whose recordings directory holds the fixture, with this cursor. */
+  function withCursor(cursor?: {
+    style?: "light" | "dark";
+    ripple?: boolean;
+  }): ResolvedConfig {
+    const config = testConfig(cursor ? { theme: { cursor } } : {});
+    mkdirSync(config.recordingsDir, { recursive: true });
+    cpSync(FIXTURE_RECORDING, join(config.recordingsDir, CLIP), {
+      recursive: true,
+    });
+    return config;
+  }
+
+  /** Mean brightness, 0 to 255, of the pixels where two frames differ. */
+  function brightnessWhereTheyDiffer(a: PNG, b: PNG): [number, number] {
+    let sumA = 0;
+    let sumB = 0;
+    let n = 0;
+    for (let i = 0; i < a.data.length; i += 4) {
+      const da = a.data[i] + a.data[i + 1] + a.data[i + 2];
+      const db = b.data[i] + b.data[i + 1] + b.data[i + 2];
+      if (da === db) continue;
+      sumA += da / 3;
+      sumB += db / 3;
+      n += 1;
+    }
+    expect(n).toBeGreaterThan(0);
+    return [sumA / n, sumB / n];
+  }
+
+  test("is the dark arrow when asked, the ripple a switch, and the default as it was", async () => {
+    const browser = await launchBrowser();
+    const frameOf = async (config: ResolvedConfig, frame: number) =>
+      renderFrame(
+        browser,
+        config,
+        { kind: "recording", id: CLIP, dir: join(config.recordingsDir, CLIP) },
+        frame,
+      );
+    try {
+      const timeline = await readTimeline(withCursor(), CLIP);
+      const up = timeline.pointer.find((event) => event.kind === "up");
+      expect(up).toBeDefined();
+      // Six frames after the release: a tenth of a second into the ripple's
+      // 400 ms, with the ring well grown and the press scale long gone.
+      const rippling = Math.ceil((up?.t ?? 0) * timeline.fps) + 6;
+      const still = 0;
+
+      const plain = withCursor();
+      const named = withCursor({ style: "light", ripple: true });
+      const noRipple = withCursor({ style: "light", ripple: false });
+      const dark = withCursor({ style: "dark", ripple: false });
+
+      // The default, named or not, is the arrow every earlier version drew.
+      const plainStill = await frameOf(plain, still);
+      expect((await frameOf(named, still)).equals(plainStill)).toBe(true);
+      expect((await frameOf(noRipple, still)).equals(plainStill)).toBe(true);
+
+      // Without the ripple, the frame after a click loses only the ring.
+      const plainRippling = await frameOf(plain, rippling);
+      expect((await frameOf(noRipple, rippling)).equals(plainRippling)).toBe(
+        false,
+      );
+
+      // The dark arrow differs wherever the cursor is, and is darker there.
+      const darkStill = await frameOf(dark, still);
+      expect(darkStill.equals(plainStill)).toBe(false);
+      const [light, black] = brightnessWhereTheyDiffer(
+        PNG.sync.read(plainStill),
+        PNG.sync.read(darkStill),
+      );
+      expect(black).toBeLessThan(light - 60);
+
+      // And it draws the same bytes every time, from a page of its own.
+      const darkRippling = await frameOf(dark, rippling);
+      expect((await frameOf(dark, rippling)).equals(darkRippling)).toBe(true);
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
 test.describe("a settle whose page did not change", () => {
   test("renders no dissolve, and no dip", async () => {
     // 0.5.0 drew the state at the crossfade's alpha over the backdrop when

@@ -1,5 +1,7 @@
 import { isAbsolute, resolve } from "node:path";
 import type { Page } from "playwright";
+import { DEFAULT_CURSOR } from "./core/cursor.js";
+import type { CursorLook, CursorStyle } from "./core/cursor.js";
 import { MOTION } from "./core/motion-defaults.js";
 
 /**
@@ -214,6 +216,13 @@ export type RecorderConfig = {
     /** Click ripple and highlight ring. */
     accent?: string;
     cursorScale?: number;
+    /**
+     * The pointer's look: `style` `"light"`, the white arrow, or `"dark"`,
+     * the system's black one; `ripple`, whether a click draws a ring.
+     * Default `{ style: "light", ripple: true }`, as every version before
+     * 0.6.0 drew it.
+     */
+    cursor?: { style?: CursorStyle; ripple?: boolean };
     presentation?: Presentation;
   };
   /**
@@ -255,6 +264,7 @@ export type ResolvedConfig = {
   theme: {
     accent: string;
     cursorScale: number;
+    cursor: CursorLook;
     presentation: Presentation | null;
   };
   output: { width: number; height: number };
@@ -272,6 +282,31 @@ export function defineRecorder(config: RecorderConfig): RecorderConfig {
 
 function fail(field: string, why: string): never {
   throw new Error(`versioncam config: \`${field}\` ${why}`);
+}
+
+/**
+ * Checked here, by name, because a style the renderer does not know would
+ * otherwise fail every render of every clip, inside the render page, far
+ * from the line of config that caused it.
+ */
+function cursorOf(
+  given: { style?: unknown; ripple?: unknown } | undefined,
+): CursorLook {
+  const style = given?.style ?? DEFAULT_CURSOR.style;
+  if (style !== "light" && style !== "dark") {
+    fail(
+      "theme.cursor.style",
+      `must be "light" or "dark", got ${JSON.stringify(style)}`,
+    );
+  }
+  const ripple = given?.ripple ?? DEFAULT_CURSOR.ripple;
+  if (typeof ripple !== "boolean") {
+    fail(
+      "theme.cursor.ripple",
+      `must be true or false, got ${JSON.stringify(ripple)}`,
+    );
+  }
+  return { style, ripple };
 }
 
 /**
@@ -502,6 +537,7 @@ export function resolveConfig(
       // A neutral blue, not anyone's brand. An app says its own accent.
       accent: config.theme?.accent ?? "#2f6fed",
       cursorScale: config.theme?.cursorScale ?? 2.1,
+      cursor: cursorOf(config.theme?.cursor),
       presentation: presentation ?? null,
     },
     output: outputSize(viewport, outputWidth),
@@ -518,9 +554,13 @@ export type RenderConfig = {
   theme: {
     accent: string;
     cursorScale: number;
+    /** Absent while it is the default: see `renderConfigOf`. */
+    cursor?: CursorLook;
     presentation: Presentation | null;
   };
-  motion: Motion;
+  /** Every setting, but `scrollDurationMs` only when it is not the default. */
+  motion: Omit<Motion, "scrollDurationMs"> &
+    Partial<Pick<Motion, "scrollDurationMs">>;
   /**
    * The scenes module's path. The page is served a bundle of it, and names
    * the file it came from when it cannot read the scenes out of it.
@@ -528,11 +568,31 @@ export type RenderConfig = {
   scenes: string | null;
 };
 
+/**
+ * A setting added since 0.5.3 is left out while it holds its default.
+ *
+ * This is also what `versioncam publish` sends, and version.cam holds a
+ * published render config to the keys its renderer knows, refusing any
+ * other. A key that every publish from 0.6.0 carried would have been
+ * refused by every version.cam before cloud-v1.8.0, for configs that
+ * changed nothing. Left out, a default config publishes exactly what 0.5.3
+ * did, and a renderer takes a missing setting as its default, which draws
+ * the same video. A config that does change one sends it, and needs a
+ * version.cam that knows it.
+ */
 export function renderConfigOf(config: ResolvedConfig): RenderConfig {
+  const { cursor, ...theme } = config.theme;
+  const { scrollDurationMs, ...motion } = config.motion;
+  const defaultCursor =
+    cursor.style === DEFAULT_CURSOR.style &&
+    cursor.ripple === DEFAULT_CURSOR.ripple;
   return {
     output: config.output,
-    theme: config.theme,
-    motion: config.motion,
+    theme: defaultCursor ? theme : { ...theme, cursor },
+    motion:
+      scrollDurationMs === MOTION.scrollDurationMs
+        ? motion
+        : { ...motion, scrollDurationMs },
     scenes: config.scenes,
   };
 }

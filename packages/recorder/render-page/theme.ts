@@ -23,15 +23,36 @@ export const CHROME = {
   captionScrim: "rgba(0, 0, 0, 0.45)",
   captionScrimHeight: 86,
 
-  cursorFill: "#ffffff",
-  cursorStroke: "rgba(0, 0, 0, 0.55)",
-  cursorShadow: "rgba(0, 0, 0, 0.35)",
-
   ringWidth: 3,
   ringRadius: 10,
   spotlightDim: 0.55,
   spotlightTint: "6, 2, 16",
 } as const;
+
+/**
+ * The arrow's colours, by `theme.cursor.style`. The geometry is one arrow
+ * for both, and so is the outline's width, one output pixel.
+ *
+ * `light` is the white arrow every version drew before 0.6.0, and must stay
+ * these numbers: every recording rendered with the default draws with them.
+ * `dark` is macOS's own pointer, black with a white hairline and a softer
+ * shadow, so a clip can sit beside a screen recording of the same app and
+ * not read as a different kind of video before anything in it is compared.
+ */
+export const CURSOR = {
+  light: {
+    fill: "#ffffff",
+    stroke: "rgba(0, 0, 0, 0.55)",
+    shadow: "rgba(0, 0, 0, 0.35)",
+  },
+  dark: {
+    fill: "#000000",
+    stroke: "rgba(255, 255, 255, 0.9)",
+    shadow: "rgba(0, 0, 0, 0.3)",
+  },
+} as const;
+
+export type CursorPalette = (typeof CURSOR)[keyof typeof CURSOR];
 
 /**
  * `#rrggbb` plus an alpha, for the ring's glow.

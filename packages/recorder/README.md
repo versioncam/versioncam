@@ -152,7 +152,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `review` | `minSeconds: 9`, `maxSeconds: 11` | How long a clip should run. `versioncam review` holds clips to it. |
 | `cursorStart` | `{ x: 0.72, y: 0.28 }` | Where the cursor rests in the first frame, as fractions of the viewport. |
 | `clock` | `time: "2026-09-01T09:00:00Z"`, `timezoneId: "UTC"`, `locale: "en-GB"` | The instant, time zone and locale the app sees. |
-| `theme` | `accent: "#2f6fed"`, `cursorScale: 2.1` | The colour of ripples and rings, the cursor's size, and an optional `presentation`. See *Presentation*. |
+| `theme` | `accent: "#2f6fed"`, `cursorScale: 2.1`, `cursor: { style: "light", ripple: true }` | The colour of ripples and rings, the cursor's size and look, and an optional `presentation`. `cursor: { style: "dark", ripple: false }` draws the system's black arrow and no ring on a click, as a screen recording shows them. See *Presentation*. |
 | `motion` | `MOTION` | Dwells, strokes, scrolls and camera timing. `MOTION` is exported, with the reason for each number beside it. |
 | `outDir` | `".versioncam"` | Where everything the recorder writes goes. Gitignore it. |
 | `scenes` | none | A module whose default export is `Record<string, Scene>`, keyed by scene id: `export default { [intro.id]: intro }`. A named export is not read, and a module with no default export is refused. |
