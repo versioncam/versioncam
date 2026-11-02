@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { STALE_DAYS, describeReplay } from "../../driver/replay.js";
 import { launchBrowser } from "../../driver/launch.js";
 import { RECORDER_VERSION, runClip } from "../../driver/clip.js";
 import type { ClipDefinition } from "../../driver/clip.js";
@@ -69,6 +70,7 @@ async function checkAll(
   process.stdout.write(
     `\n${clips.length - failures.length}/${clips.length} clips still match the app.\n`,
   );
+  for (const line of staleReplays(config, clips)) process.stdout.write(line);
   for (const { id, error } of failures) {
     process.stderr.write(`\n${id}\n  ${error.message}\n`);
   }
@@ -76,6 +78,32 @@ async function checkAll(
     writeReport(reportPath, checkReport(config, clips, failures));
   }
   return failures.length > 0 ? 1 : 0;
+}
+
+/**
+ * A line for each clip whose replay is older than `STALE_DAYS`.
+ *
+ * By age alone, and said to be: a clip that passes against its replay
+ * proves the app still makes the requests it made, not that the server
+ * still answers them that way, and nothing here can know whether it does.
+ * Three months is long enough that it is worth a person asking.
+ */
+function staleReplays(
+  config: ResolvedConfig,
+  clips: ClipDefinition[],
+): string[] {
+  if (!config.replay) return [];
+  const lines: string[] = [];
+  for (const clip of clips) {
+    const found = describeReplay(config.replay.dir, clip.id);
+    if (!found.exists || !(found.ageDays > STALE_DAYS)) continue;
+    lines.push(
+      `warn  ${clip.id}: its replay was recorded ${found.ageDays} days ago. ` +
+        "The clip shows the server's answers of that day; if they have changed, " +
+        `record it again with \`versioncam record ${clip.id} --replay record\`.\n`,
+    );
+  }
+  return lines;
 }
 
 /**

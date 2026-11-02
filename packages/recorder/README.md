@@ -154,6 +154,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `clock` | `time: "2026-09-01T09:00:00Z"`, `timezoneId: "UTC"`, `locale: "en-GB"` | The instant, time zone and locale the app sees. |
 | `theme` | `accent: "#2f6fed"`, `cursorScale: 2.1`, `cursor: { style: "light", ripple: true }` | The colour of ripples and rings, the cursor's size and look, and an optional `presentation`. `cursor: { style: "dark", ripple: false }` draws the system's black arrow and no ring on a click, as a screen recording shows them. See *Presentation*. |
 | `motion` | `MOTION` | Dwells, strokes, scrolls and camera timing. `MOTION` is exported, with the reason for each number beside it. |
+| `replay` | none | Responses recorded once and served on every run after: tiles, a model's answers, a job's status. See *Live data*. |
 | `outDir` | `".versioncam"` | Where everything the recorder writes goes. Gitignore it. |
 | `scenes` | none | A module whose default export is `Record<string, Scene>`, keyed by scene id: `export default { [intro.id]: intro }`. A named export is not read, and a module with no default export is refused. |
 | `sequence` | none | Clip ids, in order, for `versioncam render --sequence`. |
@@ -374,11 +375,13 @@ the wreckage would help nobody.
 ```
 versioncam record [id…]            drive the app and capture frames
     --draft                        15fps at CSS scale: cheap, for writing clips
+    --replay <mode>                auto, record, replay or live, over the config's replay
 versioncam check [id…]             record every clip; exit 1 if any breaks
     --report <file>                and write each clip's result there, as JSON
 versioncam stability [id…]         record each clip twice the same way; stable or not
     --runs <n>                     how many times (default 2)
     --full                         at full quality rather than draft
+    --replay <mode>                as for record
 ```
 
 ### Review
@@ -883,6 +886,53 @@ its CSS motion:
   iframe, which stay zeroed since nothing drives an iframe's clock. A clip
   that films one of the first two may differ between runs: `stability` says
   so.
+
+### Live data
+
+A map's tiles, a model's answer, a job's status, a count that grows: each
+comes from a server, at the server's speed and in its words of the day, so
+two recordings of a clip that shows one differ wherever it reaches the page.
+`replay` records those responses the first time a clip runs and serves them,
+from a file, on every run after:
+
+```ts
+replay: {
+  record: ["https://tiles.example.com/**", "**/api/chat/**"],
+  // A stream the page reads over time, one event every 300 ms of the clip.
+  pace: [{ url: "**/api/chat/*/stream", chunkMs: 300 }],
+},
+```
+
+| Field | Default | What it sets |
+|---|---|---|
+| `record` | required | The requests to record and replay: URL globs, as Playwright writes them, or regular expressions. |
+| `mode` | `"auto"` | `"auto"` replays a clip whose file exists and records one whose file does not. `"record"` always records, `"replay"` fails without a file, `"live"` ignores it. `--replay <mode>` on `record` and `stability` overrides it for one run. |
+| `dir` | `"replay"` | Where the files go, beside the config. Commit them: a replay is an input, like a fixture, and CI needs it to record the clip the same way. |
+| `pace` | none | Responses the page reads a piece at a time, an event stream or lines of JSON: delivered one event or one line every `chunkMs` of the page's clock, so each piece lands on the same frame every run, at any frame rate. |
+| `redact` | none | Query parameters left out of the file, and of the match, by name. |
+| `onMissing` | `"fail"` | A request the replay covers and does not hold fails the clip, naming it, since a request that quietly went live is what this exists to stop. `"live"` sends it to the network with a warning instead. |
+
+Each clip has its own file, `replay/<clip>.har`, a HAR that a browser's
+developer tools can open. Text bodies are in it, where a diff can read them;
+binary ones, tiles and images, sit beside it under `replay/bodies/`, named by
+their hash, so clips that load the same tiles keep them once. The
+`Authorization`, `Cookie`, `Set-Cookie` and `X-API-Key` headers are never
+written. The bodies are written as the server sent them, so read a replay
+before committing it if the server's answers can hold anything private.
+
+A request the same URL answers several times, a job's status polled until it
+is done, is answered in the order it was recorded, and the last answer again
+after that. A request the clip answers itself, with `page.route` from
+`offCamera`, never reaches the replay, so a hand-written mock still wins
+where a clip has one. The frame loop waits for the replay's answers, so a
+response arrives in the frame it was asked for on every run.
+
+`doctor` lists each clip's replay, how many requests it holds and when it
+was recorded, and `check` points out one older than ninety days. That is by
+age alone: a clip that passes against its replay proves the app still asks
+for what it asked for, not that the server still answers the same way. When
+the app changes what it fetches, the clip fails and names the request; record
+it again with `versioncam record <id> --replay record`.
 
 ### When a clip will not reproduce
 

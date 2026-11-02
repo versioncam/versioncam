@@ -34,11 +34,13 @@ Write
 Record
   versioncam record [id…]            drive the app and capture frames
       --draft                        15fps at CSS scale: cheap, for writing clips
+      --replay <mode>                auto, record, replay or live, over the config's replay
   versioncam check [id…]             record every clip; exit 1 if any breaks
       --report <file>                and write each clip's result there, as JSON
   versioncam stability [id…]         record each clip twice the same way; stable or not
       --runs <n>                     how many times (default 2)
       --full                         at full quality rather than draft
+      --replay <mode>                as for record
 
 Review
   versioncam sheet <id>              an eight-frame contact sheet

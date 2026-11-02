@@ -5,9 +5,11 @@ import type { ResolvedConfig } from "../../config.js";
 import {
   NO_CONFIG,
   findConfigFile,
+  loadClips,
   loadConfig,
   loadSceneIds,
 } from "../../loader.js";
+import { STALE_DAYS, describeReplay } from "../../driver/replay.js";
 
 type Check = { name: string; ok: boolean; detail: string; fix?: string };
 
@@ -107,6 +109,55 @@ async function scenesCheck(cwd: string): Promise<Check | null> {
 }
 
 /**
+ * Each clip's replay: whether it has one, how many requests it holds, and
+ * how old it is. Never a failure: a clip without one records it on its first
+ * run. Null for a config without `replay`.
+ *
+ * The age is the only staleness anyone can tell from here. Whether the
+ * server's answers have changed since is not knowable without asking it, so
+ * an old replay is pointed out, not judged.
+ */
+async function replayCheck(cwd: string): Promise<Check | null> {
+  let config: ResolvedConfig;
+  try {
+    config = await loadConfig(cwd);
+  } catch {
+    return null;
+  }
+  const replay = config.replay;
+  if (!replay) return null;
+  let ids: string[];
+  try {
+    ids = (await loadClips(config, [])).map((clip) => clip.id);
+  } catch (error) {
+    return {
+      name: "replay",
+      ok: false,
+      detail: `the clips did not load: ${(error as Error).message.split("\n")[0]}`,
+    };
+  }
+  const lines = ids.map((id) => {
+    const found = describeReplay(replay.dir, id);
+    if (!found.exists) return `${id}: none yet; its first recording makes one`;
+    const age = Number.isNaN(found.ageDays)
+      ? "of unknown age"
+      : `${found.ageDays} days old`;
+    const stale =
+      found.ageDays > STALE_DAYS
+        ? ", older than any answer should be trusted to stay"
+        : "";
+    return `${id}: ${found.requests} requests, recorded ${found.recorded.slice(0, 10)}, ${age}${stale}`;
+  });
+  return {
+    name: "replay",
+    ok: true,
+    detail: [`${replay.dir} (mode ${replay.mode})`, ...lines].join(
+      "\n            ",
+    ),
+  };
+}
+
+/**
  * Can this machine record and encode?
  *
  * Reports every check rather than stopping at the first failure, because the
@@ -169,6 +220,8 @@ export async function doctor(): Promise<number> {
   if (config !== null) {
     const scenes = await scenesCheck(process.cwd());
     if (scenes) checks.push(scenes);
+    const replay = await replayCheck(process.cwd());
+    if (replay) checks.push(replay);
     checks.push(await appCheck(process.cwd()));
   }
 

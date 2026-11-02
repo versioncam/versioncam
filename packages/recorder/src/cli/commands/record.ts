@@ -4,7 +4,9 @@ import { parseArgs } from "node:util";
 import { launchBrowser } from "../../driver/launch.js";
 import { runClip } from "../../driver/clip.js";
 import type { ClipDefinition } from "../../driver/clip.js";
+import { isReplayMode } from "../../config.js";
 import type { ResolvedConfig } from "../../config.js";
+import type { ReplayMode } from "../../driver/replay.js";
 import { formatTiming } from "../../core/timing.js";
 import { loadClips, loadConfig } from "../../loader.js";
 import { drivingApp } from "../app.js";
@@ -22,11 +24,19 @@ import { ensureFailure } from "../../driver/reports.js";
 export async function record(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
-    options: { draft: { type: "boolean", default: false } },
+    options: {
+      draft: { type: "boolean", default: false },
+      replay: { type: "string" },
+    },
     strict: false,
     allowPositionals: true,
   });
   const draft = values.draft === true;
+  const replay = replayModeOf(values.replay);
+  if (replay instanceof Error) {
+    process.stderr.write(`${replay.message}\n`);
+    return 1;
+  }
 
   const config = await loadConfig(process.cwd());
   const clips = await loadClips(config, positionals as string[]);
@@ -40,13 +50,28 @@ export async function record(argv: string[]): Promise<number> {
     return 1;
   }
 
-  return drivingApp(config, () => recordAll(config, clips, draft));
+  return drivingApp(config, () => recordAll(config, clips, draft, replay));
+}
+
+/**
+ * `--replay <mode>`, checked: a mode misspelt would otherwise be read as the
+ * config's, and record over a replay someone meant to keep.
+ */
+export function replayModeOf(
+  value: string | boolean | undefined,
+): ReplayMode | undefined | Error {
+  if (value === undefined) return undefined;
+  if (isReplayMode(value)) return value;
+  return new Error(
+    `--replay is auto, record, replay or live, got ${JSON.stringify(value)}.`,
+  );
 }
 
 async function recordAll(
   config: ResolvedConfig,
   clips: ClipDefinition[],
   draft: boolean,
+  replay: ReplayMode | undefined,
 ): Promise<number> {
   const browser = await launchBrowser();
   const failures: { id: string; error: Error }[] = [];
@@ -57,6 +82,7 @@ async function recordAll(
       try {
         const { timeline, cost } = await runClip(browser, config, clip, {
           draft,
+          replay,
         });
         // Both seconds are named. The line used to print "(7.5s) … — 2.6s" and
         // leave the reader to work out that the first is the clip and the

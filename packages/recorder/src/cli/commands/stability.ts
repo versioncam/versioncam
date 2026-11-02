@@ -1,6 +1,8 @@
 import { copyFileSync, mkdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
+import type { ReplayMode } from "../../driver/replay.js";
+import { replayModeOf } from "./record.js";
 import { runClip } from "../../driver/clip.js";
 import type { ClipDefinition } from "../../driver/clip.js";
 import { compareRecordings, stateFileAt } from "../../driver/compare.js";
@@ -31,6 +33,7 @@ export async function stability(argv: string[]): Promise<number> {
       // Accepted for saying so explicitly; drafting is the default.
       draft: { type: "boolean" },
       full: { type: "boolean" },
+      replay: { type: "string" },
     },
     strict: false,
     allowPositionals: true,
@@ -44,6 +47,11 @@ export async function stability(argv: string[]): Promise<number> {
     return 1;
   }
   const draft = values.full !== true;
+  const replay = replayModeOf(values.replay);
+  if (replay instanceof Error) {
+    process.stderr.write(`${replay.message}\n`);
+    return 1;
+  }
 
   const config = await loadConfig(process.cwd());
   const clips = await loadClips(config, positionals as string[]);
@@ -56,7 +64,9 @@ export async function stability(argv: string[]): Promise<number> {
     return 1;
   }
 
-  return drivingApp(config, () => compareRuns(config, clips, runs, draft));
+  return drivingApp(config, () =>
+    compareRuns(config, clips, runs, draft, replay),
+  );
 }
 
 async function compareRuns(
@@ -64,6 +74,7 @@ async function compareRuns(
   clips: ClipDefinition[],
   runs: number,
   draft: boolean,
+  replay: ReplayMode | undefined,
 ): Promise<number> {
   const browser = await launchBrowser();
   let stable = true;
@@ -80,7 +91,7 @@ async function compareRuns(
             browser,
             { ...config, recordingsDir: into },
             clip,
-            { draft },
+            { draft, replay },
           );
           recordings.push({ dir, timeline });
         } catch (error) {
