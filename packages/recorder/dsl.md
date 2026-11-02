@@ -129,6 +129,7 @@ already is. The press lasts 70 to 100 milliseconds, seeded.
 | Option | Default | What it sets |
 |---|---|---|
 | `dwell` | `80` to `150`, seeded | How long to rest on the target before pressing. |
+| `modifiers` | none | Keys held through the press: `["Shift"]` for a shift-click, `["Meta"]`, `["Alt"]`, `["Control"]`. |
 
 ### `drag(target, from, to, options?)`
 
@@ -141,10 +142,15 @@ the drag survives a layout change: `{ x: 0.18, y: 0.5 }` to
 Mind the edges. A chart's axis labels live inside its own box, and a drag
 that starts at x 0.08 selects that text instead of the control.
 
+`drag(from, to, options?)` is the other form: from one thing to another,
+each a locator or a point, such as a file onto a dropzone or a card onto a
+column. It is told apart by its second argument, which is a locator or a
+point there, and a fraction `{ x, y }` in the first form.
+
 | Option | Default | What it sets |
 |---|---|---|
 | `duration` | `1400` | How long the stroke takes, from press to release. |
-| `modifiers` | none | Keys held through the stroke: `["Shift"]`, `["Alt"]`, or both. |
+| `modifiers` | none | Keys held through the stroke: `["Shift"]`, `["Alt"]`, `["Meta"]`, `["Control"]`. |
 
 ### `lasso(target, planner, options?)`
 
@@ -192,6 +198,37 @@ instant.
 |---|---|---|
 | `duration` | `700` | How long the scroll takes. Two frames at the least. `motion.scrollDurationMs` sets the default. |
 | `axis` | `"y"` | `"x"` scrolls sideways. `"top"` is then the left end and `"bottom"` the right. |
+
+### `fileWindow(files, options?)`
+
+Draw a file window over the page, listing `files`, to drag onto the app's
+dropzone: the browser's own file dialog is outside the page, and nothing can
+film it. It looks like a Finder window. Returns `{ item(i), close() }`:
+`item(i)` is row `i` as a locator, for `click`, `hover` and `drag`.
+
+```ts
+const files = await s.fileWindow(
+  [{ name: "cases.csv", content: csv }, { name: "sites.csv", content: sites }],
+  { title: "Case data" },
+);
+await s.click(files.item(0));
+await s.click(files.item(1), { modifiers: ["Shift"] });
+await s.drag(files.item(0), s.byTestId("dropzone"), { duration: 1000 });
+```
+
+A click selects one row, a click with Shift extends to it, and one with
+Meta adds or removes it. A press on a selected row drags the whole
+selection, and letting go over the page sends the element under the pointer
+the drag events a real drag sends, carrying the files as `File` objects, so
+the app takes them through its own dropzone. The window then closes. A file
+is `{ name, content?, type?, size? }`; the type and the Size and Kind columns
+follow from the name and the content unless given. The window is staged:
+say so wherever the clip is shown.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `title` | `"Files"` | The title bar. |
+| `at` | `{ x: 0.52, y: 0.42 }` | The window's top left corner, as fractions of the viewport. |
 
 ## Keyboard
 

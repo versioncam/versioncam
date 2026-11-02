@@ -199,6 +199,7 @@ happened again the first time an agent used it.
 | document reloaded mid-clip | something navigated; find the trigger and avoid it |
 | drag or lasso selected nothing | `measure`, re-author geometry as fractions of the real box |
 | the frames inside a scroll differ between runs, or the page scrolls on its own | `s.scroll(pane, { by })`, `{ to }` or `{ into }`; never `scrollIntoView` or `mouse.wheel` from `offCamera`, which the browser animates on its own clock |
+| the clip has to show files being uploaded | `s.fileWindow([...])`, click the rows (Shift to extend), then `s.drag(files.item(0), dropzone)`; never `setInputFiles` from `offCamera`, which shows the files arriving from nowhere. Say in the summary that the window is staged |
 | `scroll` says the element does not scroll | it is a wrapper; `inspect` at that moment and scroll the child with `overflow: auto` |
 | duration drift | adjust holds, never the beats |
 | tooltip / menu open in a frame it should not be | move the cursor start; add a hold before the next action |

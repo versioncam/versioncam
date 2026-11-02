@@ -27,11 +27,15 @@ export type {
   RunClipResult,
 } from "./driver/clip.js";
 export type {
+  DragOptions,
+  FileWindow,
+  Modifier,
   RecordingSession,
   ScrollOptions,
   ScrollWhere,
   SessionOptions,
 } from "./driver/session.js";
+export type { FileWindowOptions, StagedFile } from "./driver/file-window.js";
 export { createGate } from "./driver/gate.js";
 export type { Gate } from "./driver/gate.js";
 export type { SettleOptions, SettleReport } from "./driver/settle.js";

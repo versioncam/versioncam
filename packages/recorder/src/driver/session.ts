@@ -31,6 +31,8 @@ import type { RecordingTiming } from "../core/timing.js";
 import { TICK_MS, settlePage } from "./settle.js";
 import type { SettleOptions, SettleReport } from "./settle.js";
 import { FRAME_PROBE, SYNC_TRANSITIONS } from "./page-hooks.js";
+import { drawFileWindow, fileRows } from "./file-window.js";
+import type { FileWindowOptions, StagedFile } from "./file-window.js";
 import type { FrameProbe } from "./page-hooks.js";
 import type { CaptureConfig, ResolvedConfig } from "../config.js";
 
@@ -73,6 +75,19 @@ export type ScrollWhere =
   | { into: Locator; block?: "start" | "center" | "end" };
 
 export type ScrollOptions = { duration?: number; axis?: "y" | "x" };
+
+/** Keys held through a click or a stroke. */
+export type Modifier = "Shift" | "Alt" | "Meta" | "Control";
+
+export type DragOptions = { duration?: number; modifiers?: Modifier[] };
+
+/** What `fileWindow` hands back: its rows, to click and drag, and a way to close it. */
+export type FileWindow = {
+  /** Row `i`, as a locator, for `click`, `hover` and `drag`. */
+  item(i: number): Locator;
+  /** Fade it out without dropping anything. */
+  close(): Promise<void>;
+};
 
 /** A `ScrollWhere`, checked, as the one form it is. */
 type ScrollAsk =
@@ -513,7 +528,7 @@ export class RecordingSession {
    */
   async click(
     target?: Locator | Vec2,
-    options: { dwell?: number } = {},
+    options: { dwell?: number; modifiers?: Modifier[] } = {},
   ): Promise<void> {
     if (target) await this.moveTo(target);
     const dwell =
@@ -524,6 +539,12 @@ export class RecordingSession {
     this.pushHold(this.t + dwell / 1000);
     await this.advanceTo(this.t + dwell / 1000);
 
+    // Held around the press alone, as a hand holds Shift for a shift-click:
+    // a key down during the approach would change what hovering does in
+    // some apps, and is not what anyone watching expects.
+    for (const modifier of options.modifiers ?? []) {
+      await this.page.keyboard.down(modifier);
+    }
     await this.pressMouse("down");
 
     const pressMs =
@@ -533,6 +554,9 @@ export class RecordingSession {
     await this.advanceTo(this.t + pressMs / 1000);
 
     await this.pressMouse("up");
+    for (const modifier of options.modifiers ?? []) {
+      await this.page.keyboard.up(modifier);
+    }
   }
 
   /**
@@ -559,18 +583,53 @@ export class RecordingSession {
    * and a drag starting at x 0.08 selects that text instead of the control.
    */
   async drag(
+    from: Locator | Vec2,
+    to: Locator | Vec2,
+    options?: DragOptions,
+  ): Promise<void>;
+  async drag(
     target: Locator | Rect,
     from: { x: number; y: number },
     to: { x: number; y: number },
-    options: { duration?: number; modifiers?: ("Shift" | "Alt")[] } = {},
+    options?: DragOptions,
+  ): Promise<void>;
+  /**
+   * The second form, from one thing to another: a file onto a dropzone, a
+   * card onto a column. Told apart by its second argument, which is a
+   * locator or a point there and a fraction `{ x, y }` in the first form.
+   */
+  async drag(
+    a: Locator | Rect | Vec2,
+    b: Locator | Vec2 | { x: number; y: number },
+    c?: { x: number; y: number } | DragOptions,
+    d: DragOptions = {},
   ): Promise<void> {
-    const box = isRect(target) ? target : await this.boxOf(target);
-    const at = (f: { x: number; y: number }): Vec2 => [
-      box.x + box.w * f.x,
-      box.y + box.h * f.y,
-    ];
-    const start = at(from);
-    const end = at(to);
+    let start: Vec2;
+    let end: Vec2;
+    let options: DragOptions;
+    const isTarget = (v: unknown): v is Locator | Vec2 =>
+      Array.isArray(v) ||
+      typeof (v as Locator | null)?.elementHandle === "function";
+    if (isTarget(b)) {
+      if (isRect(a as Locator | Rect)) {
+        throw new TypeError(
+          "drag: from one thing to another takes two locators or points; a rect goes with fractions of it.",
+        );
+      }
+      start = await this.resolvePoint(a as Locator | Vec2);
+      end = await this.resolvePoint(b);
+      options = (c as DragOptions | undefined) ?? {};
+    } else {
+      const target = a as Locator | Rect;
+      const box = isRect(target) ? target : await this.boxOf(target);
+      const at = (f: { x: number; y: number }): Vec2 => [
+        box.x + box.w * f.x,
+        box.y + box.h * f.y,
+      ];
+      start = at(b);
+      end = at(c as { x: number; y: number });
+      options = d;
+    }
 
     const durationMs = options.duration ?? this.motion.lassoDurationMs;
     const frames = Math.max(
@@ -796,6 +855,55 @@ export class RecordingSession {
       await element?.dispose();
       await into?.dispose();
     }
+  }
+
+  /**
+   * A file window drawn over the page, listing `files`, to select and drag
+   * onto the app's dropzone: the upload a clip can film, since the
+   * browser's own file dialog is outside the page. See `file-window.ts`.
+   *
+   * Opening it is a beat, so this waits for its fade, a settle's worth,
+   * before it returns. Its rows are locators on what it drew.
+   */
+  async fileWindow(
+    files: StagedFile[],
+    options: FileWindowOptions = {},
+  ): Promise<FileWindow> {
+    const rows = fileRows(files);
+    const at = options.at ?? { x: 0.52, y: 0.42 };
+    if (!(at.x >= 0 && at.x < 1 && at.y >= 0 && at.y < 1)) {
+      throw new TypeError(
+        `fileWindow: \`at\` is fractions of the viewport, from 0 to under 1, got ${JSON.stringify(at)}.`,
+      );
+    }
+    await this.page.evaluate(drawFileWindow, {
+      rows,
+      title: options.title ?? "Files",
+      // Kept inside the page, where the window is 480 wide: past the edge,
+      // its rows would be out of reach of the cursor that has to drag them.
+      left: Math.round(
+        Math.min(
+          this.options.viewport.width * at.x,
+          this.options.viewport.width - 496,
+        ),
+      ),
+      top: Math.round(this.options.viewport.height * at.y),
+    });
+    this.inputPending = true;
+    await this.hold(300);
+    const page = this.page;
+    return {
+      item: (i: number) =>
+        page.locator(`#vc-file-window [data-vc-file="${i}"]`),
+      close: async () => {
+        await page.evaluate(() =>
+          (
+            window as unknown as { __vcCloseFileWindow?: () => void }
+          ).__vcCloseFileWindow?.(),
+        );
+        await this.hold(250);
+      },
+    };
   }
 
   // ── keyboard ──────────────────────────────────────────────────────────────

@@ -20,6 +20,14 @@ and its entry here says how.
   `fetch` or `EventSource`, or lines of JSON, a piece at a time on the
   page's clock. Authorization, cookie and API key headers are never written,
   and `redact` leaves query parameters out.
+- `s.fileWindow(files, options?)` draws a file window over the page, as
+  Finder draws one, to select files in and drag onto the app's dropzone,
+  which receives them as `File` objects through the events a real drag
+  sends: the upload a clip can film. A click selects a row, with Shift it
+  extends, with Meta it adds or removes.
+- `s.drag(from, to, options?)`, from one locator or point to another, beside
+  the form in fractions of one box; and `modifiers` on `s.click`, for a
+  shift-click. Both strokes take Meta and Control as well as Shift and Alt.
 - `versioncam record` and `stability` take `--replay auto|record|replay|live`.
   `doctor` lists each clip's replay, and `check` points out one older than
   ninety days.

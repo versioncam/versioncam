@@ -270,6 +270,17 @@ await s.scroll(s.byTestId("answer"), { into: s.byTestId("citation-3") });
 The cursor stays put while the pane moves, so a clip moves it over the pane
 first, where a hand on a mouse wheel would be.
 
+An upload is filmed from `s.fileWindow`, a file window drawn over the page,
+since the browser's own file dialog is outside it. The clip selects files in
+it and drags them onto the app's dropzone, which receives them as real files
+through the events a real drag sends. The window is staged; say so where the
+clip is shown.
+
+```ts
+const files = await s.fileWindow([{ name: "cases.csv", content: csv }], { title: "Case data" });
+await s.drag(files.item(0), s.byTestId("dropzone"));
+```
+
 `npx versioncam dsl` prints every method with its options and defaults, and a
 test holds that list to the session's code. The same reference is
 *The clip DSL*.
