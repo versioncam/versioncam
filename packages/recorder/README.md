@@ -153,7 +153,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `cursorStart` | `{ x: 0.72, y: 0.28 }` | Where the cursor rests in the first frame, as fractions of the viewport. |
 | `clock` | `time: "2026-09-01T09:00:00Z"`, `timezoneId: "UTC"`, `locale: "en-GB"` | The instant, time zone and locale the app sees. |
 | `theme` | `accent: "#2f6fed"`, `cursorScale: 2.1` | The colour of ripples and rings, the cursor's size, and an optional `presentation`. See *Presentation*. |
-| `motion` | `MOTION` | Dwells, strokes and camera timing. `MOTION` is exported, with the reason for each number beside it. |
+| `motion` | `MOTION` | Dwells, strokes, scrolls and camera timing. `MOTION` is exported, with the reason for each number beside it. |
 | `outDir` | `".versioncam"` | Where everything the recorder writes goes. Gitignore it. |
 | `scenes` | none | A module whose default export is `Record<string, Scene>`, keyed by scene id: `export default { [intro.id]: intro }`. A named export is not read, and a module with no default export is refused. |
 | `sequence` | none | Clip ids, in order, for `versioncam render --sequence`. |
@@ -254,6 +254,20 @@ Target elements by test id or role, never by coordinates. Strokes (`s.drag`
 for a straight one, `s.lasso` for a closed loop) are written in fractions of a
 target's box for the same reason. A clip built from locators survives a layout
 change.
+
+A long answer or a list is read by scrolling it, and `s.scroll` does that on
+the clip's clock, one step a frame, so every frame of it is the same on every
+run. Give it the pane that scrolls, or `"page"`, and where to go: `{ by: 400 }`,
+`{ to: "bottom" }`, or `{ into: s.byTestId("citation-3") }` to bring one thing
+into view.
+
+```ts
+await s.moveTo(s.byTestId("answer"));
+await s.scroll(s.byTestId("answer"), { into: s.byTestId("citation-3") });
+```
+
+The cursor stays put while the pane moves, so a clip moves it over the pane
+first, where a hand on a mouse wheel would be.
 
 `npx versioncam dsl` prints every method with its options and defaults, and a
 test holds that list to the session's code. The same reference is
@@ -859,6 +873,11 @@ its CSS motion:
   up it finishes, as in a browser nobody is filming: its `finished` promise
   resolves and `animationend` fires, so a dialog that unmounts after its exit
   animation goes, and does not sit invisibly over the page.
+- **Smooth scrolling is instant.** A stylesheet's `scroll-behavior: smooth`
+  and a script's `{ behavior: "smooth" }` both scroll at once, since the
+  browser would animate either on a clock the recorder does not move. A chat
+  that keeps its newest message in view jumps to it. To film a scroll, use
+  `s.scroll`.
 - **Not on the clock:** animations a script makes with `element.animate()`,
   Chromium's smooth scrolling of a mouse wheel, and transitions inside an
   iframe, which stay zeroed since nothing drives an iframe's clock. A clip

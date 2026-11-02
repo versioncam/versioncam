@@ -196,6 +196,8 @@ happened again the first time an agent used it.
 | settle timed out on `X` | add a `ready` hook, raise the timeout, or the source is live — record a HAR |
 | document reloaded mid-clip | something navigated; find the trigger and avoid it |
 | drag or lasso selected nothing | `measure`, re-author geometry as fractions of the real box |
+| the frames inside a scroll differ between runs, or the page scrolls on its own | `s.scroll(pane, { by })`, `{ to }` or `{ into }`; never `scrollIntoView` or `mouse.wheel` from `offCamera`, which the browser animates on its own clock |
+| `scroll` says the element does not scroll | it is a wrapper; `inspect` at that moment and scroll the child with `overflow: auto` |
 | duration drift | adjust holds, never the beats |
 | tooltip / menu open in a frame it should not be | move the cursor start; add a hold before the next action |
 | the caption covers something a beat points at | `theme.presentation.captionInset: { right: 40 }` in the config moves it to the bottom-right corner; it moves every clip's caption, so say so in what you write down |
