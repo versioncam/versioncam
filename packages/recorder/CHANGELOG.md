@@ -6,7 +6,13 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.7.1 (2026-11-03)
+
+A patch: a clip with its own viewport renders at its own shape, as the
+README always said, and a phone clip's video is 1920 high rather than
+4155. Nothing changes for a landscape clip, and a publish sends what 0.7.0
+sent, so version.cam needs nothing new to take it; it shows a phone clip
+in place of its desktop clip once it is updated the same week.
 
 ### Fixed
 
