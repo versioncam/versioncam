@@ -11,8 +11,16 @@ import { buildSequence } from "../src/render/sequence.js";
  * test can choose what is wrong with them.
  */
 
-/** A second of the test pattern at `size`, as `<id>.mp4` in `dir`. */
-function writeClip(dir: string, id: string, size: string): void {
+/**
+ * A second of the test pattern at `size`, as `<id>.mp4` in `dir`, with the
+ * MP4 timescale `timescale` when one is given.
+ */
+function writeClip(
+  dir: string,
+  id: string,
+  size: string,
+  timescale?: number,
+): void {
   execFileSync(ffmpegPath(), [
     "-v",
     "error",
@@ -25,26 +33,42 @@ function writeClip(dir: string, id: string, size: string): void {
     "libx264",
     "-pix_fmt",
     "yuv420p",
+    ...(timescale ? ["-video_track_timescale", String(timescale)] : []),
     join(dir, `${id}.mp4`),
   ]);
 }
 
 /**
- * Two clips `xfade` will not join, since it joins clips of one size only.
+ * Two clips `xfade` will not join: one size and one rate, so the sequence
+ * hands them to ffmpeg, but two timebases, which `xfade` refuses as well.
  * ffmpeg opens its output before it finds that out: written straight to
  * sequence.mp4, a sequence of these emptied the film an earlier run had
- * made, and left an empty file where there had been none.
+ * made, and left an empty file where there had been none. (These were
+ * clips of two sizes until a sequence refused those before ffmpeg ran.)
  */
-function clipsOfTwoSizes(): string {
+function clipsFfmpegRefuses(): string {
   const dir = mkdtempSync(join(tmpdir(), "versioncam-sequence-"));
   writeClip(dir, "a", "320x240");
-  writeClip(dir, "b", "160x120");
+  writeClip(dir, "b", "320x240", 90_000);
   return dir;
 }
 
 test.describe("stitching a sequence", () => {
+  test("refuses clips of two sizes before ffmpeg runs, and says which", async () => {
+    // A phone clip among desktop ones, most likely. ffmpeg's own error is a
+    // screen of filter graph; this one names the clips.
+    const dir = mkdtempSync(join(tmpdir(), "versioncam-sequence-"));
+    writeClip(dir, "a", "320x240");
+    writeClip(dir, "b", "240x320");
+    await expect(buildSequence(["a", "b"], dir)).rejects.toThrow(
+      "A sequence stitches clips of one size: a is 320x240 and b is 240x320. " +
+        'Leave the phone clips out of "sequence".',
+    );
+    expect(readdirSync(dir).sort()).toEqual(["a.mp4", "b.mp4"]);
+  });
+
   test("a sequence that fails leaves nothing where there was nothing", async () => {
-    const dir = clipsOfTwoSizes();
+    const dir = clipsFfmpegRefuses();
     const error = await buildSequence(["a", "b"], dir).catch((e: Error) => e);
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain("sequence failed:");
@@ -53,7 +77,7 @@ test.describe("stitching a sequence", () => {
   });
 
   test("a sequence that fails leaves the one before it as it was", async () => {
-    const dir = clipsOfTwoSizes();
+    const dir = clipsFfmpegRefuses();
     const film = join(dir, "sequence.mp4");
     const earlier = readFileSync(join(dir, "a.mp4"));
     writeFileSync(film, earlier);

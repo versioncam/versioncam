@@ -23,57 +23,87 @@ const TRANSITION_S = 0.4;
  * A rendered clip. `frameRate` is the fraction ffprobe gives, `60/1` or
  * `30000/1001`, kept as written rather than divided out: it is the rate the
  * filter may convert every clip to, the fastest clip included, and only the
- * exact rate leaves that clip's frames where they were.
+ * exact rate leaves that clip's frames where they were. `width` and
+ * `height` are the video's, which `xfade` needs to be the same for all.
  */
 export type SequenceInput = {
   id: string;
   path: string;
   duration: number;
   frameRate: string;
+  width: number;
+  height: number;
 };
 
-/** Duration of a video file, in seconds. Blocking; ffprobe is quick. */
-export function probeDuration(path: string): number {
-  const out = ffprobeSync([
-    "-v",
-    "error",
-    "-show_entries",
-    "format=duration",
-    "-of",
-    "default=nw=1:nk=1",
-    path,
-  ]);
-  const seconds = Number.parseFloat(out.trim());
-  if (!Number.isFinite(seconds)) {
-    throw new Error(`Could not read a duration from ${path}`);
-  }
-  return seconds;
-}
-
-/** Frame rate of a video file, as the fraction ffprobe gives. Blocking too. */
-export function probeFrameRate(path: string): string {
+/**
+ * What a sequence needs to know of a video file, from one ffprobe call:
+ * its duration in seconds, its frame rate as ffprobe gives it, and its
+ * size. Blocking; ffprobe is quick.
+ */
+export function probeVideo(
+  path: string,
+): Pick<SequenceInput, "duration" | "frameRate" | "width" | "height"> {
   const out = ffprobeSync([
     "-v",
     "error",
     "-select_streams",
     "v:0",
     "-show_entries",
-    "stream=r_frame_rate",
+    "format=duration:stream=r_frame_rate,width,height",
     "-of",
-    "default=nw=1:nk=1",
+    "json",
     path,
-  ]).trim();
-  const rate = rateOf(out);
+  ]);
+  const probed = JSON.parse(out) as {
+    format?: { duration?: string };
+    streams?: { r_frame_rate?: string; width?: number; height?: number }[];
+  };
+  const duration = Number.parseFloat(probed.format?.duration ?? "");
+  if (!Number.isFinite(duration)) {
+    throw new Error(`Could not read a duration from ${path}`);
+  }
+  const stream = probed.streams?.[0];
+  const frameRate = stream?.r_frame_rate ?? "";
+  const rate = rateOf(frameRate);
   if (!Number.isFinite(rate) || rate <= 0) {
     throw new Error(`Could not read a frame rate from ${path}`);
   }
-  return out;
+  const { width, height } = stream ?? {};
+  if (!width || !height) {
+    throw new Error(`Could not read a size from ${path}`);
+  }
+  return { duration, frameRate, width, height };
 }
 
 /** A fraction as ffprobe prints one, `30000/1001`, as a number. */
 function rateOf(fraction: string): number {
   const [num, den = "1"] = fraction.split("/");
   return Number(num) / Number(den);
+}
+
+/**
+ * `xfade` joins clips of one size only, and when they are not, the error is
+ * ffmpeg's: a screen of filter graph that names no clip. Since a clip can
+ * have a viewport of its own, a config's `sequence` can name clips of two
+ * shapes, a phone clip among desktop ones most likely, so the sequence
+ * stops before the graph is built, and names two clips that differ and
+ * what to do.
+ */
+function refuseTwoSizes(inputs: SequenceInput[]): void {
+  const [first] = inputs;
+  const other = inputs.find(
+    (input) => input.width !== first.width || input.height !== first.height,
+  );
+  if (!other) return;
+  const size = (input: SequenceInput) => `${input.width}x${input.height}`;
+  const portrait = [first, other].some((input) => input.height > input.width);
+  throw new Error(
+    `A sequence stitches clips of one size: ${first.id} is ${size(first)} ` +
+      `and ${other.id} is ${size(other)}. ` +
+      (portrait
+        ? 'Leave the phone clips out of "sequence".'
+        : 'Give them one viewport, or leave one out of "sequence".'),
+  );
 }
 
 /**
@@ -96,6 +126,7 @@ export function buildFilter(inputs: SequenceInput[]): {
   label: string;
   total: number;
 } {
+  refuseTwoSizes(inputs);
   if (inputs.length === 1)
     return { filter: "", label: "0:v", total: inputs[0].duration };
 
@@ -138,12 +169,7 @@ export async function buildSequence(
       missing.push(id);
       continue;
     }
-    inputs.push({
-      id,
-      path,
-      duration: probeDuration(path),
-      frameRate: probeFrameRate(path),
-    });
+    inputs.push({ id, path, ...probeVideo(path) });
   }
 
   if (inputs.length < 2) {

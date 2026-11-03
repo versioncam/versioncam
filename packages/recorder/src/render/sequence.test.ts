@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { buildFilter } from "./sequence.js";
 
-/** A rendered clip of `duration` seconds, its rate as ffprobe gives it. */
-const clip = (id: string, duration: number, frameRate = "60/1") => ({
+/**
+ * A rendered clip of `duration` seconds, its rate as ffprobe gives it, at
+ * the default output of a 1440x900 config unless a size is given.
+ */
+const clip = (
+  id: string,
+  duration: number,
+  frameRate = "60/1",
+  size = { width: 1920, height: 1200 },
+) => ({
   id,
   path: `${id}.mp4`,
   duration,
   frameRate,
+  ...size,
 });
 
 describe("buildFilter", () => {
@@ -69,5 +78,41 @@ describe("buildFilter", () => {
     expect(
       buildFilter([clip("a", 2, "30000/1001"), clip("b", 2, "24/1")]).filter,
     ).toMatch(/^\[0:v\]fps=30000\/1001\[f0\];\[1:v\]fps=30000\/1001\[f1\];/);
+  });
+
+  it("refuses clips of two sizes before there is a graph to run", () => {
+    // xfade would refuse them inside ffmpeg, in ffmpeg's words. The message
+    // names the first clip and the first that differs from it, and what to
+    // do; buildFilter spawns nothing, so neither does a sequence it stops.
+    const phone = { width: 888, height: 1920 };
+    expect(() =>
+      buildFilter([
+        clip("01-create-a-shipment", 2),
+        clip("01-create-a-shipment-mobile", 2, "60/1", phone),
+        clip("02-track", 2),
+      ]),
+    ).toThrow(
+      "A sequence stitches clips of one size: 01-create-a-shipment is " +
+        "1920x1200 and 01-create-a-shipment-mobile is 888x1920. " +
+        'Leave the phone clips out of "sequence".',
+    );
+    // Two landscape sizes are not a phone clip's problem, and the advice
+    // says what is.
+    expect(() =>
+      buildFilter([
+        clip("a", 2),
+        clip("b", 2, "60/1", { width: 1920, height: 1080 }),
+      ]),
+    ).toThrow(
+      'a is 1920x1200 and b is 1920x1080. Give them one viewport, or leave one out of "sequence".',
+    );
+  });
+
+  it("joins clips of one size, a phone size included", () => {
+    const phone = { width: 888, height: 1920 };
+    expect(() =>
+      buildFilter([clip("a", 2, "60/1", phone), clip("b", 2, "60/1", phone)]),
+    ).not.toThrow();
+    expect(() => buildFilter([clip("a", 2), clip("b", 3)])).not.toThrow();
   });
 });
