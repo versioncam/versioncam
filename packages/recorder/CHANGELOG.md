@@ -6,6 +6,32 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Fixed
+
+- A clip with its own `viewport` renders at its own shape. It rendered at
+  the config's: a phone clip at 390 by 844 came out as the top of its page
+  blown up to 1920 by 1200, and a 1600 by 900 clip in a 1440 by 900 config
+  lost its sides. `versioncam frame`, `sheet` and `preview` take the
+  recording's shape too.
+
+### Changed
+
+- `output.width` is the video's longer side: a portrait clip's video is
+  that high, so a phone clip is 888 by 1920 rather than 1920 by 4155. This
+  changes nothing for a landscape or square clip, and nothing that
+  `versioncam publish` sends.
+
+### Added
+
+- `render --sequence` refuses clips of two sizes with a message naming two
+  of them, before ffmpeg runs.
+- The README says a clip has no sound, and how a phone clip is named: a
+  clip called `<id>-mobile` is shown in place of `<id>` on a narrow screen,
+  on its page, in its embed and through the web component, once
+  version.cam is updated the same week.
+
 ## 0.7.0 (2026-11-02)
 
 A minor version: the config gains `replay`, the clip DSL gains

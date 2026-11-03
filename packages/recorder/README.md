@@ -145,7 +145,7 @@ cannot say, that is a missing field. It is not a reason to fork.
 | `viewport` | `{ width: 1440, height: 900 }` | The page's size. The video has the same shape. |
 | `dpr` | `2` | Device pixel ratio, from 1 to 3. At 2, a zoom shows real pixels. |
 | `fps` | `60` | Frames per second, from 10 to 120. |
-| `output` | `{ width: 1920 }` | The video's width. Its height follows the viewport. `threads` fixes how many threads each encoder uses: an encoder's bytes depend on it, so a fixed number renders the same recording to the same file on any machine. `VERSIONCAM_FFMPEG_THREADS` sets it for one run. |
+| `output` | `{ width: 1920 }` | The video's longer side: a landscape clip is this wide, a portrait clip this high, and the other side follows the viewport. `threads` fixes how many threads each encoder uses: an encoder's bytes depend on it, so a fixed number renders the same recording to the same file on any machine. `VERSIONCAM_FFMPEG_THREADS` sets it for one run. |
 | `auth` | none | How the app signs in: a saved session, `{ storageState }`, or a hook, `{ login }`. |
 | `settle` | `quietMs: 150`, `timeoutMs: 15000`, `yieldMs: 20` | When a page counts as done. `ready` adds a condition of your own. |
 | `capture` | `gate: true`, `forceCaptureEvery: 30`, `transitions: "play"` | Which frames get a screenshot (see *Speed*), and whether the app's CSS transitions play on its clock or take no time, `"zero"` (see *Determinism*). |
@@ -222,7 +222,9 @@ theme: {
 
 A caption inset is in the video's pixels. The video is `output.width` wide,
 1920 unless the config says otherwise, so with a page 1440 wide, four of the
-video's pixels are three of the page's.
+video's pixels are three of the page's. The inset is checked against the
+config's `output.width`, and a phone clip's video is narrower than that, so
+give a config with phone clips an inset that fits them too.
 
 ## Write a clip
 
@@ -289,7 +291,7 @@ test holds that list to the session's code. The same reference is
 |---|---|---|
 | `title` | required | The clip's name, kept in its timeline. It is not drawn: write a caption with `s.caption`. |
 | `seed` | `1` | Seeds the jitter in cursor paths, dwells and typing. A new seed is a new take of the same script. |
-| `viewport`, `dpr`, `fps` | the config's | For a clip that needs a different shape. |
+| `viewport`, `dpr`, `fps` | the config's | For a clip that needs a different shape. A phone clip sets `viewport: { width: 390, height: 844 }` and renders 888 by 1920 at the default output; name it `<id>-mobile` and version.cam shows it in place of `<id>` on a narrow screen (see *version.cam*). |
 | `capture` | the config's | A clip that films a canvas sets `{ forceCaptureEvery: 1 }` here, and one whose app animates in ways better left out sets `{ transitions: "zero" }`. |
 
 ### The camera
@@ -435,6 +437,9 @@ versioncam render [id…]            composite and encode recordings and scenes
     --report <file>                and write what it made there, as JSON
 ```
 
+A clip has no sound. The files carry a video stream only, so a player's
+mute control has nothing to do. Narration is not a feature yet.
+
 ### Publish
 
 Send what the last run recorded to [version.cam](https://version.cam), which
@@ -510,6 +515,21 @@ and keeps each clip at a living address,
 `clips.version.cam/<owner>/<repo>/<clip>`. It plays the newest version from
 your default branch that passed, so a page that embeds it never needs
 editing. Projects are managed on [app.version.cam](https://app.version.cam).
+
+### Phone and desktop in one link
+
+A clip whose id is another clip's id with `-mobile` on the end is that
+clip's phone version: `01-checkout-mobile` beside `01-checkout`, recorded at
+a phone's viewport. The clip's page, its embed page and the `<version-cam>`
+element of its script snippet show the phone clip on a screen under 768 CSS
+pixels wide and the desktop clip on a wider one, so one link serves both. The element measures
+its own width, not the window's, and takes the shape of the clip it will
+show. The plain snippets cannot: the video snippet is the desktop clip's
+file, and the iframe snippet keeps the desktop clip's shape, since an
+iframe without a script keeps the box it was given, so on a phone the
+phone clip plays inside that box. Use the element where a page should fit
+both. Until the phone clip has a video, the desktop clip shows everywhere.
+The phone clip has its own page and snippets as well, to place it by hand.
 
 ### Connect a repository
 
@@ -719,7 +739,9 @@ your scenes are served from an in-memory route table. `versioncam render`
 needs only a recording on disk and a browser.
 
 **Output follows the viewport.** Record at 1440×900 and the video is 16:10.
-For 16:9, record at 1600×900. Nothing is letterboxed or cropped. A backdrop, a
+For 16:9, record at 1600×900. Nothing is letterboxed or cropped. A portrait
+viewport gives a portrait video, `output.width` high. A sequence stitches
+clips of one size, so phone clips stay out of `sequence`. A backdrop, a
 device frame and padding are available through `theme.presentation`, and are
 off by default.
 

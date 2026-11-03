@@ -131,6 +131,15 @@ export default clip(
 `seed` fixes the motion, so two runs of the clip produce the same frames. Pick
 one and leave it alone.
 
+A phone clip is a second clip file, `<id>-mobile.clip.ts`, with
+`viewport: { width: 390, height: 844 }` in its options beside the title and
+the seed. It uses the same test ids as `<id>`, and its own steps where the
+phone layout differs: a menu behind a button, a list under the form rather
+than beside it. A draft's contact sheet shows which. It is not listed in the
+config's `sequence`, which stitches clips of one size. On version.cam,
+`<id>-mobile` is shown in place of `<id>` on a narrow screen, so the name
+is the whole of joining them.
+
 ## Write the beat sheet before you record
 
 `.versioncam/author/<id>/beats.json`, an array of `{ label, expect }`:
