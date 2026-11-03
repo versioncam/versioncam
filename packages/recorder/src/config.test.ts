@@ -202,6 +202,29 @@ describe("outputSize", () => {
       expect(size.height % 2).toBe(0);
     }
   });
+
+  it("makes the width the longer side, so a phone clip is 1920 high", () => {
+    // At 1920 wide, 390x844 would be 4155 high: no screen and no plan.
+    expect(outputSize({ width: 390, height: 844 }, 1920)).toEqual({
+      width: 888,
+      height: 1920,
+    });
+    // Square takes landscape's rule, the one it always had.
+    expect(outputSize({ width: 1000, height: 1000 }, 1920)).toEqual({
+      width: 1920,
+      height: 1920,
+    });
+  });
+
+  it("yields even sides for every portrait viewport too", () => {
+    for (let w = 320; w <= 480; w += 1) {
+      for (const h of [568, 667, 740, 812, 844, 896, 932]) {
+        const size = outputSize({ width: w, height: h }, 1920);
+        expect(size.width % 2).toBe(0);
+        expect(size.height).toBe(1920);
+      }
+    }
+  });
 });
 
 describe("how long a clip of this app should be", () => {

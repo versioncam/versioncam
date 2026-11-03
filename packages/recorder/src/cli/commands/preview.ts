@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { ensureFullBrowser } from "./install.js";
 import { loadConfig } from "../../loader.js";
-import { renderConfigOf } from "../../config.js";
 import { bundleScenes, loadSceneIds } from "../../loader.js";
+import { renderConfigFor } from "../../render/render.js";
 import { missingScenes } from "../../render/scenes.js";
 import {
   distPageDir,
@@ -63,9 +63,14 @@ export async function preview(argv: string[]): Promise<number> {
   });
   const page = await context.newPage();
 
+  // At the recording's own shape, as the encoder renders it: a phone clip
+  // is a portrait canvas in this window, which fits the canvas to itself.
   await installRenderRoutes(page, {
     distDir: distPageDir(),
-    renderConfig: renderConfigOf(config),
+    renderConfig: await renderConfigFor(
+      config,
+      sceneId ? { kind: "scene", id: sceneId } : { kind: "recording", id, dir },
+    ),
     recordingDir: sceneId ? undefined : dir,
     scenesBundle: (await bundleScenes(config)) ?? undefined,
   });

@@ -458,18 +458,32 @@ function checkCaptionInset(inset: CaptionInset, outputWidth: number): void {
 }
 
 /**
- * Output dimensions follow the viewport's aspect.
+ * Output dimensions follow the viewport's aspect, and `width` is the video's
+ * longer side.
  *
  * Nothing is letterboxed and nothing is cropped: record at 1440x900 and the
- * video is 16:10; want 16:9, record at 1600x900. Heights are rounded to even
- * because H.264 with yuv420p cannot encode an odd dimension.
+ * video is 16:10; want 16:9, record at 1600x900. A landscape or square
+ * viewport gives a video `width` wide, as it always has. A portrait one
+ * gives a video `width` high: a phone clip at 390x844 made 1920 wide would
+ * be 4155 high, which no screen shows and no plan allows, so it is 888x1920.
+ * Both sides are rounded to even because H.264 with yuv420p cannot encode an
+ * odd dimension.
  */
 export function outputSize(
   viewport: { width: number; height: number },
   width: number,
 ): { width: number; height: number } {
-  const exact = (width * viewport.height) / viewport.width;
-  return { width, height: 2 * Math.round(exact / 2) };
+  const even = (n: number) => 2 * Math.round(n / 2);
+  if (viewport.height > viewport.width) {
+    return {
+      width: even((width * viewport.width) / viewport.height),
+      height: even(width),
+    };
+  }
+  return {
+    width: even(width),
+    height: even((width * viewport.height) / viewport.width),
+  };
 }
 
 /**

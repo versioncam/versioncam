@@ -26,7 +26,13 @@ import {
   renderRecording,
 } from "../src/render/render.js";
 import type { ResolvedConfig, Presentation } from "../src/config.js";
-import { FIXTURE_RECORDING, testConfig } from "./support.js";
+import { clip, runClip } from "../src/driver/clip.js";
+import type { Browser } from "playwright";
+import {
+  FIXTURE_RECORDING,
+  installFixtureRoutes,
+  testConfig,
+} from "./support.js";
 
 /**
  * Renders the checked-in fixture recording end to end: canvas, camera, cursor,
@@ -425,6 +431,93 @@ test.describe("rendering a recording", () => {
       expect(hash(tile)).toBe(
         hash(await renderFrame(browser, config, target, 85)),
       );
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+test.describe("a clip with a viewport of its own", () => {
+  // The config is the test config's 1000x700 throughout, and the video
+  // takes the clip's shape, not that one. Until 0.7.1 a clip's own viewport
+  // was rendered on the config's canvas: a phone clip came out 1920x1344,
+  // the top of its page blown up to the width.
+  const ID = "own-shape";
+
+  /** Record a short clip on the fields fixture at `viewport`. */
+  async function recordAt(
+    browser: Browser,
+    viewport: { width: number; height: number },
+  ): Promise<ResolvedConfig> {
+    const config = testConfig();
+    await runClip(
+      browser,
+      config,
+      clip(ID, { title: "Own shape", viewport }, async (s) => {
+        await s.offCamera(installFixtureRoutes);
+        await s.open("/fields.html");
+        await s.typeInto(s.byTestId("recipient"), "Ana");
+        await s.hold(300);
+      }),
+    );
+    return config;
+  }
+
+  /** A video's first stream's width and height, as ffprobe reads them. */
+  const sizeOf = (file: string): { width: number; height: number } => {
+    const [width, height] = ffprobeSync([
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "default=nw=1:nk=1",
+      file,
+    ])
+      .trim()
+      .split("\n")
+      .map(Number);
+    return { width, height };
+  };
+
+  test("a portrait viewport renders a portrait video, output.width high", async () => {
+    const browser = await launchBrowser();
+    try {
+      const config = await recordAt(browser, { width: 390, height: 844 });
+      expect(config.output).toEqual({ width: 1920, height: 1344 });
+
+      const result = await renderRecording(browser, config, ID);
+      const phone = { width: 888, height: 1920 };
+      expect(sizeOf(result.mp4)).toEqual(phone);
+      expect(sizeOf(result.webm)).toEqual(phone);
+      const poster = PNG.sync.read(readFileSync(result.poster));
+      expect({ width: poster.width, height: poster.height }).toEqual(phone);
+
+      // `versioncam frame` is the frame that would be in the video, so it
+      // has the video's shape as well.
+      const frame = PNG.sync.read(
+        await renderFrame(
+          browser,
+          config,
+          { kind: "recording", id: ID, dir: join(config.recordingsDir, ID) },
+          0,
+        ),
+      );
+      expect({ width: frame.width, height: frame.height }).toEqual(phone);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("a landscape viewport of its own renders at its own aspect", async () => {
+    // 16:9 in a 10:7 config: the sides of the video were cut before.
+    const browser = await launchBrowser();
+    try {
+      const config = await recordAt(browser, { width: 1600, height: 900 });
+      const result = await renderRecording(browser, config, ID);
+      expect(sizeOf(result.mp4)).toEqual({ width: 1920, height: 1080 });
     } finally {
       await browser.close();
     }

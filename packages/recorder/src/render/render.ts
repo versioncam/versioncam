@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { launchBrowser } from "../driver/launch.js";
 import type { Browser, Page } from "playwright";
-import { renderConfigOf } from "../config.js";
-import type { ResolvedConfig } from "../config.js";
+import { outputSize, renderConfigOf } from "../config.js";
+import type { RenderConfig, ResolvedConfig } from "../config.js";
 import { bundleScenes } from "../loader.js";
 import type { Timeline } from "../core/timeline.js";
 import {
@@ -19,6 +19,50 @@ export type RenderTarget =
   | { kind: "recording"; id: string; dir: string }
   | { kind: "scene"; id: string };
 
+/** A recording's timeline, read from its directory, wherever that is. */
+async function timelineAt(dir: string): Promise<Timeline> {
+  return JSON.parse(
+    await readFile(join(dir, "timeline.json"), "utf8"),
+  ) as Timeline;
+}
+
+/**
+ * The render config a target is drawn with: the config's, at the target's
+ * own size.
+ *
+ * A recording renders at the shape it was recorded at, which is the clip's
+ * own viewport when it sets one. `config.output` is the config's viewport
+ * at `output.width`, and a phone clip recorded at 390x844 drawn on that
+ * canvas was the top of its page blown up to the width. A scene has no
+ * recording and draws at the config's size.
+ *
+ * `renderConfigOf` itself is left as it is: it is also what `versioncam
+ * publish` sends, and version.cam sizes each render from the recording's
+ * timeline by the same rule, so a publish keeps its bytes and its hash.
+ */
+function renderConfigWith(
+  config: ResolvedConfig,
+  timeline: Timeline | null,
+): RenderConfig {
+  return {
+    ...renderConfigOf(config),
+    output: timeline
+      ? outputSize(timeline.viewport, config.output.width)
+      : config.output,
+  };
+}
+
+/** `renderConfigWith` for a target, for a page that is not opened here. */
+export async function renderConfigFor(
+  config: ResolvedConfig,
+  target: RenderTarget,
+): Promise<RenderConfig> {
+  return renderConfigWith(
+    config,
+    target.kind === "recording" ? await timelineAt(target.dir) : null,
+  );
+}
+
 /**
  * Open the render page at the exact output size, at DPR 1.
  *
@@ -26,14 +70,25 @@ export type RenderTarget =
  * device scale factor of 2 would make the screenshot twice as wide and then
  * need downscaling — a second resample on top of the one `drawImage` already
  * did.
+ *
+ * The recording's timeline is read here, once, for the size, and handed back
+ * for the sheet, which needs its cuts.
  */
 export async function openRenderPage(
   browser: Browser,
   config: ResolvedConfig,
   target: RenderTarget,
-): Promise<{ page: Page; durationFrames: number; fps: number }> {
+): Promise<{
+  page: Page;
+  durationFrames: number;
+  fps: number;
+  timeline: Timeline | null;
+}> {
+  const timeline =
+    target.kind === "recording" ? await timelineAt(target.dir) : null;
+  const renderConfig = renderConfigWith(config, timeline);
   const context = await browser.newContext({
-    viewport: config.output,
+    viewport: renderConfig.output,
     deviceScaleFactor: 1,
     reducedMotion: "reduce",
     timezoneId: config.clock.timezoneId,
@@ -49,7 +104,7 @@ export async function openRenderPage(
 
   await installRenderRoutes(page, {
     distDir: distPageDir(),
-    renderConfig: renderConfigOf(config),
+    renderConfig,
     recordingDir: target.kind === "recording" ? target.dir : undefined,
     scenesBundle: (await bundleScenes(config)) ?? undefined,
   });
@@ -87,7 +142,7 @@ export async function openRenderPage(
     );
   }
 
-  return { page, ...info };
+  return { page, ...info, timeline };
 }
 
 export type RenderOutcome = EncodeResult & {
@@ -101,20 +156,18 @@ export type RenderOutcome = EncodeResult & {
  * The frames a sheet shows when nobody chose them.
  *
  * For a recording, evenly spread and moved past the renderer's dissolves,
- * which only the recording's own cuts can say where they are. Read from its
- * directory rather than by id, since a target can be a recording anywhere. A
- * scene draws every frame itself and never dissolves, so its sheet is the
- * plain even spread the encoder falls back on.
+ * which only the recording's own cuts can say where they are: the timeline
+ * `openRenderPage` read from its directory rather than by id, since a target
+ * can be a recording anywhere. A scene, which has none, draws every frame
+ * itself and never dissolves, so its sheet is the plain even spread the
+ * encoder falls back on.
  */
-async function sheetFrames(
+function sheetFrames(
   config: ResolvedConfig,
-  target: RenderTarget,
+  timeline: Timeline | null,
   durationFrames: number,
-): Promise<number[] | undefined> {
-  if (target.kind !== "recording") return undefined;
-  const timeline = JSON.parse(
-    await readFile(join(target.dir, "timeline.json"), "utf8"),
-  ) as Timeline;
+): number[] | undefined {
+  if (!timeline) return undefined;
   return evenFrames(
     durationFrames,
     undefined,
@@ -128,7 +181,7 @@ async function renderTarget(
   config: ResolvedConfig,
   target: RenderTarget,
 ): Promise<RenderOutcome> {
-  const { page, durationFrames, fps } = await openRenderPage(
+  const { page, durationFrames, fps, timeline } = await openRenderPage(
     browser,
     config,
     target,
@@ -144,7 +197,7 @@ async function renderTarget(
     const sheet = await encodeContactSheet(page, {
       id: target.id,
       durationFrames,
-      frames: await sheetFrames(config, target, durationFrames),
+      frames: sheetFrames(config, timeline, durationFrames),
       outDir: config.outputDir,
     });
     return { ...encoded, id: target.id, durationFrames, fps, sheet };
@@ -181,7 +234,7 @@ export async function contactSheet(
   target: RenderTarget,
   options: { frames?: number[] } = {},
 ): Promise<string> {
-  const { page, durationFrames } = await openRenderPage(
+  const { page, durationFrames, timeline } = await openRenderPage(
     browser,
     config,
     target,
@@ -190,8 +243,7 @@ export async function contactSheet(
     return await encodeContactSheet(page, {
       id: target.id,
       durationFrames,
-      frames:
-        options.frames ?? (await sheetFrames(config, target, durationFrames)),
+      frames: options.frames ?? sheetFrames(config, timeline, durationFrames),
       outDir: config.outputDir,
     });
   } finally {
@@ -237,8 +289,7 @@ export async function readTimeline(
   config: ResolvedConfig,
   id: string,
 ): Promise<Timeline> {
-  const file = join(config.recordingsDir, id, "timeline.json");
-  return JSON.parse(await readFile(file, "utf8")) as Timeline;
+  return timelineAt(join(config.recordingsDir, id));
 }
 
 export async function withBrowser<T>(
