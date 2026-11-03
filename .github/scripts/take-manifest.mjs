@@ -23,8 +23,11 @@ const recordings = join(app, ".versioncam", "recordings");
 const clips = [];
 for (const id of readdirSync(recordings).sort()) {
   // Stability and gate runs keep their recordings under `__` directories.
+  // A `-mobile` clip is the phone version of the clip without it, which
+  // version.cam shows in that clip's place on a narrow screen; the front
+  // page's player is a desktop one, and gives each clip here a tab.
   const timelineFile = join(recordings, id, "timeline.json");
-  if (id.startsWith("__") || !existsSync(timelineFile)) continue;
+  if (id.startsWith("__") || id.endsWith("-mobile") || !existsSync(timelineFile)) continue;
   const source = join(app, "demos", "clips", `${id}.clip.ts`);
   const timeline = JSON.parse(readFileSync(timelineFile, "utf8"));
   copyFileSync(timelineFile, join(out, `${id}.timeline.json`));

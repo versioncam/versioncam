@@ -12,8 +12,10 @@ import { promisify } from "node:util";
  * This is the claim the rest of the example stands on. If this app does not
  * record the same way twice, every clip written against it inherits the
  * difference, and the gate test next door could not tell the gate's fault
- * from the app's.
+ * from the app's. The phone clip runs too: it records the app's phone
+ * layout, which the desktop clips never show.
  */
+const CLIPS = ["01-create-a-shipment", "01-create-a-shipment-mobile"];
 const APP = fileURLToPath(new URL("..", import.meta.url));
 
 test("the example app records the same way twice", async () => {
@@ -22,7 +24,7 @@ test("the example app records the same way twice", async () => {
   try {
     ({ stdout } = await promisify(execFile)(
       "npx",
-      ["versioncam", "stability", "01-create-a-shipment"],
+      ["versioncam", "stability", ...CLIPS],
       { cwd: APP, encoding: "utf8" },
     ));
   } catch (error) {
@@ -43,9 +45,11 @@ test("the example app records the same way twice", async () => {
     await test.info().attach(basename(file), { path: copy });
   }
 
-  expect(stdout).toMatch(
-    /01-create-a-shipment: run 1 vs run 2 · (\d+) frames, \1 identical/,
-  );
+  for (const id of CLIPS) {
+    expect(stdout).toMatch(
+      new RegExp(`^${id}: run 1 vs run 2 · (\\d+) frames, \\1 identical$`, "m"),
+    );
+  }
   expect(stdout.trim().split("\n").at(-1)).toBe("stable");
   expect(status).toBe(0);
 });

@@ -205,3 +205,41 @@ dialog h2 {
 .dialog-actions button {
   margin-top: 0;
 }
+
+/* A phone gets a phone layout, not the desktop squashed: one column, the
+   form above the list, each shipment on two lines. Only under 600 pixels,
+   so the desktop clips, recorded at 1280, are untouched; the phone clip,
+   01-create-a-shipment-mobile, records this at 390 by 844. */
+@media (max-width: 599px) {
+  header {
+    padding: 20px 16px 12px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  main {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 4px 16px 24px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  li {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  li .who {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  dialog {
+    max-width: calc(100vw - 32px);
+  }
+}
