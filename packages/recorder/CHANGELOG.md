@@ -6,7 +6,13 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.7.2 (2026-11-04)
+
+A patch: a project whose own `viewport` is portrait renders at the size the
+README says. Nothing changes for a project with a landscape or square
+viewport, and a publish sends what 0.7.1 sent. version.cam reads such a
+publish from 0.7.2 by the same rule once it is updated the same week; until
+then its video of such a project is 410 by 888, as 0.7.1 rendered it.
 
 ### Fixed
 
