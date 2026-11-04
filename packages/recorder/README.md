@@ -531,6 +531,11 @@ phone clip plays inside that box. Use the element where a page should fit
 both. Until the phone clip has a video, the desktop clip shows everywhere.
 The phone clip has its own page and snippets as well, to place it by hand.
 
+The recorder sets the viewport and nothing else: no touch events and no
+phone user agent. An app that picks its phone layout by the window's width
+records that layout; one that reads the user agent records its desktop
+layout, narrow.
+
 ### Connect a repository
 
 Sign in at [app.version.cam](https://app.version.cam) with GitHub, and
