@@ -225,6 +225,24 @@ describe("outputSize", () => {
       }
     }
   });
+
+  it("has the stated width, rounded to even, on its longer side in every shape", () => {
+    // A render reads `output.width` back from this, as a recording of another
+    // shape needs it again, and so does a reader of a publish.
+    const shapes = [
+      { width: 1440, height: 900 },
+      { width: 1000, height: 1000 },
+      { width: 390, height: 844 },
+      { width: 1, height: 2000 },
+      { width: 2000, height: 1 },
+    ];
+    for (const shape of shapes) {
+      for (const stated of [640, 801, 1920, 3840]) {
+        const { width, height } = outputSize(shape, stated);
+        expect(Math.max(width, height)).toBe(2 * Math.round(stated / 2));
+      }
+    }
+  });
 });
 
 describe("how long a clip of this app should be", () => {
@@ -398,5 +416,21 @@ describe("the render config", () => {
       ),
     );
     expect(rippleOnly.theme.cursor).toEqual({ style: "light", ripple: false });
+  });
+
+  it("sends the size of the config's own video, a portrait one's too", () => {
+    // Not `{ width: 1920 }`: see `renderConfigOf`. A landscape project sends
+    // what it always did, and a portrait one what it did in 0.7.1.
+    const outputOf = (viewport: { width: number; height: number }) =>
+      renderConfigOf(resolveConfig({ baseUrl: "http://x", viewport }, ROOT))
+        .output;
+    expect(outputOf({ width: 1440, height: 900 })).toEqual({
+      width: 1920,
+      height: 1200,
+    });
+    expect(outputOf({ width: 390, height: 844 })).toEqual({
+      width: 888,
+      height: 1920,
+    });
   });
 });

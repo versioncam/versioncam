@@ -660,6 +660,10 @@ export function resolveConfig(
 
 /** The subset the render page needs, serialised to `/render-config.json`. */
 export type RenderConfig = {
+  /**
+   * The video's size, in pixels. Its longer side is the config's
+   * `output.width`, rounded to even; see `renderConfigOf`.
+   */
   output: { width: number; height: number };
   theme: {
     accent: string;
@@ -689,6 +693,15 @@ export type RenderConfig = {
  * did, and a renderer takes a missing setting as its default, which draws
  * the same video. A config that does change one sends it, and needs a
  * version.cam that knows it.
+ *
+ * `output` is the video of the config's own viewport, as it was. So a
+ * portrait project sends 888x1920, whose `width` is the shorter side, and
+ * the output.width it states is the longer one, in every shape. Sending the
+ * stated width instead would have changed no landscape publish, but it
+ * would make an `output` that is no video's size, and change the bytes and
+ * the content hash of a portrait project's publish. A reader of this takes
+ * the longer side; version.cam does for a publish from 0.7.2 on, since a
+ * publisher on 0.7.1 rendered such a project from the width.
  */
 export function renderConfigOf(config: ResolvedConfig): RenderConfig {
   const { cursor, ...theme } = config.theme;

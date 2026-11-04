@@ -6,6 +6,18 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Fixed
+
+- `output.width` is the video's longer side in a project whose config
+  `viewport` is portrait too. A 390 by 844 project at the default output
+  rendered 410 by 888 rather than 888 by 1920, and a 1600 by 900 clip in it
+  888 by 500 rather than 1920 by 1080, since the rule was applied to its
+  already portrait size a second time. A clip with its own `viewport` in a
+  landscape project was right and is unchanged. `versioncam frame`, `sheet`
+  and `preview` take the same size.
+
 ## 0.7.1 (2026-11-03)
 
 A patch: a clip with its own viewport renders at its own shape, as the

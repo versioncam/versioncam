@@ -444,21 +444,28 @@ test.describe("a clip with a viewport of its own", () => {
   // the top of its page blown up to the width.
   const ID = "own-shape";
 
-  /** Record a short clip on the fields fixture at `viewport`. */
+  /**
+   * Record a short clip on the fields fixture, in `config`, at `viewport`,
+   * or at the config's own when it names none.
+   */
   async function recordAt(
     browser: Browser,
-    viewport: { width: number; height: number },
+    viewport?: { width: number; height: number },
+    config: ResolvedConfig = testConfig(),
   ): Promise<ResolvedConfig> {
-    const config = testConfig();
     await runClip(
       browser,
       config,
-      clip(ID, { title: "Own shape", viewport }, async (s) => {
-        await s.offCamera(installFixtureRoutes);
-        await s.open("/fields.html");
-        await s.typeInto(s.byTestId("recipient"), "Ana");
-        await s.hold(300);
-      }),
+      clip(
+        ID,
+        { title: "Own shape", ...(viewport ? { viewport } : {}) },
+        async (s) => {
+          await s.offCamera(installFixtureRoutes);
+          await s.open("/fields.html");
+          await s.typeInto(s.byTestId("recipient"), "Ana");
+          await s.hold(300);
+        },
+      ),
     );
     return config;
   }
@@ -516,6 +523,55 @@ test.describe("a clip with a viewport of its own", () => {
     const browser = await launchBrowser();
     try {
       const config = await recordAt(browser, { width: 1600, height: 900 });
+      const result = await renderRecording(browser, config, ID);
+      expect(sizeOf(result.mp4)).toEqual({ width: 1920, height: 1080 });
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("a project whose own viewport is portrait renders output.width high too", async () => {
+    // Here `config.output` is already the video's 888x1920, so its width is
+    // the shorter side and not the output.width the config states. 0.7.1
+    // took it for output.width and applied the rule a second time: 410x888.
+    const browser = await launchBrowser();
+    try {
+      const config = await recordAt(
+        browser,
+        undefined,
+        testConfig({ viewport: { width: 390, height: 844 } }),
+      );
+      const phone = { width: 888, height: 1920 };
+      expect(config.output).toEqual(phone);
+
+      const result = await renderRecording(browser, config, ID);
+      expect(sizeOf(result.mp4)).toEqual(phone);
+      expect(sizeOf(result.webm)).toEqual(phone);
+      const poster = PNG.sync.read(readFileSync(result.poster));
+      expect({ width: poster.width, height: poster.height }).toEqual(phone);
+      const frame = PNG.sync.read(
+        await renderFrame(
+          browser,
+          config,
+          { kind: "recording", id: ID, dir: join(config.recordingsDir, ID) },
+          0,
+        ),
+      );
+      expect({ width: frame.width, height: frame.height }).toEqual(phone);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("a landscape clip in a portrait project is output.width wide", async () => {
+    // The same reading from the other side: 0.7.1 made this one 888x500.
+    const browser = await launchBrowser();
+    try {
+      const config = await recordAt(
+        browser,
+        { width: 1600, height: 900 },
+        testConfig({ viewport: { width: 390, height: 844 } }),
+      );
       const result = await renderRecording(browser, config, ID);
       expect(sizeOf(result.mp4)).toEqual({ width: 1920, height: 1080 });
     } finally {

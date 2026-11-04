@@ -69,6 +69,10 @@ export type StateRef = {
  * and the clock the render page is opened with.
  */
 export type PublishedRenderConfig = {
+  /**
+   * The video of the config's own viewport. Its longer side is the config's
+   * `output.width`, in every shape: a portrait project sends 888 by 1920.
+   */
   output: { width: number; height: number };
   theme: {
     accent: string;

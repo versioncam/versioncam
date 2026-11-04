@@ -36,6 +36,12 @@ async function timelineAt(dir: string): Promise<Timeline> {
  * canvas was the top of its page blown up to the width. A scene has no
  * recording and draws at the config's size.
  *
+ * The rule is given the output.width the config states, which is the longer
+ * side of `config.output` whatever the shape of the config's viewport, and
+ * that output's width only while the viewport is landscape or square. In a
+ * portrait project `config.output` is already 888x1920, and its 888 taken
+ * for output.width applied the rule twice: 410x888 in 0.7.1.
+ *
  * `renderConfigOf` itself is left as it is: it is also what `versioncam
  * publish` sends, and version.cam sizes each render from the recording's
  * timeline by the same rule, so a publish keeps its bytes and its hash.
@@ -47,7 +53,10 @@ function renderConfigWith(
   return {
     ...renderConfigOf(config),
     output: timeline
-      ? outputSize(timeline.viewport, config.output.width)
+      ? outputSize(
+          timeline.viewport,
+          Math.max(config.output.width, config.output.height),
+        )
       : config.output,
   };
 }
