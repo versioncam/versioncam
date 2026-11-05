@@ -91,3 +91,44 @@ From another directory
 
 Run from a directory containing versioncam.config.ts, or name it with --cwd.
 `;
+
+/**
+ * The flags each command reads.
+ *
+ * Every command parses leniently, so that a flag belonging to the top level can
+ * pass through it. That also let a typo through in silence: `stability --fulll`
+ * ran a draft and printed "stable". A test holds this table to the commands' own
+ * option lists. `--draft` on `stability` and `--claude` on `init` are the
+ * defaults spelt out, and `--json` on `measure` is for scripts; none is on the
+ * usage page.
+ */
+export const FLAGS: Record<string, readonly string[]> = {
+  check: ["report"],
+  cloud: ["json", "project", "label"],
+  doctor: [],
+  dsl: [],
+  frame: ["t", "at"],
+  init: ["force", "into", "claude"],
+  inspect: ["json", "viewport"],
+  install: ["with-deps", "full"],
+  login: [],
+  measure: ["json", "viewport"],
+  preview: ["scene", "frame"],
+  publish: ["dry-run", "report"],
+  record: ["draft", "replay"],
+  render: ["scene", "sequence", "report"],
+  review: ["beats", "min", "max"],
+  sheet: ["at-marks"],
+  stability: ["runs", "draft", "full", "replay"],
+};
+
+/** The first flag on this line that the command does not read, if any. */
+export function unknownFlag(command: string, argv: string[]): string | null {
+  const known = FLAGS[command] ?? [];
+  for (const arg of argv) {
+    if (arg === "--") return null;
+    if (!arg.startsWith("--")) continue;
+    if (!known.includes(arg.slice(2).split("=")[0])) return arg;
+  }
+  return null;
+}

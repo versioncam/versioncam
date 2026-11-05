@@ -19,7 +19,7 @@ import { sheet } from "./commands/sheet.js";
 import { stability } from "./commands/stability.js";
 import { loadEnvFiles } from "../env.js";
 import { enterCwd, takeCwd } from "./cwd.js";
-import { USAGE } from "./usage.js";
+import { USAGE, unknownFlag } from "./usage.js";
 import { RECORDER_VERSION } from "../driver/clip.js";
 
 type Command = (argv: string[]) => Promise<number>;
@@ -76,6 +76,14 @@ async function main(): Promise<number> {
   const command = COMMANDS[name];
   if (!command) {
     process.stderr.write(`Unknown command "${name}".\n\n${USAGE}`);
+    return 1;
+  }
+  const unknown = unknownFlag(name, argv);
+  if (unknown) {
+    process.stderr.write(
+      `Unknown option ${unknown} for \`versioncam ${name}\`. ` +
+        "`npx versioncam --help` lists them.\n",
+    );
     return 1;
   }
 

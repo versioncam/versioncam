@@ -1254,3 +1254,19 @@ test.describe("the versioncam CLI", () => {
     expect(existsSync(join(dir, ".claude"))).toBe(false);
   });
 });
+
+test.describe("flags", () => {
+  test("a flag the command does not read is refused, not ignored", () => {
+    // `stability --fulll` used to run a draft and print "stable".
+    const typo = run(["stability", "--fulll"], PACKAGE);
+    expect(typo.status).toBe(1);
+    expect(typo.stderr).toContain("--fulll");
+    expect(typo.stderr).toContain("versioncam stability");
+  });
+
+  test("a viewport that is not width by height is refused", () => {
+    const bad = run(["inspect", "/", "--viewport", "phone"], PACKAGE);
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toContain("390x844");
+  });
+});
