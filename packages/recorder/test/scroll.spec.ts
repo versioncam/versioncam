@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { join } from "node:path";
 import type { Browser } from "playwright";
 import type { RecorderConfig } from "../src/config.js";
-import { compareRecordings } from "../src/driver/compare.js";
+import { compareRecordings, readRecording } from "../src/driver/compare.js";
 import { clip, runClip } from "../src/driver/clip.js";
 import type { ClipBody } from "../src/driver/clip.js";
 import { launchBrowser } from "../src/driver/launch.js";
@@ -247,4 +248,39 @@ test.describe("scroll()", () => {
       }),
     ).rejects.toThrow(/`by` is pixels, got 40/);
   });
+});
+
+test("a hover fade under a parked cursor records the same twice", async () => {
+  // Chromium decides `:hover` after a scroll on a timer of its own, so a hover
+  // fade began on a frame the clip did not author. Docusaurus fades in a `#`
+  // beside each heading it hovers, and every full recording of a clip that
+  // scrolled one under the cursor differed from the last, there and nowhere else.
+  // The driver now tells Chromium where the mouse is on every step.
+  const browser = await launchBrowser();
+  try {
+    const config = testConfig();
+    const dirs: string[] = [];
+    for (const run of ["a", "b", "c"]) {
+      const result = await runClip(
+        browser,
+        { ...config, recordingsDir: join(config.recordingsDir, run) },
+        clip("scroll-hover", { title: "Hover" }, async (s) => {
+          await s.offCamera(installFixtureRoutes);
+          await s.open("/scroll-hover.html");
+          await s.moveTo([300, 400]);
+          await s.scroll("page", { by: 900, duration: 900 });
+          await s.hold(400);
+          await s.scroll("page", { by: -400, duration: 500 });
+          await s.hold(400);
+        }),
+      );
+      dirs.push(result.dir);
+    }
+    const [first, ...others] = dirs.map(readRecording);
+    for (const other of others) {
+      expect(compareRecordings(first, other).firstDifference).toBeNull();
+    }
+  } finally {
+    await browser.close();
+  }
 });

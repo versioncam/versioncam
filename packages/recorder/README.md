@@ -1063,6 +1063,11 @@ recorder was two. What we have found doing this:
   moved the clock 840 ms instead of 67, and the example app's shipment
   appeared seven frames early. The clock is paused now and moves only when
   the driver moves it.
+- A **hover under a scroll**, the recorder's fault and since fixed. A heading
+  passed under a resting cursor, and Chromium decides `:hover` after a scroll on
+  a timer of its own, so the heading's hover fade began a frame earlier in one
+  run than the other. The driver now tells it where the mouse is on every step
+  of a scroll.
 
 If the two recordings match and something else does not, ask what changed
 between them: the gate (`capture: { gate: false }` turns it off), or the

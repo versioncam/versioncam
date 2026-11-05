@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A hover fade under a scroll</title>
+    <style>
+      /* Tall rows that fade in a mark on hover, as Docusaurus does beside each
+         heading: a scroll brings one row after another under a parked cursor,
+         and when each fade starts decides what the frames show. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { background: #ffffff; font-family: Arial, Helvetica, sans-serif; }
+      .row { height: 120px; padding: 40px; font-size: 24px; border-bottom: 1px solid #dddddd; }
+      .row::after { content: " #"; opacity: 0; transition: opacity 250ms; color: #2f6fed; }
+      .row:hover::after { opacity: 1; }
+    </style>
+  </head>
+  <body>
+    <script>
+      for (let i = 0; i < 40; i += 1) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.textContent = "Heading " + i;
+        document.body.append(row);
+      }
+    </script>
+  </body>
+</html>

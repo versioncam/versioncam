@@ -942,6 +942,14 @@ export class RecordingSession {
             // unchanged page and skip every frame of the scroll. The driver
             // knows it moved the page, as it knows when it pressed a key.
             this.inputPending = true;
+            // And what is under the resting cursor just changed. Chromium would
+            // re-decide `:hover` on a timer of its own, so a heading's hover
+            // fade began a frame earlier in one run than the other (Docusaurus
+            // shows a `#` beside each heading, and it was the only thing that
+            // differed). Told now, it is decided on this frame, on every run.
+            if (this.lastMouse) {
+              await this.page.mouse.move(this.lastMouse[0], this.lastMouse[1]);
+            }
           },
         });
       }
