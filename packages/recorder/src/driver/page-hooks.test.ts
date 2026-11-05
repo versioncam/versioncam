@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freezeCss, freezeCssScript } from "./page-hooks.js";
+import { DEV_TOOLS_CSS, freezeCss, freezeCssScript } from "./page-hooks.js";
 
 describe("the freeze stylesheet", () => {
   it("is, with transitions zeroed, the stylesheet every recording before 0.4.0 was made with", () => {
@@ -36,5 +36,18 @@ describe("the freeze stylesheet", () => {
     expect(freezeCssScript("zero")).toContain(
       "const zero = true || window !== window.top;",
     );
+  });
+});
+
+describe("the dev tools rule", () => {
+  // A selector here hides what it matches from every clip, so what may be in it
+  // is a decision. An error overlay of its own must never be.
+  it("leaves Vite's error overlay alone", () => {
+    expect(DEV_TOOLS_CSS).not.toContain("error-overlay");
+  });
+
+  it("goes in with the freeze, in its own element, so it can come out again", () => {
+    expect(freezeCssScript("play")).toContain('"__recorder_dev_tools"');
+    expect(freezeCssScript("zero")).toContain(JSON.stringify(DEV_TOOLS_CSS));
   });
 });

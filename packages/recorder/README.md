@@ -105,7 +105,8 @@ before writing a clip. If your host runs skills,
 the repository up on its first run; otherwise `init --into <dir>` puts the
 skill where your host reads it, and the clips are TypeScript you can write
 from `inspect` and `measure`. Target by test id or role, never by coordinates.
-Turn off a dev server's own toolbar (see *A dev server's own tools*).
+The dev tools of Next, Nuxt and Astro stay out of the video by themselves; turn off
+any other (see *A dev server's own tools*).
 Do not edit files while a clip records. Add `.versioncam/` to `.gitignore`
 and commit the clip. In CI, `uses: versioncam/action@v1` after `npm ci`
 records every clip and fails the job, with a comment on the pull request,
@@ -776,6 +777,7 @@ app.version.cam. Its project is set up by hand: write to hello@version.cam.
 | `settles.json` | Every wait: what it was still blocked on, and how long it really took. |
 | `targets.json` | Where each step's target was when the step began, by the step's index in `steps`: the box of the control it used. New in 0.3.0. |
 | `failure.png` | Only after a failure: the page at the moment the clip gave up. |
+| `failure-tools.png` | Only after a failure on a page with a dev server's own tools: the page a moment later, with them showing. |
 | `failure.json` | Only after a failure: the message, the frame, the authored second, and the step that was running (its index in `steps` and its call; new in 0.3.0). |
 
 The timeline's `frames` say which state each frame shows. Beside them are the
@@ -1101,8 +1103,9 @@ If the runs differ, something on the page did not run on authored time. Look
 at the app first, but not only there: of the six causes found so far, the
 recorder was four. What we have found doing this:
 
-- A **dev server's own tools**, drawn over the app on a clock of their own (see
-  below). The first thing to look for when frame 0 differs.
+- A **dev server's own tools**, drawn over the app on a clock of their own. The
+  recorder hides the ones it knows (see below), and any other is the first thing
+  to look for when frame 0 differs.
 - An **autosizing text field** that settles a frame later depending on how the
   browser scheduled the layout. The clips that typed diverged. The clips that
   did not, did not.
@@ -1140,23 +1143,33 @@ paint can vary, too little to see. If the two pictures look the same, run
 
 ### A dev server's own tools
 
-Some dev servers draw their own tools over the app: a badge, a toolbar, a timing.
-They are in the video, usually under the caption, and they run on their own clock,
-so they arrive when they arrive and `stability` fails at frame 0. They are not
-the product, so turn them off in the framework's config:
+`next dev`, `nuxt dev` and `astro dev` draw a badge or a toolbar of their own over
+the app. It is not the product, and it runs on a clock of its own, so it would be
+in the video, usually under the caption, and arrive when it arrives, which fails
+`stability` at frame 0. The recorder hides these three by itself, and no setting is
+needed.
 
-| Stack | Setting |
-|---|---|
-| Next.js | `devIndicators: false` in `next.config.ts` |
-| Nuxt | `devtools: { enabled: false }` in `nuxt.config.ts` |
-| Astro | `devToolbar: { enabled: false }` in `astro.config.mjs` |
+Next's error dialog is in the same element as its badge and goes with it, so an
+error is told another way. Whatever the page throws is printed, by `record` and
+`check` for a clip that goes on and beside the failure of one that does not, and a
+failed clip leaves `failure-tools.png` beside `failure.png`, with the tools showing:
+that is where Next's build error is. A video of a broken page still looks like one.
 
-To keep them for your own work, read a variable there
-(`devIndicators: process.env.RECORDING ? false : undefined`) and set it for the
-recorder with `webServer: { env: { RECORDING: "1" } }`. A server you already have
-running is reused as it is, so stop it first. Or record a production build:
+Any other tool stays, a debug toolbar or a query inspector, and is the first thing
+to look for when frame 0 differs. Turn it off in its own config. To keep it for your
+own work, read a variable there (`enabled: !process.env.RECORDING`) and set it for
+the recorder with `webServer: { env: { RECORDING: "1" } }`; a server you already
+have running is reused as it is, so stop it first. Or record a production build,
 `webServer: { command: "npm run build && npm start" }`, which has no dev tools at
 all, and no reloads either.
+
+A clip about one of the three can bring it back, for the page it is on:
+
+```ts
+await s.offCamera((page) =>
+  page.evaluate(() => document.getElementById("__recorder_dev_tools")?.remove()),
+);
+```
 
 ## While recording
 

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A dev server's own tools</title>
+    <style>
+      /* Each stands where its real one does, in a colour of its own, so a test
+         can read off the picture whether it is there. */
+      body { margin: 40px; font: 16px sans-serif; background: #ffffff; }
+      .tool { position: fixed; width: 60px; height: 60px; display: block; }
+    </style>
+  </head>
+  <body>
+    <h1 data-testid="app">The app</h1>
+    <button data-testid="throw" onclick="throw new Error('boom in a handler')">Throw</button>
+    <script class="tool" data-nextjs-dev-overlay="true" style="left: 0; bottom: 0; background: #ff0000"></script>
+    <nextjs-portal class="tool" style="left: 80px; bottom: 0; background: #00ff00"></nextjs-portal>
+    <div class="tool" id="nuxt-devtools-container" style="left: 160px; bottom: 0; background: #0000ff"></div>
+    <nuxt-devtools-inspect-panel class="tool" style="left: 240px; bottom: 0; background: #ffff00"></nuxt-devtools-inspect-panel>
+    <div class="tool" id="vue-tracer-overlay" style="left: 320px; bottom: 0; background: #ff00ff"></div>
+    <astro-dev-toolbar class="tool" style="left: 400px; bottom: 0; background: #00ffff"></astro-dev-toolbar>
+  </body>
+</html>

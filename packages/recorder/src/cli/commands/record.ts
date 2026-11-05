@@ -10,7 +10,7 @@ import type { ReplayMode } from "../../driver/replay.js";
 import { formatTiming } from "../../core/timing.js";
 import { loadClips, loadConfig } from "../../loader.js";
 import { drivingApp } from "../app.js";
-import { ensureFailure } from "../../driver/reports.js";
+import { FAILURE_TOOLS_PNG, ensureFailure } from "../../driver/reports.js";
 
 /**
  * Record every clip the config points at, serially.
@@ -118,9 +118,12 @@ async function recordAll(
       // file and still treated it as a secondary check, because nothing at the
       // moment of failure said the file was there. Now it does.
       const shot = join(config.recordingsDir, id, "failure.png");
-      const picture = existsSync(shot)
-        ? `\n  the page when it gave up: ${shot}`
-        : "";
+      const tools = join(config.recordingsDir, id, FAILURE_TOOLS_PNG);
+      const picture =
+        (existsSync(shot) ? `\n  the page when it gave up: ${shot}` : "") +
+        (existsSync(tools)
+          ? `\n  a moment later, with the dev server's own tools showing: ${tools}`
+          : "");
       process.stderr.write(`${id}\n  ${error.message}${picture}\n\n`);
     }
     return 1;

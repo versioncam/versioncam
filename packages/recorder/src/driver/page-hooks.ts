@@ -5,6 +5,7 @@
  * self-contained strings — they are evaluated in the page, not here.
  */
 
+import type { Page } from "playwright";
 import type { Transitions } from "../config.js";
 
 /**
@@ -219,15 +220,63 @@ ${transitions}  animation-play-state: paused !important;
 }`;
 }
 
+/**
+ * A dev server's own tools, which are not the product.
+ *
+ * `next dev`, `nuxt dev` and `astro dev` draw a badge or a toolbar over the app.
+ * Each is in the video, usually under the caption, and each runs on a clock of
+ * its own: Next's badge turned up on frame 0 of one run and not of the next, and
+ * Nuxt's prints a live timing. So a stranger's first clip on these templates was
+ * marked and unstable until they found a setting in their framework's config.
+ *
+ * By tag and id, as the templates have them today, and tried on each. Vite's
+ * `vite-error-overlay` is not here, and neither is anything else that exists to
+ * show a failure. Next's is the exception: its dialog and its badge share one
+ * closed shadow root, so they go together, and the recorder says so another way.
+ * Whatever the page throws is printed (see `runClip`), and a failed clip's
+ * second picture is taken with this rule gone (see `writeFailure`).
+ */
+const DEV_TOOLS =
+  "[data-nextjs-dev-overlay], nextjs-portal, " +
+  "#nuxt-devtools-container, nuxt-devtools-inspect-panel, #vue-tracer-overlay, " +
+  "astro-dev-toolbar";
+
+export const DEV_TOOLS_CSS = `${DEV_TOOLS} {
+  display: none !important;
+}`;
+
+/** The element `DEV_TOOLS_CSS` is in, in every document the recorder drives. */
+const DEV_TOOLS_STYLE_ID = "__recorder_dev_tools";
+
+/** Take the rule away, so a picture of a failure shows what the app showed. */
+export async function showDevTools(page: Page): Promise<void> {
+  await page.evaluate((id) => {
+    document.getElementById(id)?.remove();
+  }, DEV_TOOLS_STYLE_ID);
+}
+
+/** Is any of them on the page? */
+export async function hasDevTools(page: Page): Promise<boolean> {
+  return page.evaluate(
+    (tools) => document.querySelector(tools) !== null,
+    DEV_TOOLS,
+  );
+}
+
 export function freezeCssScript(transitions: Transitions): string {
   return `(() => {
   const zero = ${transitions === "zero"} || window !== window.top;
   const css = zero ? ${JSON.stringify(freezeCss(true))} : ${JSON.stringify(freezeCss(false))};
   const inject = () => {
+    const parent = document.head || document.documentElement;
     const style = document.createElement("style");
     style.id = "__recorder_freeze";
     style.textContent = css;
-    (document.head || document.documentElement).appendChild(style);
+    parent.appendChild(style);
+    const tools = document.createElement("style");
+    tools.id = ${JSON.stringify(DEV_TOOLS_STYLE_ID)};
+    tools.textContent = ${JSON.stringify(DEV_TOOLS_CSS)};
+    parent.appendChild(tools);
   };
   if (document.head || document.documentElement) inject();
   else document.addEventListener("DOMContentLoaded", inject, { once: true });

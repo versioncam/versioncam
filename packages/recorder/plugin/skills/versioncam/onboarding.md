@@ -158,14 +158,12 @@ the two pictures behind it; **read both** and say what differs.
 
 What you may fix, in the config:
 
-- A dev server's own tools, drawn over the app on a clock of their own: the
-  black "N" badge of `next dev`, the bar of Nuxt DevTools, Astro's dev toolbar.
-  They are in the video, and they arrive when they arrive, so the two pictures
-  differ at frame 0. Say what you saw and turn them off:
-  `devIndicators: false` in `next.config.*`, `devtools: { enabled: false }` in
-  `nuxt.config.*`, `devToolbar: { enabled: false }` in `astro.config.*`. That
-  is the app's config, so it is the person's to agree to, and the one change to
-  the app this phase may ask for.
+- A dev server's own tools, drawn over the app on a clock of their own, so the
+  two pictures differ at frame 0. The recorder hides those of Next, Nuxt and
+  Astro by itself, so what you see is another: a debug toolbar, a query inspector.
+  Say what you saw, and turn it off in its own config. That is the app's config,
+  so it is the person's to agree to, and the one change to the app this phase may
+  ask for.
 - Something still animating in when the clip starts: a fade, a skeleton
   screen: a `settle.ready` that waits for it to finish.
 - Time rendered from the server rather than the page: the page's own clock is

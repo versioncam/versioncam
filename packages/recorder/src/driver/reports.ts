@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+import { hasDevTools, showDevTools } from "./page-hooks.js";
+import { withinMs } from "./settle.js";
 import type { Rect } from "../core/timeline.js";
 import type { SettleReport } from "./settle.js";
 
@@ -17,6 +20,7 @@ import type { SettleReport } from "./settle.js";
 export const SETTLES_FILE = "settles.json";
 export const FAILURE_JSON = "failure.json";
 export const FAILURE_PNG = "failure.png";
+export const FAILURE_TOOLS_PNG = "failure-tools.png";
 export const TARGETS_FILE = "targets.json";
 
 export function writeSettles(dir: string, reports: SettleReport[]): void {
@@ -80,19 +84,48 @@ export async function writeFailure(
       join(dir, FAILURE_JSON),
       `${JSON.stringify(failure, null, 2)}\n`,
     );
-    writeFileSync(
-      join(dir, FAILURE_PNG),
-      await page.screenshot({
-        type: "png",
-        caret: "initial",
-        // A page stuck between two documents holds this too, and the failure
-        // that brought us here must not wait on a picture of it.
-        timeout: 10_000,
-        // At the same scale the clip's own frames were captured at, so a
-        // draft's evidence is as cheap to look at as its states are.
-        scale: options.draft ? "css" : "device",
-      }),
+    const shoot = async (name: string): Promise<void> => {
+      writeFileSync(
+        join(dir, name),
+        await page.screenshot({
+          type: "png",
+          caret: "initial",
+          // A page stuck between two documents holds this too, and the failure
+          // that brought us here must not wait on a picture of it.
+          timeout: 10_000,
+          // At the same scale the clip's own frames were captured at, so a
+          // draft's evidence is as cheap to look at as its states are.
+          scale: options.draft ? "css" : "device",
+        }),
+      );
+    };
+    await shoot(FAILURE_PNG);
+
+    // The picture of why it failed may be the one thing the recorder hid: a
+    // build error in Next's overlay, with the app blank behind it. So where a
+    // page has such tools there is a second picture, with them showing. That
+    // overlay mounts and draws from its own timers, and the page's clock stopped
+    // with the clip, so it gets a moment of both clocks before anyone can tell
+    // whether it is there at all. Which is why it is a second picture: time has
+    // moved, and a control that "nothing matched" could be in it, so the first
+    // stays the page as it stood. All of it bounded, since a page stuck between
+    // two documents holds these calls as well.
+    await withinMs(
+      showDevTools(page).catch(() => undefined),
+      2_000,
     );
+    for (let round = 0; round < 2; round += 1) {
+      await withinMs(
+        page.clock.runFor(600).catch(() => undefined),
+        2_000,
+      );
+      await sleep(400);
+    }
+    const tools = await withinMs(
+      hasDevTools(page).catch(() => false),
+      2_000,
+    );
+    if (tools) await shoot(FAILURE_TOOLS_PNG);
   } catch {
     // Nothing to do about it here, and the original failure is on its way up.
   }

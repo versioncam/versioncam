@@ -10,12 +10,21 @@ and its entry here says how.
 
 From a rehearsal on the official templates of Next.js, SvelteKit, Nuxt, Angular,
 Docusaurus and Django. Nothing changes in the config or the clip DSL. A clip that
-recorded before records the same frames, unless it scrolls beneath a cursor that
-rests on something with a hover state, where a hover now lands on the frame it
-should.
+recorded before records the same frames, unless it filmed a dev server's toolbar, or
+scrolls beneath a cursor that rests on something with a hover state, where a hover
+now lands on the frame it should.
 
 ### Added
 
+- The dev tools of Next, Nuxt and Astro are hidden from every clip, with no setting.
+  Each was in the video, under the caption, and on a clock of its own, which failed
+  `stability` at frame 0 on the first clip of a new app. Any other toolbar stays, and
+  the README says how to turn it off.
+- What the page throws is said: printed by `record` and `check` for a clip that goes
+  on, and beside the failure of one that does not. Next's error dialog goes with its
+  badge, so this is how an error is told now. A failed clip on such a page leaves
+  `failure-tools.png` beside `failure.png`, with the tools showing, and a Next build
+  error is there.
 - `inspect` and `measure` take `--viewport <w>x<h>`, to look at the page at a
   phone's size. An app's phone layout has controls its desktop layout does not.
 

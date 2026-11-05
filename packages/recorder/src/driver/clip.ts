@@ -240,6 +240,18 @@ export async function runClip(
           "link or a form post to the same page can.";
   };
 
+  // What the page threw. The recorder hides Next's dev tools, whose error dialog
+  // goes with its badge, so a thrown error has to be told some other way, or the
+  // recorder would make a video quietly wrong: a warning for a clip that goes on,
+  // and the cause beside the failure of one that does not.
+  const thrown: string[] = [];
+  page.on("pageerror", (error) => {
+    if (!thrown.includes(error.message)) thrown.push(error.message);
+  });
+  const threw = (): string =>
+    `The page threw during "${id}": ${thrown.slice(0, 3).join("; ")}` +
+    (thrown.length > 3 ? `; and ${thrown.length - 3} more.` : ".");
+
   const dir = join(config.recordingsDir, id);
   const session = new RecordingSession(page, {
     clipId: id,
@@ -271,12 +283,16 @@ export async function runClip(
       // gone because the page started over.
       const pushed = await reloaded();
       if (pushed) (error as Error).message += `\n\n${pushed}`;
+      if (thrown.length > 0) (error as Error).message += `\n\n${threw()}`;
       throw error;
     }
     const missing = replay?.failure();
     if (missing) throw new Error(missing);
     const pushed = await reloaded();
     if (pushed) throw new Error(pushed);
+    if (thrown.length > 0) {
+      console.warn(`[recorder] ${threw()} The clip went on.`);
+    }
     const timeline = session.finish();
     writeSettles(dir, session.settles);
     writeTargets(dir, session.evidence().targets);
