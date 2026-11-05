@@ -121,6 +121,8 @@ export type RunClipOptions = {
    * the command line sets.
    */
   replay?: ReplayMode;
+  /** How long a page may take to arrive, for a test that cannot wait 90 s. */
+  arriveWithinMs?: number;
 };
 
 export async function runClip(
@@ -145,6 +147,9 @@ export async function runClip(
     : null;
 
   const context = await browser.newContext({
+    // So `page.goto("/sign-in")` in a login hook or `offCamera` means what it
+    // means in a Playwright test, rather than "Cannot navigate to invalid URL".
+    baseURL: config.baseUrl,
     viewport,
     deviceScaleFactor: dpr,
     // The app should render its normal motion design; the freeze script is
@@ -188,17 +193,52 @@ export async function runClip(
 
   // A dev server broadcasts a full page reload to every connected client when
   // it cannot hot-update a changed module, including a page being recorded.
-  // Editing any file mid-run therefore replaces the document, which otherwise
-  // surfaces as an inscrutable "Execution context was destroyed" from
-  // whichever evaluate lost the race.
+  // Editing any file mid-run therefore replaces the document, and the clip goes
+  // on against an app that has lost its state. So a reload fails the clip.
   //
-  // Counted from "load" rather than "framenavigated": the latter also fires
-  // for History API pushes, and an app that routes client-side would report
-  // navigations that never replaced anything.
-  let documentLoads = 0;
+  // A navigation does not: a plain link or a form post is how a server-rendered
+  // app changes page, and the session waits it out. The browser's own account
+  // tells the two apart, once the new document has loaded: a dev server's push
+  // is `location.reload()`, and a link is a "push". Asked of the Navigation API
+  // because the page's fake clock hides `performance.getEntriesByType`.
+  //
+  // Asked from "load" rather than "framenavigated": the latter also fires for
+  // History API pushes, which never replaced anything.
+  //
+  // Only once there is a frame to lose. A page that reloads itself as it opens,
+  // as Vite does on a first visit when it finds a dependency to optimize, has
+  // filmed nothing yet, and the first settle waits for the page that stays.
+  let reloads = 0;
+  const loads: Promise<void>[] = [];
   page.on("load", () => {
-    documentLoads += 1;
+    if (session.at.frame < 0) return;
+    loads.push(
+      page
+        .evaluate(() => {
+          // Not in TypeScript's DOM types yet; Chromium has had it since 123.
+          const { navigation } = window as unknown as {
+            navigation?: { activation?: { navigationType?: string } };
+          };
+          return navigation?.activation?.navigationType;
+        })
+        .then((type) => {
+          if (type === "reload") reloads += 1;
+        })
+        // Replaced again already, or closed: what comes next is what counts.
+        .catch(() => undefined),
+    );
   });
+  const reloaded = async (): Promise<string | null> => {
+    await Promise.all(loads);
+    return reloads === 0
+      ? null
+      : `The document reloaded ${reloads} time(s) during "${id}". ` +
+          "The usual cause is editing a file while recording: a dev server " +
+          "pushes a full reload to every open client. Re-record without " +
+          "touching the working tree. An app that reloads itself on purpose, " +
+          "after a settings change say, cannot be filmed past that point; a " +
+          "link or a form post to the same page can.";
+  };
 
   const dir = join(config.recordingsDir, id);
   const session = new RecordingSession(page, {
@@ -215,6 +255,7 @@ export async function runClip(
     draft,
     config,
     replay,
+    arriveWithinMs: runOptions.arriveWithinMs,
   });
 
   try {
@@ -226,18 +267,16 @@ export async function runClip(
       // appeared, a settle that ran out. The missing response is the cause.
       const missing = replay?.failure();
       if (missing) (error as Error).message += `\n\n${missing}`;
+      // The same for a reload: the control a clip could not find is usually
+      // gone because the page started over.
+      const pushed = await reloaded();
+      if (pushed) (error as Error).message += `\n\n${pushed}`;
       throw error;
     }
     const missing = replay?.failure();
     if (missing) throw new Error(missing);
-    if (documentLoads > 1) {
-      throw new Error(
-        `The document reloaded ${documentLoads - 1} time(s) during "${id}". ` +
-          "The usual cause is editing a file while recording: a dev server " +
-          "pushes a full reload to every open client. Re-record without " +
-          "touching the working tree.",
-      );
-    }
+    const pushed = await reloaded();
+    if (pushed) throw new Error(pushed);
     const timeline = session.finish();
     writeSettles(dir, session.settles);
     writeTargets(dir, session.evidence().targets);

@@ -33,7 +33,10 @@ export async function login(): Promise<number> {
   return drivingApp(config, async () => {
     const browser = await launchBrowser({ headless: false });
     try {
-      const context = await browser.newContext({ viewport: config.viewport });
+      const context = await browser.newContext({
+        baseURL: config.baseUrl,
+        viewport: config.viewport,
+      });
       const page = await context.newPage();
       await page.goto(config.baseUrl);
 

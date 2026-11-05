@@ -137,6 +137,28 @@ export default defineRecorder({
 If the recorder needs to know something about your app that this object
 cannot say, that is a missing field. It is not a reason to fork.
 
+A `login` hook gets the Playwright page, already where `open` went, and runs on
+every `open`, so it decides for itself whether anything is needed. An app that
+signs people in sends a visitor to its sign-in page and, once signed in, back to
+what they asked for, so the hook looks for that page and leaves everything else
+alone. `open` does not go back to its path afterwards, so a hook that goes
+somewhere of its own leaves the clip there. Its values come from `.env.recording`,
+which stays out of git, and nothing is filmed while it runs. A path in it is
+Playwright's, from the origin of `baseUrl`: where `baseUrl` itself has a path,
+`s.open("/x")` adds to it and `page.goto("/x")` does not.
+
+```ts
+auth: {
+  login: async (page) => {
+    if (!new URL(page.url()).pathname.startsWith("/sign-in")) return;
+    await page.getByLabel("Email").fill(process.env.RECORDING_USER ?? "");
+    await page.getByLabel("Password").fill(process.env.RECORDING_PASS ?? "");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+  },
+},
+```
+
 | Field | Default | What it sets |
 |---|---|---|
 | `baseUrl` | required | Where the app is served. |
@@ -283,6 +305,21 @@ clip is shown.
 ```ts
 const files = await s.fileWindow([{ name: "cases.csv", content: csv }], { title: "Case data" });
 await s.drag(files.item(0), s.byTestId("dropzone"));
+```
+
+A page that loads another document, a plain link or a form post on a
+server-rendered app, is filmed like anything else that takes time. The video cuts
+to the new page once it has finished, whatever the server took: give the beat a
+label with `s.settle` after the click. A page that has not arrived after 90
+seconds fails the clip and names the address it was going to. A second `s.open`
+goes to another page and the clip goes on from where it is. The page's clock
+carries on across the load, and does not move while the server takes its time. A
+reload nobody asked for still fails the clip (see *While recording*).
+
+```ts
+await s.typeInto(s.byLabel("Username"), "mira");
+await s.click(s.byRole("button", { name: "Log in" }));
+await s.settle({ label: "signed in" });
 ```
 
 `npx versioncam dsl` prints every method with its options and defaults, and a
@@ -1035,7 +1072,10 @@ machine.
 
 Do not edit files. A dev server pushes a full page reload to every connected
 client, including the page being recorded. The driver detects it and says so,
-but the run is lost either way.
+but the run is lost either way. So is the run of an app that reloads itself on
+purpose once a clip is under way: a link or a form post is filmed, and a reload
+is not. One that reloads itself as it opens has lost nothing, and frame 0 is of
+the page that stayed.
 
 Record one clip at a time against a given app session. The CLI already does.
 The thing to avoid is a browser tab left open on the same session.

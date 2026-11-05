@@ -64,7 +64,8 @@ and what a track write needs after it.
 Wait for the page to stop working: the DOM quiet, no requests in flight, the
 fonts loaded, no CSS transition still running, and whatever `settle.ready` in
 the config adds. It advances the page's clock without capturing, so the wait
-never reaches the video.
+never reaches the video. A new document loading, from a link or a form post, is
+part of the wait, and has up to 90 seconds.
 
 Give every beat a `label`. `versioncam review` checks a beat sheet against the
 labels, and `sheet --at-marks` samples the frames they mark. A settle that
@@ -93,7 +94,8 @@ does not move either. Whatever the app needs time to finish after `fn`, a
 
 Go to `baseUrl` plus `path`, or to `path` itself when it is a full URL. Then
 sign in, if the config's `auth` has a `login` hook, settle, and capture frame
-0. Every clip starts here.
+0. Every clip starts here. A later `open` goes to another page and the clip goes
+on from where it is: the video cuts to the page once it has finished.
 
 | Option | Default | What it sets |
 |---|---|---|

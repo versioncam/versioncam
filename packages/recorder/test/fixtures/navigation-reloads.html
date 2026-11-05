@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Reloads itself once</title>
+    <script>
+      // What Vite does on a first visit when it finds a dependency to optimize,
+      // and Nuxt's loading page when the build is done.
+      if (!sessionStorage.getItem("reloaded")) {
+        sessionStorage.setItem("reloaded", "yes");
+        location.reload();
+      }
+    </script>
+  </head>
+  <body>
+    <h1 data-testid="title">Here now</h1>
+  </body>
+</html>

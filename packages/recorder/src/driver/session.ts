@@ -1,4 +1,4 @@
-import type { ElementHandle, Locator, Page } from "playwright";
+import type { ElementHandle, Locator, Page, Request } from "playwright";
 import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -28,7 +28,7 @@ import {
 import type { HighlightStyle, Rect, Timeline, Vec2 } from "../core/timeline.js";
 import { emptyTiming } from "../core/timing.js";
 import type { RecordingTiming } from "../core/timing.js";
-import { TICK_MS, settlePage } from "./settle.js";
+import { TICK_MS, isNavigationError, settlePage, withinMs } from "./settle.js";
 import type { SettleOptions, SettleReport } from "./settle.js";
 import { FRAME_PROBE, SYNC_TRANSITIONS } from "./page-hooks.js";
 import { drawFileWindow, fileRows } from "./file-window.js";
@@ -56,6 +56,8 @@ export type SessionOptions = {
    */
   draft: boolean;
   config: ResolvedConfig;
+  /** How long a page may take to arrive; `OPEN_SETTLE_MS` unless a test says. */
+  arriveWithinMs?: number;
   /**
    * The clip's replay, when the config has one: the frame loop waits for its
    * answers, so a request made in a frame is answered in that frame.
@@ -242,6 +244,26 @@ function isRect(target: Locator | Rect): target is Rect {
   );
 }
 
+/** How long a page may take to finish on arriving: a cold open's budget. */
+const OPEN_SETTLE_MS = 90_000;
+
+/**
+ * Real time after a press for a navigation it caused to reach the browser.
+ *
+ * Only so that the session knows of it before the next step begins. What keeps
+ * the frames out of it is not this wait: Chromium holds every call to the page
+ * until the new document commits, so the next frame's probe cannot return early.
+ * Spent once a press, so a clip with a dozen clicks loses a third of a second.
+ */
+const NAVIGATION_START_MS = 25;
+
+/**
+ * How long the round trip after a press may be held before the session moves on
+ * to wait for the navigation that is holding it, where the wait has a limit and
+ * a report. A press that navigated spends this much more, once.
+ */
+const NAVIGATION_HOLD_MS = 250;
+
 /**
  * Drives the app through an authored timeline and captures one image per
  * output frame.
@@ -281,6 +303,20 @@ export class RecordingSession {
   private frame = -1;
   private cursor: Vec2;
   private inFlight = 0;
+  /**
+   * A navigation of the main frame has started and its document has not loaded.
+   *
+   * Between the two the page is on its way somewhere, and what a frame would
+   * show depends on how fast the server is. Nothing is photographed until it
+   * arrives.
+   */
+  private navigating = false;
+  /** Where it is going, for the message when it does not get there. */
+  private navigatingTo = "";
+  /** How many documents have loaded, so a settle can tell it crossed to one. */
+  private documents = 0;
+  /** The document the real mouse was last placed over. */
+  private documentUnderMouse = 0;
   private lastSettleFrame = -1;
   private readonly timing = emptyTiming();
   /**
@@ -336,14 +372,45 @@ export class RecordingSession {
       recorder: options.recorder,
     });
 
-    page.on("request", () => {
+    const isNavigation = (request: Request): boolean => {
+      if (!request.isNavigationRequest()) return false;
+      try {
+        return request.frame() === page.mainFrame();
+      } catch {
+        // A navigation issued before its frame exists: an iframe's, never ours.
+        return false;
+      }
+    };
+    page.on("request", (request) => {
       this.inFlight += 1;
+      if (isNavigation(request)) {
+        this.navigating = true;
+        this.navigatingTo = request.url();
+      }
     });
     page.on("requestfinished", () => {
       this.inFlight = Math.max(0, this.inFlight - 1);
     });
-    page.on("requestfailed", () => {
+    page.on("requestfailed", (request) => {
       this.inFlight = Math.max(0, this.inFlight - 1);
+      // A download, or one navigation replaced by another: no document is
+      // coming from this one, and the next one says so for itself.
+      if (isNavigation(request)) this.navigating = false;
+    });
+    page.on("response", (response) => {
+      // "No content": the browser stays on the page it is on, as it does for a
+      // form whose handler has nothing to show.
+      const status = response.status();
+      if (
+        (status === 204 || status === 205) &&
+        isNavigation(response.request())
+      ) {
+        this.navigating = false;
+      }
+    });
+    page.on("load", () => {
+      this.navigating = false;
+      this.documents += 1;
     });
 
     rmSync(options.outputDir, { recursive: true, force: true });
@@ -407,13 +474,45 @@ export class RecordingSession {
   async settle(options: SettleOptions = {}): Promise<void> {
     const defaults = this.options.config.settle;
     const startedAt = performance.now();
-    const report = await settlePage(this.page, () => this.inFlight, {
-      quietMs: defaults.quietMs,
-      timeoutMs: defaults.timeoutMs,
-      yieldMs: defaults.yieldMs,
-      ...options,
-      hook: options.hook ?? this.defaultHook(),
-    });
+    const wait = (timeoutMs: number | undefined): Promise<SettleReport> =>
+      settlePage(this.page, () => this.inFlight + (this.navigating ? 1 : 0), {
+        quietMs: defaults.quietMs,
+        timeoutMs: defaults.timeoutMs,
+        yieldMs: defaults.yieldMs,
+        ...options,
+        ...(timeoutMs === undefined ? {} : { timeoutMs }),
+        hook: options.hook ?? this.defaultHook(),
+      });
+    // A page that was on its way somewhere when the wait began is a cold open
+    // of its own, and gets a cold open's budget: a dev server may have a route
+    // to compile.
+    const crossing = this.navigating;
+    let report = await wait(
+      options.timeoutMs ?? (crossing ? this.arrivalBudget : undefined),
+    );
+    // Held on purpose: on the other side of a navigation this asks the page
+    // again, and a report that kept only the second wait would lose the time
+    // the page took to arrive, and whether that wait gave up.
+    const crossed = report;
+    if (this.frame >= 0 && this.documentUnderMouse !== this.documents) {
+      // The new document has not been told where the mouse is. Chromium will
+      // tell it on a timer of its own, once layout settles, and a hover
+      // starting then lands on a frame the clip did not author. So it is told
+      // now, and the wait goes on until whatever that started has finished.
+      this.documentUnderMouse = this.documents;
+      this.lastMouse = null;
+      await this.moveMouse(this.cursor);
+      const after = await wait(options.timeoutMs);
+      report = {
+        ...after,
+        elapsedMs: crossed.elapsedMs + after.elapsedMs,
+        ticks: crossed.ticks + after.ticks,
+        timedOut: crossed.timedOut || after.timedOut,
+        lastBlocker: crossed.timedOut ? crossed.lastBlocker : after.lastBlocker,
+      };
+      // However alike two pages are, the next frame is of a different one.
+      this.inputPending = true;
+    }
     this.timing.settleMs += performance.now() - startedAt;
     this.settleReports.push(report);
     if (report.elapsedMs > 1000) {
@@ -477,8 +576,13 @@ export class RecordingSession {
 
     await this.settle({
       label: `open ${path}`,
-      timeoutMs: options.settleTimeoutMs ?? 90_000,
+      timeoutMs: options.settleTimeoutMs ?? OPEN_SETTLE_MS,
     });
+
+    // A clip that opens a second page goes on from where it is. Frame 0 exists,
+    // and the clip's time does not start again.
+    if (this.frame >= 0) return;
+    this.documentUnderMouse = this.documents;
 
     const framesAt = performance.now();
     await this.moveMouse(this.cursor);
@@ -948,6 +1052,7 @@ export class RecordingSession {
 
   async press(key: string): Promise<void> {
     await this.page.keyboard.press(key);
+    await this.letNavigationStart();
     this.inputPending = true;
   }
 
@@ -1066,6 +1171,10 @@ export class RecordingSession {
    * as to which step it was on. Fifteen seconds and a named failure instead.
    */
   private async boxOf(locator: Locator, timeoutMs = 15_000): Promise<Rect> {
+    // Measured on the page the clip is on its way to: a box from the old one
+    // would send the cursor to where that page had the control, and asking while
+    // the page is between documents is held for as long as the server takes.
+    await this.arrive();
     if (!(await this.untilVisible(locator, timeoutMs))) {
       throw new Error(await this.whyLocatorFailed(locator, timeoutMs));
     }
@@ -1205,11 +1314,20 @@ export class RecordingSession {
     const endFrame = frameAt(t1, this.options.fps);
     const frameMs = 1000 / this.options.fps;
     const startedAt = performance.now();
+    // A navigation waited out in the loop is a settle, and counted as one.
+    const settledBefore = this.timing.settleMs;
 
     for (let f = this.frame + 1; f <= endFrame; f += 1) {
       const tf = timeAt(f, this.options.fps);
 
       const position = evalCursor(this.timeline.cursor, tf);
+      // First, before anything else is asked of the page: Chromium holds every
+      // call to it while a navigation is under way, a tick of the clock included,
+      // and a tick that went through on the far side would reach the new page.
+      if (this.navigating || this.documentUnderMouse !== this.documents) {
+        this.cursor = position;
+        await this.arrive();
+      }
       await this.moveMouse(position);
 
       while (this.queue.length > 0 && this.queue[0].t <= tf) {
@@ -1229,9 +1347,7 @@ export class RecordingSession {
       // rate the clip plays rather than the rate the machine ran — moves its
       // transitions to the page's clock, which the tick just advanced, and
       // reads back what decides whether this frame needs a screenshot.
-      const probe = await this.page.evaluate<FrameProbe>(
-        FRAME_PROBE(tf, position[0], position[1]),
-      );
+      const probe = await this.probeFrame(tf, position);
 
       if (this.shouldCapture(f, probe)) {
         await this.captureFrame(f, probe);
@@ -1242,9 +1358,93 @@ export class RecordingSession {
       this.frame = f;
     }
 
-    this.timing.framesMs += performance.now() - startedAt;
+    this.timing.framesMs +=
+      performance.now() - startedAt - (this.timing.settleMs - settledBefore);
     this.t = t1;
     this.cursor = cursorEnd(this.timeline.cursor, this.cursor);
+  }
+
+  /**
+   * If the page is on its way somewhere, wait until it has arrived.
+   *
+   * A clip that follows a click with a settle has already waited, and this finds
+   * nothing to do. One that holds, reaches for the next control at once, or whose
+   * page navigates from a timer of its own gets the same wait here: anything slow
+   * happens inside a settle, so the next frame of the video is of the finished
+   * page, whatever the server took, on every run.
+   *
+   * A settle that gives up carries on, and for a slow page that is right. For a
+   * page that has not arrived there is nothing to carry on with: every call to
+   * it would be held as well, so the clip ends here and says where it was going.
+   */
+  private get arrivalBudget(): number {
+    return (
+      this.options.arriveWithinMs ??
+      Math.max(OPEN_SETTLE_MS, this.options.config.settle.timeoutMs)
+    );
+  }
+
+  private async arrive(): Promise<void> {
+    // The flag alone would miss a page quick enough to have loaded already.
+    if (!this.navigating && this.documentUnderMouse === this.documents) return;
+    await this.settle();
+    if (this.navigating) {
+      throw new Error(
+        `The page was still on its way to ${this.navigatingTo} when the wait ` +
+          `gave up after ${this.arrivalBudget / 1000} s. ` +
+          "The server has not answered, which `.versioncam/webserver.log` may " +
+          "say more about.",
+      );
+    }
+  }
+
+  /** Read a frame's probe, through a navigation if one is under way. */
+  private async probeFrame(tf: number, position: Vec2): Promise<FrameProbe> {
+    for (;;) {
+      if (this.navigating || this.documentUnderMouse !== this.documents) {
+        this.cursor = position;
+        await this.arrive();
+      }
+      try {
+        const budget = this.arrivalBudget;
+        const probe = await withinMs(
+          this.page.evaluate<FrameProbe>(
+            FRAME_PROBE(tf, position[0], position[1]),
+          ),
+          budget,
+        );
+        // Not a navigation, or `arrive` would have had it: a page whose main
+        // thread has stopped answering. A long task only holds this a while.
+        if (probe === null) {
+          throw new Error(
+            `The page did not answer for ${budget / 1000} s at t=${tf.toFixed(2)}s. ` +
+              "Its main thread is busy or stuck.",
+          );
+        }
+        if (!this.navigating) return probe;
+      } catch (error) {
+        if (!isNavigationError(error)) throw error;
+        this.navigating = true;
+      }
+    }
+  }
+
+  /**
+   * Give what a press just did the moment it needs to show.
+   *
+   * A click on a link or Enter in a form starts its navigation a task after the
+   * input is acknowledged, and the browser reports the request a moment after
+   * that. This only makes sure the session has heard: the round trip has a limit
+   * because Chromium holds it for as long as the server takes, and that wait
+   * belongs to the settle that comes next, which has a budget and a report. Real
+   * time only: the page's clock is paused throughout.
+   */
+  private async letNavigationStart(): Promise<void> {
+    await withinMs(
+      this.page.evaluate(() => 0).catch(() => undefined),
+      NAVIGATION_HOLD_MS,
+    );
+    await sleep(NAVIGATION_START_MS);
   }
 
   /**
@@ -1282,7 +1482,10 @@ export class RecordingSession {
   /** Press or release, recording it and flagging the frame as changed. */
   private async pressMouse(kind: "down" | "up"): Promise<void> {
     if (kind === "down") await this.page.mouse.down();
-    else await this.page.mouse.up();
+    else {
+      await this.page.mouse.up();
+      await this.letNavigationStart();
+    }
     this.timeline.pointer.push({
       t: this.t,
       kind,

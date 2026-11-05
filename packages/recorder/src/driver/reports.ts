@@ -85,6 +85,9 @@ export async function writeFailure(
       await page.screenshot({
         type: "png",
         caret: "initial",
+        // A page stuck between two documents holds this too, and the failure
+        // that brought us here must not wait on a picture of it.
+        timeout: 10_000,
         // At the same scale the clip's own frames were captured at, so a
         // draft's evidence is as cheap to look at as its states are.
         scale: options.draft ? "css" : "device",

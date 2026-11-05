@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Page B</title>
+    <style>
+      body { font: 16px sans-serif; margin: 40px; background: #eef; }
+      a, button { display: block; margin: 16px 0; padding: 12px; font-size: 16px; transition: background 200ms; }
+      a:hover, button:hover { background: #bcd; }
+    </style>
+  </head>
+  <body>
+    <h1 data-testid="title">Page B</h1>
+    <p data-testid="now"></p>
+    <p data-testid="timer">Waiting</p>
+    <button data-testid="count" onclick="this.textContent = 'Clicked'">Click me</button>
+    <a data-testid="back" href="/navigation-a.html">Back to page A</a>
+    <script>
+      document.querySelector('[data-testid="now"]').textContent = new Date().toISOString();
+      setTimeout(() => {
+        document.querySelector('[data-testid="timer"]').textContent = "Timer fired";
+      }, 300);
+    </script>
+  </body>
+</html>

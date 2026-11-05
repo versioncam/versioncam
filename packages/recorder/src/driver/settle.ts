@@ -17,6 +17,13 @@ export type SettleOptions = {
   yieldMs?: number;
 };
 
+type SettleProbe = {
+  mutations: number;
+  fontsLoaded: boolean;
+  transitions: number;
+  replays: number;
+};
+
 export type SettleReport = {
   label: string;
   elapsedMs: number;
@@ -25,9 +32,55 @@ export type SettleReport = {
   lastBlocker: string;
 };
 
+/** What a settle reads from a page that is not there to ask. Never quiet. */
+const GONE: SettleProbe = {
+  mutations: -1,
+  fontsLoaded: false,
+  transitions: 0,
+  replays: 0,
+};
+
+/**
+ * `work`, or null once `ms` have gone by.
+ *
+ * A call that loses is left to finish on its own, and whatever it comes to is
+ * nobody's business by then: a rejection must not surface as an unhandled one.
+ * The timer is cleared when the work wins, or it would hold the process open.
+ */
+export function withinMs<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise<T | null>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error as Error);
+      },
+    );
+  });
+}
+
 /** One step of the page's clock whenever the recorder waits on the page. */
 export const TICK_MS = 16;
 const DEFAULT_YIELD_MS = 20;
+
+/**
+ * Did this call fail because the page's document went away under it?
+ *
+ * A plain link or a form post destroys the context a probe was running in, and
+ * Playwright rejects the call. On a server-rendered app that is how every page
+ * changes, so it is an ordinary event to wait out, and not a failure of the
+ * clip. A closed page is a different message and a real failure, and stays one.
+ */
+export function isNavigationError(error: unknown): boolean {
+  const message = (error as Error | undefined)?.message ?? "";
+  return /Execution context was destroyed|Cannot find context with specified id|frame was detached/i.test(
+    message,
+  );
+}
 
 /**
  * Advance the page's clock until nothing is happening any more.
@@ -66,17 +119,50 @@ export async function settlePage(
     // whatever waits on them (a closed dialog unmounting) runs, and shows as
     // DOM work on the next tick; moves the page's transitions to its clock,
     // which the last tick advanced; and says how many are still running.
-    const probe = await page.evaluate(() => {
-      window.__recorder?.finishEnded();
-      return {
-        mutations: window.__recorder?.mutations ?? 0,
-        fontsLoaded: document.fonts ? document.fonts.status === "loaded" : true,
-        transitions: window.__recorderTransitions?.sync() ?? 0,
-        replays: window.__recorderReplay?.pending ?? 0,
-      };
-    });
+    //
+    // A document replaced under the call is not quiet, and says nothing about
+    // the next one: the wait starts over on the page that arrives.
+    //
+    // And it may not come back for a while. Chromium holds a call like this
+    // from the moment a navigation starts until the new document commits, for
+    // as long as the server takes. That is why the page's clock does not move
+    // during that time, so what the new page reads from it does not depend on
+    // the server. It is also why the call needs a limit of its own: without one
+    // a server that never answers hangs the recorder, and the timeout below is
+    // never reached.
+    let probe: SettleProbe;
+    let hookOk: boolean;
+    try {
+      const answer = await withinMs(
+        page.evaluate(() => {
+          window.__recorder?.finishEnded();
+          return {
+            mutations: window.__recorder?.mutations ?? 0,
+            fontsLoaded: document.fonts
+              ? document.fonts.status === "loaded"
+              : true,
+            transitions: window.__recorderTransitions?.sync() ?? 0,
+            replays: window.__recorderReplay?.pending ?? 0,
+          };
+        }),
+        Math.max(0, started + timeoutMs - Date.now()),
+      );
+      if (answer === null) {
+        // Timed out while held: the check below gives up on this very pass.
+        probe = GONE;
+        hookOk = false;
+        lastBlocker = "navigation";
+      } else {
+        probe = answer;
+        hookOk = options.hook ? await options.hook() : true;
+      }
+    } catch (error) {
+      if (!isNavigationError(error)) throw error;
+      probe = GONE;
+      hookOk = false;
+      lastBlocker = "navigation";
+    }
     const requests = inFlightRequests();
-    const hookOk = options.hook ? await options.hook() : true;
 
     // A running transition touches no DOM and no network, so the other
     // checks would call the page finished halfway through one. Waiting it out
@@ -93,7 +179,7 @@ export async function settlePage(
       probe.replays === 0 &&
       hookOk;
 
-    if (!quiet) {
+    if (!quiet && probe !== GONE) {
       if (probe.mutations !== lastMutations) lastBlocker = "dom";
       else if (requests > 0) lastBlocker = `requests(${requests})`;
       else if (!probe.fontsLoaded) lastBlocker = "fonts";
@@ -115,7 +201,7 @@ export async function settlePage(
       };
     }
 
-    if (Date.now() - started > timeoutMs) {
+    if (Date.now() - started >= timeoutMs) {
       // Not an error: a clip that ends on a still of a half-loaded panel is
       // a better failure than one that dies at frame 300. The log line is how
       // it gets noticed.
@@ -133,7 +219,11 @@ export async function settlePage(
       };
     }
 
-    await page.clock.runFor(TICK_MS);
+    // Held the same way, by a navigation that starts between the probe and this.
+    await withinMs(
+      page.clock.runFor(TICK_MS),
+      Math.max(0, started + timeoutMs - Date.now()),
+    );
     await sleep(options.yieldMs ?? DEFAULT_YIELD_MS);
     ticks += 1;
   }

@@ -49,6 +49,10 @@ const NOT_AUTHORING_SURFACE = new Set([
   "pressMouse",
   "moveMouse",
   "captureFrame",
+  "arrive",
+  "arrivalBudget",
+  "probeFrame",
+  "letNavigationStart",
 ]);
 
 /** Every member `dsl.md` documents: its headings of the form ### `name(…)`. */

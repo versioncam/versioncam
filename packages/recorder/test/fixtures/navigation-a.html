@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Page A</title>
+    <style>
+      body { font: 16px sans-serif; margin: 40px; background: #fff; }
+      a, button, input { display: block; margin: 16px 0; padding: 12px; font-size: 16px; }
+      a:hover, button:hover { background: #dde; }
+    </style>
+  </head>
+  <body>
+    <h1 data-testid="title">Page A</h1>
+    <a data-testid="link" href="/navigation-b.html">Go to page B</a>
+    <form action="/navigation-b.html" method="post">
+      <input data-testid="field" name="q" aria-label="Query" />
+      <button data-testid="send" type="submit">Send</button>
+    </form>
+    <button data-testid="reload" onclick="location.reload()">Reload</button>
+    <button data-testid="late" onclick="setTimeout(() => { location.href = '/navigation-b.html'; }, 100)">
+      Go in a moment
+    </button>
+  </body>
+</html>

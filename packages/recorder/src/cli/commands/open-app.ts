@@ -15,9 +15,12 @@ export async function openAppPage(
   browser: Browser,
   config: ResolvedConfig,
   path: string,
+  viewport: { width: number; height: number } = config.viewport,
 ): Promise<{ page: Page; context: BrowserContext }> {
   const context = await browser.newContext({
-    viewport: config.viewport,
+    // As a clip's context has it, so a login hook works the same in both.
+    baseURL: config.baseUrl,
+    viewport,
     deviceScaleFactor: config.dpr,
     timezoneId: config.clock.timezoneId,
     locale: config.clock.locale,
