@@ -2,7 +2,7 @@ import { parseArgs } from "node:util";
 import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
-import { loadConfig, loadSceneIds } from "../../loader.js";
+import { chooseIds, loadConfig, loadSceneIds } from "../../loader.js";
 import { renderRecording, renderScene } from "../../render/render.js";
 import { missingScenes } from "../../render/scenes.js";
 import { buildSequence } from "../../render/sequence.js";
@@ -23,7 +23,8 @@ function recordedIds(recordingsDir: string): string[] {
  * What `render` renders, from what there is and what was asked for.
  *
  * Ids are substrings, as everywhere else (`render 05` is the clip with 05 in
- * its id), and they choose among the recordings and the scenes alike. A
+ * its id), an exact one picks that one alone, and they choose among the
+ * recordings and the scenes alike. A
  * `--scene` names one scene exactly, and it renders whatever the ids say: it
  * used to be filtered by them as well, so `render 02 04 --scene 01-intro`
  * rendered no scene at all. With no ids, every recording on disk renders,
@@ -37,7 +38,8 @@ export function chooseTargets(
   ids: string[],
   named: string[],
 ): { recordings: string[]; scenes: string[]; unmatched: string[] } {
-  const matches = (id: string) => ids.some((n) => id.includes(n));
+  const chosen = chooseIds([...new Set([...recorded, ...defined])], ids);
+  const matches = (id: string) => chosen.has(id);
   return {
     recordings: ids.length > 0 ? recorded.filter(matches) : recorded,
     scenes: defined.filter(

@@ -23,6 +23,20 @@ describe("what render renders", () => {
     });
   });
 
+  it("takes an exact id alone, so a phone clip's name does not catch both", () => {
+    const recorded = ["01-checkout", "01-checkout-mobile", "02-search"];
+    expect(chooseTargets(recorded, [], ["01-checkout"], []).recordings).toEqual(
+      ["01-checkout"],
+    );
+    expect(
+      chooseTargets(recorded, [], ["01-checkout-mobile"], []).recordings,
+    ).toEqual(["01-checkout-mobile"]);
+    expect(chooseTargets(recorded, [], ["checkout"], []).recordings).toEqual([
+      "01-checkout",
+      "01-checkout-mobile",
+    ]);
+  });
+
   it("renders a --scene whatever the ids say", () => {
     // `render 02-a 04-b --scene 01-x` used to render no scene: the named one
     // was filtered by the ids as well, and matched none of them.

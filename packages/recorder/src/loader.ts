@@ -152,9 +152,28 @@ export async function loadClips(
     seen.add(clip.id);
   }
 
-  return only.length === 0
-    ? clips
-    : clips.filter((clip) => only.some((needle) => clip.id.includes(needle)));
+  if (only.length === 0) return clips;
+  const chosen = chooseIds(
+    clips.map((clip) => clip.id),
+    only,
+  );
+  return clips.filter((clip) => chosen.has(clip.id));
+}
+
+/**
+ * Which of `ids` a list of names picks.
+ *
+ * By substring, so `record 05` is the clip with 05 in its id, unless a name is
+ * exactly an id, when it is that one alone. A phone clip's id is its desktop
+ * clip's with `-mobile` on the end, which made the desktop clip impossible to
+ * name: `record 01-checkout` took both.
+ */
+export function chooseIds(ids: string[], names: string[]): Set<string> {
+  return new Set(
+    names.flatMap((name) =>
+      ids.includes(name) ? [name] : ids.filter((id) => id.includes(name)),
+    ),
+  );
 }
 
 /** The config's scenes module, or null when it names none. */

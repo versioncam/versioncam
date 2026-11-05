@@ -465,7 +465,8 @@ With no ids, `render` renders every recording in `.versioncam/recordings/`,
 and stale ones are recordings too: a draft or a trial run, or a clip since
 renamed or deleted, stays there until its directory is deleted. It renders
 every scene as well. Ids choose among recordings and scenes alike, by
-substring, as they choose clips for `record`. `--scene` names a scene
+substring, as they choose clips for `record`, and an id that is exactly a
+clip's picks that one alone. `--scene` names a scene
 exactly, and it renders whatever the ids are. Without ids, the scenes it
 names are the only scenes rendered. An id that matches nothing, or a
 `--scene` the scenes module does not define, stops the command before
