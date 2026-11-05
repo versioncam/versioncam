@@ -123,13 +123,20 @@ export async function render(argv: string[]): Promise<number> {
 
   try {
     for (const id of recordings) {
+      // A render takes a minute or three, and a command that prints nothing
+      // for that long looks stuck to the person watching it. Only to them: what
+      // a script reads stays the result lines, and stderr stays for what went
+      // wrong.
+      if (process.stderr.isTTY) process.stderr.write(`  ${id}: rendering\n`);
+      const began = performance.now();
       try {
         const out = await renderRecording(browser, config, id);
         rendered.push(id);
         outputs.push({ id, files: [out.mp4, out.webm, out.poster, out.sheet] });
         process.stdout.write(
           `  ${id}: ${out.durationFrames} frames at ${out.fps}fps ` +
-            `(${(out.durationFrames / out.fps).toFixed(1)}s)\n`,
+            `(${(out.durationFrames / out.fps).toFixed(1)}s), ` +
+            `took ${((performance.now() - began) / 1000).toFixed(0)}s\n`,
         );
       } catch (error) {
         failures.push({ id, error: error as Error });

@@ -100,7 +100,7 @@ describe("reviewRecording", () => {
   it("fails a clip that is too short or too long, and says by how much", () => {
     const short = review({ timeline: timelineOf({ seconds: 4 }) });
     expect(short.pass).toBe(false);
-    expect(item(short, "duration").detail).toBe("4.0s is outside 9–11s");
+    expect(item(short, "duration").detail).toBe("4.0s is outside 9 to 11s");
 
     const long = review({ timeline: timelineOf({ seconds: 30 }) });
     expect(item(long, "duration").pass).toBe(false);

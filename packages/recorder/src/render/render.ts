@@ -283,7 +283,7 @@ export async function renderFrame(
   try {
     if (!Number.isInteger(frame) || frame < 0 || frame >= durationFrames) {
       throw new Error(
-        `Frame ${frame} is not in "${target.id}": it runs 0–${durationFrames - 1}.`,
+        `Frame ${frame} is not in "${target.id}": it runs 0 to ${durationFrames - 1}.`,
       );
     }
     await page.evaluate((n) => window.__render?.setFrame(n), frame);

@@ -62,8 +62,8 @@ function checkDuration(timeline: Timeline, bounds?: ReviewBounds): ReviewItem {
     check: "duration",
     pass: within,
     detail: within
-      ? `${seconds(length)}, within ${min}–${max}s`
-      : `${seconds(length)} is outside ${min}–${max}s`,
+      ? `${seconds(length)}, within ${min} to ${max}s`
+      : `${seconds(length)} is outside ${min} to ${max}s`,
   };
 }
 
@@ -272,7 +272,8 @@ function checkOnScreen(timeline: Timeline): ReviewItem {
   if (offscreen.length > 0) {
     const where = offscreen
       .map(
-        (h) => `y ${Math.round(h.rect.y)}–${Math.round(h.rect.y + h.rect.h)}`,
+        (h) =>
+          `y ${Math.round(h.rect.y)} to ${Math.round(h.rect.y + h.rect.h)}`,
       )
       .join(", ");
     found.push(

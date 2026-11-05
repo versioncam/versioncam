@@ -1294,7 +1294,8 @@ export class RecordingSession {
     if (count > 1) {
       return (
         `Matched ${count} elements with ${locator.toString()} ${when}. ` +
-        "A locator has to resolve to one: use `byRole` with a name, or a test id."
+        "A locator has to resolve to one. A name matches any part of the text, " +
+        "so give `byRole` more of it or `{ exact: true }`, or use a test id."
       );
     }
     return (

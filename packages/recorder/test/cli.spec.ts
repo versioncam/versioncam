@@ -956,7 +956,7 @@ test.describe("the versioncam CLI", () => {
     // And a frame the clip does not have is refused by saying what it has.
     const beyond = run(["frame", "buttons", "999"], dir);
     expect(beyond.status).toBe(1);
-    expect(beyond.stderr).toContain("0–114");
+    expect(beyond.stderr).toContain("0 to 114");
   });
 
   test("frame --at picks the frame by the beat it shows", () => {
@@ -1010,7 +1010,7 @@ test.describe("the versioncam CLI", () => {
     const bad = run(["review", "buttons", "--beats", "beats.json"], dir);
     expect(bad.stdout).toContain("buttons: FAIL");
     expect(bad.stdout).toContain('"filtered"');
-    expect(bad.stdout).toContain("outside 9–11s");
+    expect(bad.stdout).toContain("outside 9 to 11s");
     expect(bad.status).toBe(1);
   });
 

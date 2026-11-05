@@ -379,7 +379,7 @@ test.describe("rendering a recording", () => {
         () => null,
         (e: Error) => e,
       );
-      expect(beyond?.message).toContain(`0–${last}`);
+      expect(beyond?.message).toContain(`0 to ${last}`);
     } finally {
       await browser.close();
     }
