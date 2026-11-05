@@ -146,5 +146,16 @@ async function compareRuns(
       ? "stable\n"
       : "unstable: something on this page does not run on authored time\n",
   );
+  // A draft paints the page a second time at half the scale, and that paint is
+  // the one place Chromium can still vary by itself: on Docusaurus, the edge
+  // pixels of one fading glyph, in pairs whose full recordings match every time.
+  // Worth checking before anyone goes looking for a bug in their app. On stderr:
+  // the verdict stays the last line of what the command prints.
+  if (!stable && draft) {
+    process.stderr.write(
+      "This was a draft. If the two pictures look the same, `versioncam " +
+        "stability --full` says whether the recording that renders differs.\n",
+    );
+  }
   return stable ? 0 : 1;
 }

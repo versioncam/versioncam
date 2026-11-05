@@ -532,8 +532,9 @@ versioncam render [id…]            composite and encode recordings and scenes
 A clip has no sound. The files carry a video stream only, so a player's
 mute control has nothing to do. Narration is not a feature yet.
 
-A render is the slow step, and it says what it is rendering: a ten-second clip
-takes one to two minutes on a laptop, for the two encoders at 60 frames a second.
+A render is the slow step, and at a terminal it says what it is rendering: it draws
+every frame and encodes two videos, so a ten-second clip takes one to two minutes
+on a laptop.
 `record --draft` and `versioncam sheet` are how to look at a clip before that.
 
 ### Publish
@@ -1131,6 +1132,11 @@ recorder was four. What we have found doing this:
 If the two recordings match and something else does not, ask what changed
 between them: the gate (`capture: { gate: false }` turns it off), or the
 machine.
+
+A draft can differ where a full recording does not. It paints the page a second
+time at half the scale, and on a glyph that is fading the edge pixels of that
+paint can vary, too little to see. If the two pictures look the same, run
+`stability --full`: that is the recording that renders.
 
 ### A dev server's own tools
 

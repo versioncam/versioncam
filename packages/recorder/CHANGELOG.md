@@ -28,7 +28,9 @@ should.
   draft and print `stable`.
 - A 5xx from `webServer.url` means not ready yet. The command keeps asking until
   `timeoutMs`, then stops and says what it got.
-- `render` says which clip it is rendering, and how long each took.
+- `render` says which clip it is rendering, at a terminal, and how long each took.
+- `stability` says to check with `--full` after a draft that differs, since a draft
+  can differ by edge pixels nobody can see.
 - `review` and `frame` print ranges with "to". No command prints an en dash now.
 
 ### Fixed
@@ -37,7 +39,9 @@ should.
   second `s.open` used to fail the clip, with `Execution context was destroyed`
   or `The document reloaded`, so a server-rendered app could not be filmed past
   its first page. The next frame is now of the finished page, as after a settle.
-  A reload nobody asked for still fails the clip, and says so.
+  A page that has not arrived after 90 s fails the clip and names the address. A
+  reload nobody asked for still fails the clip, and says so; one before frame 0 has
+  lost nothing and does not.
 - Nuxt's dev server, which answers 503 while it compiles, no longer fails the
   first clip of every cold start.
 - A hover under a scroll is decided on the frame the scroll reaches it, not on
