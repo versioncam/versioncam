@@ -175,8 +175,10 @@ cannot say, that is a missing field. It is not a reason to fork.
 Every command that drives the app (`record`, `check`, `stability`, `inspect`,
 `measure`, `login` and `doctor`) goes through the same steps:
 
-1. It asks `url` whether anything is serving. Any answer counts, a 401
-   included.
+1. It asks `url` whether anything is serving. Any answer below 500 counts, a
+   401 or a redirect included. A 5xx is a server that cannot serve yet, as Nuxt's
+   dev server answers while it compiles, so the command keeps asking until
+   `timeoutMs`, and then stops and says what it got.
 2. If something answers, it uses that server as it is and leaves it running.
    With `CI` set it refuses instead: on a runner, a server that was up before
    the job started is not the build under test. `reuseExistingServer: true`

@@ -146,6 +146,74 @@ describe("ensureApp", () => {
     expect(() => process.kill(pid, 0)).toThrow();
   }, 20_000);
 
+  it("does not call a 5xx ready, and waits for the server to finish starting", async () => {
+    // Nuxt's dev server, in small: 503 while it compiles, then the app.
+    const port = await freePort();
+    const config = configFor(port, {
+      command:
+        `node -e "const up=Date.now()+1200;` +
+        `require('http').createServer((q,r)=>{r.statusCode=Date.now()<up?503:200;r.end('ok')})` +
+        `.listen(${port},'127.0.0.1')"`,
+      timeoutMs: 20_000,
+    });
+    const app = await ensureApp(config);
+    try {
+      expect(app.detail).toMatch(/HTTP 200/);
+    } finally {
+      await app.stop();
+    }
+  }, 30_000);
+
+  it("gives up on a command that only ever answers 5xx, and says so", async () => {
+    const port = await freePort();
+    const config = configFor(port, {
+      command:
+        `node -e "require('http').createServer((q,r)=>{r.statusCode=500;r.end('no')})` +
+        `.listen(${port},'127.0.0.1')"`,
+      timeoutMs: 1_500,
+    });
+    await expect(ensureApp(config)).rejects.toThrow(
+      /answered only HTTP 500[\s\S]*within 1\.5 s/,
+    );
+    expect(await refuses(port)).toBe(true);
+  }, 20_000);
+
+  it("waits for someone else's server that is still starting", async () => {
+    const port = await freePort();
+    const up = Date.now() + 1_000;
+    const server = createServer((_request, response) => {
+      response.statusCode = Date.now() < up ? 503 : 200;
+      response.end("ok");
+    });
+    await new Promise<void>((ready) => server.listen(port, "127.0.0.1", ready));
+    running.push(server);
+    const app = await ensureApp(
+      configFor(port, { command: "exit 9", reuseExistingServer: true }),
+    );
+    expect(app.started).toBe(false);
+    expect(app.detail).toMatch(/HTTP 200/);
+    await app.stop();
+  }, 20_000);
+
+  it("does not wait out a server of someone else's that is failing for good", async () => {
+    const port = await freePort();
+    const server = createServer((_request, response) => {
+      response.statusCode = 500;
+      response.end("no");
+    });
+    await new Promise<void>((ready) => server.listen(port, "127.0.0.1", ready));
+    running.push(server);
+    await expect(
+      ensureApp(
+        configFor(port, {
+          command: "exit 9",
+          reuseExistingServer: true,
+          timeoutMs: 1_000,
+        }),
+      ),
+    ).rejects.toThrow(/answered HTTP 500 for 1\.0 s/);
+  }, 20_000);
+
   it("does not wait out the timeout for a command that has already died", async () => {
     // A strict port that is taken, a typo in a script name: the command exits
     // at once, and two minutes of polling would help nobody.

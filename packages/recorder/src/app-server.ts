@@ -39,6 +39,9 @@ export type Probe =
 /** How much of a failed start's output an error message carries. */
 const TAIL_LINES = 40;
 
+/** How long a start may be silent before saying what it is waiting for. */
+const SAY_WAITING_AFTER_MS = 15_000;
+
 /**
  * Between SIGTERM and SIGKILL. A dev server that has not exited five seconds
  * after being asked is not going to, and one that is still flushing a database
@@ -47,12 +50,24 @@ const TAIL_LINES = 40;
 const GRACE_MS = 5_000;
 
 /**
- * One request, and any HTTP answer at all counts as up.
+ * Whether an answer means the app is ready for a clip.
  *
- * Including a 401 and a redirect, which is how an app behind a sign-in answers,
- * and it records perfectly well once `auth` is configured. Only silence means
- * nothing is there. `redirect: "manual"`, so the answer is the app's own and
- * not wherever a redirect happens to land.
+ * Below 500, as Playwright's `webServer` has it, including a 401 and a redirect,
+ * which is how an app behind a sign-in answers, and it records perfectly well
+ * once `auth` is configured. A 5xx is a server that is up and cannot serve yet:
+ * Nuxt's dev server answers 503 while it compiles, with a page that reloads
+ * itself when it is done, and a clip opened on that dies in the reload.
+ */
+function isReady(status: number): boolean {
+  return status < 500;
+}
+
+/**
+ * One request, and any HTTP answer at all counts as something being there.
+ *
+ * Only silence means nothing is. `redirect: "manual"`, so the answer is the
+ * app's own and not wherever a redirect happens to land. Whether what is there
+ * is ready is `isReady`'s to say.
  */
 export async function probe(url: string, timeoutMs = 5_000): Promise<Probe> {
   try {
@@ -126,14 +141,57 @@ export async function ensureApp(config: ResolvedConfig): Promise<AppHandle> {
           ". It is not ours to replace: stop it, or allow reusing it.",
       );
     }
+    const status = isReady(found.status)
+      ? found.status
+      : await untilReady(server, found.status);
     return {
       started: false,
-      detail: `already serving at ${server.url} (HTTP ${found.status})`,
+      detail: `already serving at ${server.url} (HTTP ${status})`,
       stop: async () => {},
     };
   }
 
   return start(server, config.outDir);
+}
+
+/**
+ * Wait for a server someone else started to finish starting.
+ *
+ * Their `npm run dev`, still compiling in another terminal. A server that stays
+ * at a 5xx is an app that is failing, and a clip of its error page helps nobody.
+ */
+async function untilReady(
+  server: ResolvedWebServer,
+  first: number,
+): Promise<number> {
+  announceNotReady(server, first);
+  const deadline = Date.now() + server.timeoutMs;
+  let status = first;
+  while (Date.now() < deadline) {
+    await sleep(500);
+    const answer = await probe(server.url);
+    if (answer.up) {
+      if (isReady(answer.status)) return answer.status;
+      status = answer.status;
+    }
+  }
+  throw new Error(
+    `${server.url} answered HTTP ${status} for ${seconds(server.timeoutMs)}. ` +
+      "A 5xx is a server that cannot serve yet, so nothing was recorded. " +
+      "Open it and see what it says, or point webServer.url at what answers " +
+      "when the app is ready.",
+  );
+}
+
+/**
+ * One line, because this wait can take minutes and looks like a hang otherwise.
+ * On stderr, as `drivingApp`'s line is: stdout belongs to the command.
+ */
+function announceNotReady(server: ResolvedWebServer, status: number): void {
+  process.stderr.write(
+    `app: ${server.url} answers HTTP ${status}, not ready yet; ` +
+      `waiting up to ${seconds(server.timeoutMs)}\n`,
+  );
 }
 
 /**
@@ -290,6 +348,8 @@ async function start(
   };
 
   const deadline = began + server.timeoutMs;
+  let lastStatus = null as number | null;
+  let waitingSaid = false;
   // Playwright's cadence, short at first because most dev servers answer
   // within a second, then every half second so a slow one is not hammered.
   const delays = [100, 250, 500];
@@ -305,12 +365,16 @@ async function start(
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
       return fail(
-        `webServer timed out: "${server.command}" did not answer at ${server.url} ` +
+        `webServer timed out: "${server.command}" ` +
+          (lastStatus === null
+            ? `did not answer at ${server.url} `
+            : `answered only HTTP ${lastStatus} at ${server.url}, which is a ` +
+              "server that cannot serve yet, ") +
           `within ${seconds(server.timeoutMs)}.`,
       );
     }
     const answer = await probe(server.url, Math.min(5_000, remaining));
-    if (answer.up) {
+    if (answer.up && isReady(answer.status)) {
       return {
         started: true,
         detail:
@@ -318,6 +382,16 @@ async function start(
           `after ${seconds(Date.now() - began)}`,
         stop,
       };
+    }
+    if (answer.up) lastStatus = answer.status;
+    // Two minutes of silence reads as a hang, and the usual cause is a command
+    // that serves on another port than `url`, which only the log shows.
+    if (!waitingSaid && Date.now() - began > SAY_WAITING_AFTER_MS) {
+      waitingSaid = true;
+      process.stderr.write(
+        `app: still waiting for ${server.url} (up to ` +
+          `${seconds(server.timeoutMs)}); what it prints is in ${logFile}\n`,
+      );
     }
     await within(
       exited,
