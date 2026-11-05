@@ -6,6 +6,47 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+From a rehearsal on the official templates of Next.js, SvelteKit, Nuxt, Angular,
+Docusaurus and Django. Nothing changes in the config or the clip DSL. A clip that
+recorded before records the same frames, unless it scrolls beneath a cursor that
+rests on something with a hover state, where a hover now lands on the frame it
+should.
+
+### Added
+
+- `inspect` and `measure` take `--viewport <w>x<h>`, to look at the page at a
+  phone's size. An app's phone layout has controls its desktop layout does not.
+
+### Changed
+
+- An id that is exactly a clip's picks that clip alone. `record 01-checkout` used
+  to take `01-checkout-mobile` too, and nothing could name the desktop clip.
+  `record checkout` still takes both.
+- A flag a command does not read is refused. `stability --fulll` used to run a
+  draft and print `stable`.
+- A 5xx from `webServer.url` means not ready yet. The command keeps asking until
+  `timeoutMs`, then stops and says what it got.
+- `render` says which clip it is rendering, and how long each took.
+- `review` and `frame` print ranges with "to". No command prints an en dash now.
+
+### Fixed
+
+- A clip can load another document. A plain link, a form post, a redirect or a
+  second `s.open` used to fail the clip, with `Execution context was destroyed`
+  or `The document reloaded`, so a server-rendered app could not be filmed past
+  its first page. The next frame is now of the finished page, as after a settle.
+  A reload nobody asked for still fails the clip, and says so.
+- Nuxt's dev server, which answers 503 while it compiles, no longer fails the
+  first clip of every cold start.
+- A hover under a scroll is decided on the frame the scroll reaches it, not on
+  Chromium's own timer. It made a clip on Docusaurus differ between runs now and
+  then.
+- A `login` hook and `offCamera` can use a path: `page.goto("/sign-in")`.
+- `inspect` lists a submit `<input>` as a button with the name it shows, rather
+  than as a nameless field.
+
 ## 0.7.2 (2026-11-04)
 
 A patch: a project whose own `viewport` is portrait renders at the size the

@@ -32,7 +32,9 @@ First choice. `data-testid` is the only handle an app can promise a clip.
 
 Second choice, and how a person would describe the control:
 `byRole("button", { name: "Save" })`. The options are Playwright's for
-`getByRole`.
+`getByRole`. A name matches any part of the control's name, ignoring case, so
+`{ name: "Tutorial" }` also finds "Read the tutorial"; `{ exact: true }` beside
+it matches the whole name.
 
 ### `byLabel(text)`
 

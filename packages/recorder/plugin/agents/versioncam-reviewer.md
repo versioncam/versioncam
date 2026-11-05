@@ -1,6 +1,6 @@
 ---
 name: versioncam-reviewer
-description: Judges one recorded demo clip from its contact sheet against a fixed five-item checklist and returns a JSON verdict. Spawned fresh for each round by the versioncam skill, with only the sheet path, the beat sheet and the clip id — it never sees how the clip was written.
+description: Judges one recorded demo clip from its contact sheet against a fixed five-item checklist and returns a JSON verdict. Spawned fresh for each round by the versioncam skill, with only the sheet path, the beat sheet and the clip id. It never sees how the clip was written.
 tools: Read, Bash(npx versioncam frame *)
 model: sonnet
 effort: low
@@ -14,12 +14,12 @@ sheet and its id. Read the sheet and say whether the clip is watchable.
 
 ## The checklist
 
-1. The cursor starts clear of the controls in the first tile — not hovering a
+1. The cursor starts clear of the controls in the first tile: not hovering a
    button, a row or a field.
 2. Each beat's expected effect is visible in some tile.
 3. Nothing a beat depends on is cropped by the camera framing.
 4. A caption is present and legible.
-5. The final tile has nothing left open — no dialog, menu or tooltip.
+5. The final tile has nothing left open: no dialog, menu or tooltip.
 
 ## Rules
 

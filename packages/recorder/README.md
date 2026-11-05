@@ -31,6 +31,12 @@ the same way twice, and only then writes the clip. See *Authoring*.
 In a monorepo, run all three in the app's own directory. The skill goes
 there, and so does the config its first run writes.
 
+An app that is not Node installs versioncam the same way, in its own directory:
+npm makes a `package.json` there if there is none, and `node_modules/` then goes
+in `.gitignore`. Nothing else cares what the app is written in. `webServer` runs
+any command (`.venv/bin/python manage.py runserver 8000`, `bin/rails server`),
+and a server-rendered app is recorded like any other, its page loads included.
+
 `npx versioncam doctor` checks the rest: Node 22 or later, Chromium, ffmpeg,
 your config and the scenes module it names, if any, and whether the app
 starts. ffmpeg and ffprobe come from the
@@ -82,8 +88,8 @@ It does not fit native mobile apps, terminal demos (VHS does those),
 interactive HTML tours, narrated screencasts, or a UI that will never change
 again.
 
-Install it in the directory that holds the app's `package.json`, with exactly
-these commands:
+Install it in the directory that holds the app's `package.json`, or that starts
+the app when it has none, with exactly these commands:
 
 ```bash
 npm i -D versioncam
@@ -99,6 +105,7 @@ before writing a clip. If your host runs skills,
 the repository up on its first run; otherwise `init --into <dir>` puts the
 skill where your host reads it, and the clips are TypeScript you can write
 from `inspect` and `measure`. Target by test id or role, never by coordinates.
+Turn off a dev server's own toolbar (see *A dev server's own tools*).
 Do not edit files while a clip records. Add `.versioncam/` to `.gitignore`
 and commit the clip. In CI, `uses: versioncam/action@v1` after `npm ci`
 records every clip and fails the job, with a comment on the pull request,
@@ -333,6 +340,48 @@ test holds that list to the session's code. The same reference is
 | `viewport`, `dpr`, `fps` | the config's | For a clip that needs a different shape. A phone clip sets `viewport: { width: 390, height: 844 }` and renders 888 by 1920 at the default output; name it `<id>-mobile` and version.cam shows it in place of `<id>` on a narrow screen (see *version.cam*). |
 | `capture` | the config's | A clip that films a canvas sets `{ forceCaptureEvery: 1 }` here, and one whose app animates in ways better left out sets `{ transitions: "zero" }`. |
 
+### A phone clip
+
+A phone clip is a second file with a phone's viewport and the desktop clip's id
+with `-mobile` on the end. When the story is the same on both, the body goes in a
+file of its own that both import, under any name that is not `*.clip.ts`:
+
+```ts
+// demos/stories/checkout.ts
+import type { ClipBody } from "versioncam";
+
+export const checkout: ClipBody = async (s) => {
+  await s.open("/checkout");
+  await s.click(s.byTestId("pay"));
+  await s.settle({ label: "paid" });
+  await s.hold(2000);
+};
+
+// demos/clips/01-checkout.clip.ts
+import { clip } from "versioncam";
+import { checkout } from "../stories/checkout";
+
+export default clip("01-checkout", { title: "Checkout" }, checkout);
+
+// demos/clips/01-checkout-mobile.clip.ts
+import { clip } from "versioncam";
+import { checkout } from "../stories/checkout";
+
+export default clip(
+  "01-checkout-mobile",
+  { title: "Checkout", viewport: { width: 390, height: 844 } },
+  checkout,
+);
+```
+
+A phone layout often has controls the desktop one does not, a menu button and
+what is behind it, and hides others. `npx versioncam inspect /checkout --viewport
+390x844` lists what it has. Where the steps differ, write two bodies.
+
+An id picks clips by substring unless it is exactly a clip's id, so
+`record 01-checkout` is the desktop clip, `record 01-checkout-mobile` the phone
+clip, and `record checkout` both.
+
 ### The camera
 
 The camera crops the recorded page as the video plays. There are two ways
@@ -482,6 +531,10 @@ versioncam render [id…]            composite and encode recordings and scenes
 
 A clip has no sound. The files carry a video stream only, so a player's
 mute control has nothing to do. Narration is not a feature yet.
+
+A render is the slow step, and it says what it is rendering: a ten-second clip
+takes one to two minutes on a laptop, for the two encoders at 60 frames a second.
+`record --draft` and `versioncam sheet` are how to look at a clip before that.
 
 ### Publish
 
@@ -1044,9 +1097,11 @@ the first thing to run in a repository before writing a clip for it, and it
 is what the authoring skill does on a first run.
 
 If the runs differ, something on the page did not run on authored time. Look
-at the app first, but not only there: of the four causes found so far, the
-recorder was two. What we have found doing this:
+at the app first, but not only there: of the six causes found so far, the
+recorder was four. What we have found doing this:
 
+- A **dev server's own tools**, drawn over the app on a clock of their own (see
+  below). The first thing to look for when frame 0 differs.
 - An **autosizing text field** that settles a frame later depending on how the
   browser scheduled the layout. The clips that typed diverged. The clips that
   did not, did not.
@@ -1076,6 +1131,26 @@ recorder was two. What we have found doing this:
 If the two recordings match and something else does not, ask what changed
 between them: the gate (`capture: { gate: false }` turns it off), or the
 machine.
+
+### A dev server's own tools
+
+Some dev servers draw their own tools over the app: a badge, a toolbar, a timing.
+They are in the video, usually under the caption, and they run on their own clock,
+so they arrive when they arrive and `stability` fails at frame 0. They are not
+the product, so turn them off in the framework's config:
+
+| Stack | Setting |
+|---|---|
+| Next.js | `devIndicators: false` in `next.config.ts` |
+| Nuxt | `devtools: { enabled: false }` in `nuxt.config.ts` |
+| Astro | `devToolbar: { enabled: false }` in `astro.config.mjs` |
+
+To keep them for your own work, read a variable there
+(`devIndicators: process.env.RECORDING ? false : undefined`) and set it for the
+recorder with `webServer: { env: { RECORDING: "1" } }`. A server you already have
+running is reused as it is, so stop it first. Or record a production build:
+`webServer: { command: "npm run build && npm start" }`, which has no dev tools at
+all, and no reloads either.
 
 ## While recording
 

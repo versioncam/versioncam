@@ -89,11 +89,14 @@ const PAGES = ["README.md", "dsl.md", "CHANGELOG.md", "plugin/README.md"];
  * Shipped words a stranger reads that version.cam does not render: the
  * skill's brief for the platform, whose sentences an agent passes on to the
  * person it works for, and the sources of the commands that brief runs,
- * whose messages a person reads in a terminal. Written under the rule, so
- * held to it; the skill's older briefs were not, and are not checked yet.
+ * whose messages a person reads in a terminal.
  */
 const COPY = [
   "plugin/skills/versioncam/platform.md",
+  "plugin/skills/versioncam/SKILL.md",
+  "plugin/skills/versioncam/authoring.md",
+  "plugin/skills/versioncam/onboarding.md",
+  "plugin/agents/versioncam-reviewer.md",
   "src/cli/commands/cloud.ts",
   ...readdirSync(join(PACKAGE, "src", "cloud"))
     .filter((file) => !file.endsWith(".test.ts"))
@@ -126,5 +129,38 @@ describe("the platform's words", () => {
   it("use no long dash either", () => {
     expect(COPY.length).toBeGreaterThan(2);
     expect(longDashes(COPY)).toEqual([]);
+  });
+});
+
+describe("what the commands print", () => {
+  // The en dash slipped through because only the long one was looked for:
+  // `review` said its duration bounds with one for a year. A string a command prints sits
+  // on a line that is not a comment, which is as far as this needs to read.
+  it("has no en dash and no long dash", () => {
+    const sources = (dir: string): string[] =>
+      readdirSync(join(PACKAGE, dir), { withFileTypes: true }).flatMap(
+        (entry) =>
+          entry.isDirectory()
+            ? sources(`${dir}/${entry.name}`)
+            : entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")
+              ? [`${dir}/${entry.name}`]
+              : [],
+      );
+    const found: string[] = [];
+    for (const file of [
+      ...sources("src/cli"),
+      ...sources("src/review"),
+      ...sources("src/render"),
+    ]) {
+      readFileSync(join(PACKAGE, file), "utf8")
+        .split("\n")
+        .forEach((line, i) => {
+          if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
+          if (/[\u2013\u2014]/.test(line.split(" // ")[0])) {
+            found.push(`${file}:${i + 1}`);
+          }
+        });
+    }
+    expect(found).toEqual([]);
   });
 });

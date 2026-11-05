@@ -1,6 +1,6 @@
 ---
 name: versioncam
-description: Record a short demo clip — a screencast, a short video, a GIF of a feature — of this repository's web app from one sentence of what it should show, and iterate until a reviewer passes it from a contact sheet. Use when someone asks to record, film or make a demo of a feature, or to set versioncam up in a repository. Works in any repository with a web app — the first run writes versioncam.config.ts, works out how to start the app, and proves the app records the same way twice before anything is authored. Also the repository's clips on version.cam: which are broken and why, fixing one, embedding one, who can see them, who is told, and the plan (/versioncam status, /versioncam fix [clip], /versioncam embed <clip>).
+description: Record a short demo clip (a screencast, a short video, a GIF of a feature) of this repository's web app from one sentence of what it should show, and iterate until a reviewer passes it from a contact sheet. Use when someone asks to record, film or make a demo of a feature, or to set versioncam up in a repository. Works in any repository with a web app. The first run writes versioncam.config.ts, works out how to start the app, and proves the app records the same way twice before anything is authored. Also the repository's clips on version.cam: which are broken and why, fixing one, embedding one, who can see them, who is told, and the plan (/versioncam status, /versioncam fix [clip], /versioncam embed <clip>).
 user-invocable: true
 argument-hint: "\"<what the clip should show>\" [--id <slug>] [--max-rounds 6] | status | fix [clip] | embed <clip>"
 allowed-tools:
@@ -109,7 +109,7 @@ Then, did you find a config?
 ## 1. Set up
 
 Parse `$ARGUMENTS`. The first quoted string is the **intent**. `--id <slug>`
-names the clip; without it, derive a slug from the intent — lowercase, hyphens,
+names the clip; without it, derive a slug from the intent: lowercase, hyphens,
 at most 40 characters, cut at a word boundary. `--max-rounds <n>` defaults to 6.
 
 ```bash
@@ -130,15 +130,15 @@ Then capture the start page once:
 npx versioncam inspect /
 ```
 
-## 2. Author — this session
+## 2. Author, in this session
 
 Read `authoring.md` now: it is how to write and repair a clip, and it applies
 to you. Then, as it says: `npx versioncam dsl`, the existing clips, `inspect`
 of every page the intent touches; write `.versioncam/author/<id>/beats.json`;
-write the clip; `record --draft`; `review --beats …`; repair — **at most three
+write the clip; `record --draft`; `review --beats …`; repair: **at most three
 recordings**, then on to the sheet, passed or not.
 
-Write what the round produced to `.versioncam/author/<id>/round-N/author.md` —
+Write what the round produced to `.versioncam/author/<id>/round-N/author.md`:
 the four things `authoring.md` asks for, including the paragraph on what was
 awkward about the tools. That paragraph is the point of keeping these
 directories; do not summarise it away. Copy `beats.json` beside it.
@@ -151,7 +151,7 @@ config's `clips`), the `inspect /` output inline, the beats path, and the
 app's directory, with the `--cwd` flag if step 0 had you use it. **Keep the
 agent id it returns**: that id is how you continue the same author in later
 rounds, with `SendMessage`, everything it learned about the page still in its
-context — spawning a new one would start from nothing and repeat the same
+context: spawning a new one would start from nothing and repeat the same
 recordings. Save its reply as `round-N/author.md`. You then orchestrate; the
 rest of this file is the same either way.
 
@@ -162,7 +162,7 @@ npx versioncam sheet <id> --at-marks
 ```
 
 `--at-marks` samples frame 0, each beat's settle mark, and the last frame,
-instead of eight evenly spaced points — so the tiles the reviewer sees are the
+instead of eight evenly spaced points, so the tiles the reviewer sees are the
 beats, not whatever happened to fall on an eighth of the duration. It prints
 the sheet's path, then the frame number behind each tile.
 
@@ -176,8 +176,8 @@ The reviewer is given only:
   else, and with the `--cwd` flag on the end if step 0 had you use one.
 
 The frame numbers are not optional. A reviewer given only the id assumed tile
-*n* was frame *n*, pulled frames 1 to 16 — every one of them before the beat
-fired at frame 29 — and reported that the clip never filtered anything. It was
+*n* was frame *n*, pulled frames 1 to 16 (every one of them before the beat
+fired at frame 29) and reported that the clip never filtered anything. It was
 looking at the right clip and the wrong seconds. `sheet` prints the list for
 exactly this reason; pass it on verbatim.
 
@@ -187,8 +187,8 @@ from this skill's directory when the skill came from the plugin, in
 when it was installed with `--into`. Take the first rung of this ladder your
 host allows:
 
-1. **Registered.** If an agent named `versioncam-reviewer` is available — it is
-   `versioncam:versioncam-reviewer` when it came with the plugin — spawn it
+1. **Registered.** If an agent named `versioncam-reviewer` is available (it is
+   `versioncam:versioncam-reviewer` when it came with the plugin), spawn it
    with those inputs. It is blind by construction: a fresh context holding the
    sheet and the beats and nothing of how the clip was made. Its JSON says
    `"reviewer": "restricted"`.
@@ -198,14 +198,14 @@ host allows:
    will still say `"restricted"`, because the file it was given says so; save
    it with `"reviewer": "unrestricted"`, which is what it was.
 3. **No subagents.** Otherwise, read `versioncam-reviewer.md` and judge the
-   sheet yourself, in a step of its own — *before* you look at your beats or
-   your clip again, with only the four inputs in front of you — and save the
+   sheet yourself, in a step of its own (*before* you look at your beats or
+   your clip again, with only the four inputs in front of you) and save the
    verdict with `"reviewer": "self"`. The summary says so: a clip passed by its
    own author is a weaker claim, and whoever reads it should know.
 
 A fresh reviewer every round is the point, not an accident. It must not see
 the author's reasoning, an earlier verdict, or how hard the clip was to get
-working — only this round's picture. Never continue a reviewer, and never pass
+working: only this round's picture. Never continue a reviewer, and never pass
 it the author's report.
 
 Save its JSON verbatim, with `reviewer` as above, as
@@ -219,7 +219,7 @@ design: a fresh reviewer is trusted precisely because it has not watched the
 clip being built, and a session that has watched three rounds is the least
 independent judge available.
 
-Get **one** second opinion, from a fresh reviewer on the same rung — same
+Get **one** second opinion, from a fresh reviewer on the same rung: same
 sheet, same beats, same frame numbers, and nothing about the first verdict or
 what you think it got wrong. Save it as `round-N/verdict-2.json`. That verdict
 stands, whichever way it goes. If it agrees with the first, the clip has failed
@@ -247,7 +247,7 @@ Copy that final sheet into `.versioncam/author/<id>/`. Write
 ```
 
 `reviewer` is the rung the passing verdict came from. `wallMs` only if you can
-measure it — leave it out rather than guess; a harness running you measures it
+measure it, leave it out rather than guess; a harness running you measures it
 from outside. After a first run that found the app unstable, add
 `"stable": false`.
 
@@ -263,12 +263,12 @@ Do not quietly raise `max-rounds`. A clip that has not converged in six rounds
 is a finding about the intent or the tools, and it is worth more written down
 than ground out.
 
-## 6. Otherwise — fix it, and go round again
+## 6. Otherwise, fix it and go round again
 
-Fix what the verdict names — the items that failed, read as written — and
+Fix what the verdict names (the items that failed, read as written) and
 nothing it did not name. When the authoring is delegated, send the author the
-verdict JSON **verbatim** with `SendMessage`, by the id you kept — not
-summarised, not reordered, not softened — and the instruction: fix the failing
+verdict JSON **verbatim** with `SendMessage`, by the id you kept (not
+summarised, not reordered, not softened) and the instruction: fix the failing
 items, re-record in draft, run `npx versioncam review`, and return. Add no
 opinion of your own: the reviewer has looked at the clip in a way you have
 not, and the author trusts the verdict because it is a reviewer's and not a
@@ -288,6 +288,6 @@ the new round with its `author.md` and `beats.json`, and go back to step 3.
   round-2/  …
 ```
 
-`.versioncam/` is gitignored — a build product, none of it to be committed. The
+`.versioncam/` is gitignored: a build product, none of it to be committed. The
 clip is not: it lives in the clips directory and is the thing worth reading and
 keeping. You commit nothing; that is the person's call.
