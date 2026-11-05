@@ -6,13 +6,14 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.7.3 (2026-11-05)
 
-From a rehearsal on the official templates of Next.js, SvelteKit, Nuxt, Angular,
-Docusaurus and Django. Nothing changes in the config or the clip DSL. A clip that
-recorded before records the same frames, unless it filmed a dev server's toolbar, or
-scrolls beneath a cursor that rests on something with a hover state, where a hover
-now lands on the frame it should.
+A patch, from a rehearsal on the official templates of Next.js, SvelteKit, Nuxt,
+Angular, Docusaurus and Django. Nothing changes in the config or the clip DSL, and
+the example app's clips record the same frames as on 0.7.2. A clip that recorded
+before records the same frames, unless it filmed a dev server's toolbar, or scrolls
+beneath a cursor that rests on something with a hover state, where a hover now lands
+on the frame it should.
 
 ### Added
 
@@ -54,8 +55,8 @@ now lands on the frame it should.
 - Nuxt's dev server, which answers 503 while it compiles, no longer fails the
   first clip of every cold start.
 - A hover under a scroll is decided on the frame the scroll reaches it, not on
-  Chromium's own timer. It made a clip on Docusaurus differ between runs now and
-  then.
+  Chromium's own timer. Every full recording of a clip that scrolled on Docusaurus
+  differed from the last by a heading's hover fade.
 - A `login` hook and `offCamera` can use a path: `page.goto("/sign-in")`.
 - `inspect` lists a submit `<input>` as a button with the name it shows, rather
   than as a nameless field.
