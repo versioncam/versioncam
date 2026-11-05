@@ -78,7 +78,10 @@ export async function inspectPage(page: Page): Promise<Inventory> {
     const controlName = (el: Element): [string, NameSource] => {
       const aria = tidy(el.getAttribute("aria-label"));
       if (aria) return [aria, "aria-label"];
-      const text = tidy(el.textContent);
+      // A submit `<input>` says its name in `value`, and has no text content.
+      const text = tidy(
+        el instanceof HTMLInputElement ? el.value : el.textContent,
+      );
       return text ? [text, "text"] : ["(unnamed)", "none"];
     };
     // The accessible-name order, as far as a locator cares about it.
@@ -112,8 +115,14 @@ export async function inspectPage(page: Page): Promise<Inventory> {
     };
 
     const controls: Control[] = [];
+    // An `<input>` that is a button, as a server-rendered form's often is, goes
+    // here and not under fields: `byRole("button")` is what finds it, and listed
+    // as a nameless field it read as a control a clip could not reach.
+    const inputButtons =
+      'input[type="submit"], input[type="button"], input[type="reset"]';
     const selectors: [string, Control["role"]][] = [
       ["button", "button"],
+      [inputButtons, "button"],
       ['[role="button"]', "button"],
       ["a[href]", "link"],
       ['[role="menuitem"]', "menuitem"],
@@ -140,7 +149,7 @@ export async function inspectPage(page: Page): Promise<Inventory> {
     for (const el of Array.from(
       document.querySelectorAll("input, textarea, select"),
     )) {
-      if (!visible(el)) continue;
+      if (!visible(el) || el.matches(inputButtons)) continue;
       const [name, nameSource] = fieldName(el);
       fields.push({
         kind: el.tagName.toLowerCase() as Field["kind"],

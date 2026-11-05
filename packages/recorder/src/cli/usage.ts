@@ -28,7 +28,9 @@ Set up
 Write
   versioncam inspect <path>          what a clip can click, and where each name came from
       --json                         machine-readable
+      --viewport <w>x<h>             at this size: 390x844 for a phone clip
   versioncam measure <path> <sel>    where a selector's matches are, and what they say
+      --viewport <w>x<h>             at this size
   versioncam dsl                     the clip DSL: every method, its options and defaults
 
 Record

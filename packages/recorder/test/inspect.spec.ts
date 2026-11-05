@@ -43,6 +43,31 @@ test.describe("looking at a page", () => {
     }
   });
 
+  test("lists an input that is a button as a button, by what it says", async () => {
+    // A server-rendered form's submit is often an `<input>`, whose name is its
+    // value. Listed as a nameless field, it read as nothing a clip could reach.
+    const browser = await launchBrowser();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(
+        `<form>
+           <input aria-label="Query" data-testid="query" />
+           <input type="submit" value="Log in" data-testid="go" />
+         </form>`,
+      );
+      const inventory = await inspectPage(page);
+      expect(inventory.controls.find((c) => c.testId === "go")).toMatchObject({
+        role: "button",
+        name: "Log in",
+        nameSource: "text",
+      });
+      expect(inventory.fields.map((f) => f.testId)).toEqual(["query"]);
+      await page.close();
+    } finally {
+      await browser.close();
+    }
+  });
+
   test("gives a field the geometry it gives a control", async () => {
     const browser = await launchBrowser();
     try {

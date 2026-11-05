@@ -3,15 +3,20 @@ import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { formatInventory, inspectPage } from "../../inspect/inspect.js";
 import { drivingApp } from "../app.js";
-import { openAppPage } from "./open-app.js";
+import { openAppPage, viewportOf } from "./open-app.js";
 
 export async function inspect(argv: string[]): Promise<number> {
   const { positionals, values } = parseArgs({
     args: argv,
-    options: { json: { type: "boolean" } },
+    options: { json: { type: "boolean" }, viewport: { type: "string" } },
     strict: false,
     allowPositionals: true,
   });
+  const viewport = viewportOf(values.viewport);
+  if (viewport instanceof Error) {
+    process.stderr.write(`${viewport.message}\n`);
+    return 1;
+  }
 
   const config = await loadConfig(process.cwd());
   const path = (positionals[0] as string | undefined) ?? "/";
@@ -19,7 +24,12 @@ export async function inspect(argv: string[]): Promise<number> {
   return drivingApp(config, async () => {
     const browser = await launchBrowser();
     try {
-      const { page, context } = await openAppPage(browser, config, path);
+      const { page, context } = await openAppPage(
+        browser,
+        config,
+        path,
+        viewport,
+      );
       const inventory = await inspectPage(page);
       process.stdout.write(
         values.json

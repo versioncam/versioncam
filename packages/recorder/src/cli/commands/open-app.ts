@@ -4,6 +4,26 @@ import { MUTATION_COUNTER_SCRIPT } from "../../driver/page-hooks.js";
 import { settlePage } from "../../driver/settle.js";
 
 /**
+ * `--viewport 390x844`, checked.
+ *
+ * For a clip with a size of its own, a phone clip above all: an app's phone
+ * layout has controls its desktop layout does not, a menu button and what is
+ * behind it, and a clip cannot be written from a listing of the wrong one.
+ */
+export function viewportOf(
+  value: string | boolean | undefined,
+): { width: number; height: number } | undefined | Error {
+  if (value === undefined) return undefined;
+  const match = typeof value === "string" && /^(\d+)x(\d+)$/.exec(value);
+  if (match && Number(match[1]) > 0 && Number(match[2]) > 0) {
+    return { width: Number(match[1]), height: Number(match[2]) };
+  }
+  return new Error(
+    `--viewport is width by height, as in 390x844, got ${JSON.stringify(value)}.`,
+  );
+}
+
+/**
  * Open the app the way a clip would, minus the capture.
  *
  * The inspection commands have to see the page in the state a clip would find

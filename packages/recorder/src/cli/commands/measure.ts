@@ -3,15 +3,20 @@ import { launchBrowser } from "../../driver/launch.js";
 import { loadConfig } from "../../loader.js";
 import { formatMeasurement, measureSelector } from "../../inspect/measure.js";
 import { drivingApp } from "../app.js";
-import { openAppPage } from "./open-app.js";
+import { openAppPage, viewportOf } from "./open-app.js";
 
 export async function measure(argv: string[]): Promise<number> {
   const { positionals, values } = parseArgs({
     args: argv,
-    options: { json: { type: "boolean" } },
+    options: { json: { type: "boolean" }, viewport: { type: "string" } },
     strict: false,
     allowPositionals: true,
   });
+  const viewport = viewportOf(values.viewport);
+  if (viewport instanceof Error) {
+    process.stderr.write(`${viewport.message}\n`);
+    return 1;
+  }
 
   const [path, selector] = positionals as string[];
   if (!path || !selector) {
@@ -23,7 +28,12 @@ export async function measure(argv: string[]): Promise<number> {
   return drivingApp(config, async () => {
     const browser = await launchBrowser();
     try {
-      const { page, context } = await openAppPage(browser, config, path);
+      const { page, context } = await openAppPage(
+        browser,
+        config,
+        path,
+        viewport,
+      );
       const measurement = await measureSelector(page, selector);
       process.stdout.write(
         values.json

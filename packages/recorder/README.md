@@ -378,6 +378,7 @@ conditional, renamed, or not rendered at all. Ask the page instead:
 ```bash
 npx versioncam inspect /shipments          # what is on the page and what it is called
 npx versioncam measure / '.marker'         # where the matches are, as fractions
+npx versioncam inspect / --viewport 390x844  # the same, at a phone's size
 ```
 
 `inspect` says where each name came from: `[aria-label]`, `[label]`,
@@ -414,7 +415,9 @@ Look at the page before writing against it.
 ```
 versioncam inspect <path>          what a clip can click, and where each name came from
     --json                         machine-readable
+    --viewport <w>x<h>             at this size: 390x844 for a phone clip
 versioncam measure <path> <sel>    where a selector's matches are, and what they say
+    --viewport <w>x<h>             at this size
 versioncam dsl                     the clip DSL: every method, its options and defaults
 ```
 
