@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import type { Browser, BrowserContext, Page } from "playwright";
 import type { ResolvedConfig } from "../../config.js";
 import { MUTATION_COUNTER_SCRIPT } from "../../driver/page-hooks.js";
@@ -21,6 +22,47 @@ export function viewportOf(
   return new Error(
     `--viewport is width by height, as in 390x844, got ${JSON.stringify(value)}.`,
   );
+}
+
+/** A Windows path, which no page of an app ever begins with. */
+const DRIVE = /^[A-Za-z]:[\\/]/;
+
+/**
+ * The page a command-line argument meant, on Windows.
+ *
+ * Git Bash, where Claude Code runs commands on Windows, rewrites an argument that
+ * begins with a slash before node sees it: `inspect /settings` arrives as
+ * `C:/Program Files/Git/settings`. So the skill's first look at an app would ask
+ * for `http://localhost:3000C:/Program Files/Git/`. What was rewritten can be put
+ * back, given the root it was prefixed with; `gitBashRoot` is that question, and
+ * only asked of a path that needs it. Anything else with a drive letter is stopped
+ * here with what to do, since no browser would make sense of it.
+ */
+export function pageFromArgument(
+  path: string,
+  gitBashRoot: () => string | null,
+): string {
+  if (!DRIVE.test(path)) return path;
+  const asked = gitBashRoot();
+  const root = asked && (asked.endsWith("/") ? asked : `${asked}/`);
+  const forward = path.replaceAll("\\", "/");
+  if (root && forward.toLowerCase().startsWith(root.toLowerCase())) {
+    return `/${forward.slice(root.length)}`;
+  }
+  throw new Error(
+    `"${path}" is not a page of the app. Git Bash rewrites an argument that ` +
+      "begins with a slash: set MSYS_NO_PATHCONV=1 for this command, or run it " +
+      "from PowerShell.",
+  );
+}
+
+/** Where Git Bash's `/` is, from its own tool, or null outside Git Bash. */
+function gitBashRoot(): string | null {
+  const answer = spawnSync("cygpath", ["-m", "/"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  return answer.status === 0 ? answer.stdout.trim() : null;
 }
 
 /**
@@ -54,7 +96,9 @@ export async function openAppPage(
   page.on("requestfinished", () => (inFlight = Math.max(0, inFlight - 1)));
   page.on("requestfailed", () => (inFlight = Math.max(0, inFlight - 1)));
 
-  const url = path.startsWith("http") ? path : `${config.baseUrl}${path}`;
+  const asked =
+    process.platform === "win32" ? pageFromArgument(path, gitBashRoot) : path;
+  const url = asked.startsWith("http") ? asked : `${config.baseUrl}${asked}`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
 
   if (config.auth?.login) await config.auth.login(page);
