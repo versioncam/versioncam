@@ -13,7 +13,7 @@
  */
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const entry = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "cli", "main.js");
 
@@ -26,4 +26,6 @@ if (!existsSync(entry)) {
   process.exit(1);
 }
 
-await import(entry);
+// A URL, not the path: on Windows `import()` reads `D:\…` as a URL whose scheme
+// is `d:`, and refuses it before any of the CLI has run.
+await import(pathToFileURL(entry).href);

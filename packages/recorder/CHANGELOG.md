@@ -6,6 +6,14 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Fixed
+
+- The command line starts on Windows. Every `npx versioncam` stopped in the launcher
+  with `ERR_UNSUPPORTED_ESM_URL_SCHEME`, before any command ran, because it imported a
+  `D:\\` path as though it were a URL.
+
 ## 0.7.3 (2026-11-05)
 
 A patch, from a rehearsal on the official templates of Next.js, SvelteKit, Nuxt,
