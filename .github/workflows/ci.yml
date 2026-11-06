@@ -136,6 +136,102 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The command line as a stranger on Windows meets it: each command through
+  # `npx versioncam`, which is the launcher, which nothing else here runs. With
+  # CI set, a server the last command left behind is refused by the next one, so
+  # a stop that does not work fails the job. It asserts no bytes against the
+  # build job, because Windows rasterises text its own way, and it holds no
+  # credential and hands nothing on. One command to a `run:`: in PowerShell a
+  # step reports the exit code of its last command only.
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Starting and stopping an app's server
+        run: npx vitest run packages/recorder/src/app-server.test.ts
+
+      - name: The launcher
+        working-directory: examples/demo-app
+        run: npx versioncam --version
+      - name: versioncam install
+        working-directory: examples/demo-app
+        run: npx versioncam install
+      # No ffmpeg on this runner but ffmpeg-static, and no ffprobe at all: what a
+      # stock machine has, and `doctor` has to pass on it, or the skill stops.
+      - name: versioncam doctor
+        working-directory: examples/demo-app
+        run: npx versioncam doctor
+      - name: versioncam inspect
+        working-directory: examples/demo-app
+        run: npx versioncam inspect /
+      - name: versioncam check
+        working-directory: examples/demo-app
+        run: npx versioncam check
+      - name: versioncam stability
+        working-directory: examples/demo-app
+        run: npx versioncam stability 01-create-a-shipment
+      - name: versioncam render
+        working-directory: examples/demo-app
+        run: npx versioncam render 01-create-a-shipment
+
+      # Where Claude Code runs commands on Windows, and it rewrites an argument
+      # that begins with a slash before node sees it. The first step shows what
+      # it does; the second is the skill's first look at an app.
+      - name: What Git Bash does to a leading slash
+        shell: bash
+        run: node -p "process.argv[1]" /
+      - name: versioncam inspect, from Git Bash
+        working-directory: examples/demo-app
+        shell: bash
+        run: npx versioncam inspect /
+
+      - name: Nothing is left on the app's port
+        run: node .github/scripts/port-free.mjs 5174
+
+      # The `exit` handler: a process that ends with its server still up. A test
+      # cannot reach it, since it would have to end the process that is asking.
+      - name: A process exits without stopping its server
+        run: node .github/scripts/exit-stops-server.mjs 5199
+      - name: The server went with it
+        run: node .github/scripts/port-free.mjs 5199
+
+      # What each stop said, which a green job does not show.
+      - name: How each server stopped
+        if: always()
+        working-directory: examples/demo-app
+        run: Select-String -Path .versioncam/webserver.log -Pattern '^--- (stopped|webServer)' | ForEach-Object { $_.Line }
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: windows-example
+          path: |
+            examples/demo-app/.versioncam/webserver.log
+            examples/demo-app/.versioncam/out/01-create-a-shipment*
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+      # Enough to compare any frame, on a runner nobody can log into.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: windows-stability
+          path: examples/demo-app/.versioncam/recordings/__stability
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   # version.cam's own publish, used on this repository first: the recordings
   # the build job's `check` made, sent to production by the versioncam Action,
   # as a customer's workflow sends them, with GitHub's token for this run.
