@@ -717,7 +717,8 @@ and approve it. Nothing calls back to the machine that runs the command, so
 it works over SSH and in a sandbox. The command line then holds a token that
 lasts seven days, in `~/.config/versioncam/credentials.json`, or under
 `$XDG_CONFIG_HOME` when that is set: a file only you may read, which no
-command prints. `cloud logout` revokes it. `VERSIONCAM_API`, set in the
+command prints. On Windows, where file modes do not apply, it is as private as
+the folder it is in, which by default is your user profile. `cloud logout` revokes it. `VERSIONCAM_API`, set in the
 shell, points the commands at another version.cam, and each one's sign-in
 is kept apart. Unlike `publish`, they never take it, or `XDG_CONFIG_HOME`,
 from a `.env` file, so a repository you clone cannot send your sign-in to a

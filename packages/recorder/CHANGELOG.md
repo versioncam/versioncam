@@ -23,6 +23,8 @@ and its entry here says how.
 - `inspect /` and `measure /` work in Git Bash, where Claude Code runs commands on
   Windows. Git Bash rewrites an argument that begins with a slash into a Windows path
   before node sees it, and the page asked for was then no page at all.
+- `cloud login` no longer says the token is readable only by you on Windows, where
+  file modes do not apply. There the file is as private as its folder.
 
 ## 0.7.3 (2026-11-05)
 

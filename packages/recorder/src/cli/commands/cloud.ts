@@ -408,9 +408,12 @@ async function login(c: Context): Promise<number> {
       .revoke()
       .catch(() => undefined);
   }
+  // On Windows `chmod` sets the read-only bit and nothing else, so the file is as
+  // private as the folder it sits in, which this did not decide and cannot vouch for.
+  const private_ = process.platform === "win32" ? "" : ", readable only by you";
   c.io.out(
     `Signed in to ${c.origin} as ${plainLine(who)}, until ${when(expires_at, c.io)}.\n` +
-      `The token is kept in ${shown(path, c.io)}, readable only by you.\n`,
+      `The token is kept in ${shown(path, c.io)}${private_}.\n`,
   );
   return 0;
 }
