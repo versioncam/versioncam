@@ -327,7 +327,7 @@ test.describe("the versioncam CLI", () => {
     try {
       const { stdout } = await runAsync(["doctor"], app.dir, { PATH: empty });
       expect(stdout).toMatch(
-        /✓ ffprobe\s+not found; only render --sequence needs it/,
+        /^- ffprobe\s+not found; only render --sequence needs it$/m,
       );
     } finally {
       await app.close();

@@ -11,7 +11,18 @@ import {
 } from "../../loader.js";
 import { STALE_DAYS, describeReplay } from "../../driver/replay.js";
 
-type Check = { name: string; ok: boolean; detail: string; fix?: string };
+/**
+ * `note` is for something absent that is not wrong: it never fails the command,
+ * and it gets a mark of its own, because a tick beside "not found" reads as a
+ * contradiction.
+ */
+type Check = {
+  name: string;
+  ok: boolean;
+  detail: string;
+  fix?: string;
+  note?: boolean;
+};
 
 const NOT_SERVING =
   "Start the app, point `baseUrl` at where it is served, or add `webServer` to the config.";
@@ -188,6 +199,7 @@ export async function doctor(): Promise<number> {
   checks.push({
     name: "window",
     ok: true,
+    note: browsers.full === null,
     detail: browsers.full
       ? `full Chromium at ${browsers.full}`
       : "full Chromium not fetched yet; login and preview fetch it on first use, or `npx versioncam install --full`",
@@ -207,6 +219,7 @@ export async function doctor(): Promise<number> {
   checks.push({
     name: "ffprobe",
     ok: true,
+    note: ffprobe === null,
     detail: ffprobe ?? "not found; only render --sequence needs it",
   });
 
@@ -229,9 +242,8 @@ export async function doctor(): Promise<number> {
   }
 
   for (const check of checks) {
-    process.stdout.write(
-      `${check.ok ? "✓" : "✗"} ${check.name.padEnd(9)} ${check.detail}\n`,
-    );
+    const mark = check.note ? "-" : check.ok ? "✓" : "✗";
+    process.stdout.write(`${mark} ${check.name.padEnd(9)} ${check.detail}\n`);
     if (!check.ok && check.fix) {
       for (const line of check.fix.split("\n")) {
         process.stdout.write(`            ${line}\n`);
