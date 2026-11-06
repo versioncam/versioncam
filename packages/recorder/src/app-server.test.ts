@@ -11,6 +11,8 @@ import { resolveConfig } from "./config.js";
 import type { WebServerConfig } from "./config.js";
 import { loadEnvFiles } from "./env.js";
 
+const WINDOWS = process.platform === "win32";
+
 /**
  * Each test gets a port nothing is using, from the kernel, rather than a
  * number picked by hand that the next test run — or the example app — might
@@ -123,7 +125,63 @@ describe("ensureApp", () => {
     expect(process.listenerCount("exit")).toBe(exitBefore);
   }, 20_000);
 
-  it("gives up after timeoutMs, with the output, and leaves nothing behind", async () => {
+  it("stops a server two processes under the command", async () => {
+    // The shape of `npm run dev`, on Windows above all: a shell, a node that
+    // starts another node, and only that one holds the port. A stop that reached
+    // the top of it alone would leave the port taken for the next command.
+    const port = await freePort();
+    // The command needs the config's directory, so it is filled in second.
+    const config = configFor(port, { command: "exit 1" });
+    const launcher = join(config.root, "launcher.cjs");
+    writeFileSync(
+      launcher,
+      [
+        "const { spawn } = require('node:child_process');",
+        `const server = "require('node:http').createServer((q, s) => s.end('ok')).listen(${port}, '127.0.0.1')";`,
+        "const child = spawn(process.execPath, ['-e', server], { stdio: 'ignore' });",
+        "console.log('server ' + child.pid);",
+        "setInterval(() => {}, 1000);",
+      ].join("\n"),
+    );
+    config.webServer = {
+      ...config.webServer!,
+      command: `"${process.execPath}" "${launcher}"`,
+    };
+
+    const app = await ensureApp(config);
+    expect(app.started).toBe(true);
+    await app.stop();
+
+    const log = readFileSync(join(config.outDir, "webserver.log"), "utf8");
+    const pid = Number(/server (\d+)/.exec(log)?.[1]);
+    expect(pid).toBeGreaterThan(0);
+    expect(await refuses(port)).toBe(true);
+    expect(() => process.kill(pid, 0)).toThrow();
+  }, 20_000);
+
+  it("takes the carriage returns off what a dead command printed", async () => {
+    // What Windows programs print. This is also the case of a command that dies
+    // at once, for Windows, where the test of it below is skipped: `exitCode`
+    // rather than `process.exit`, because stderr to a pipe is asynchronous there.
+    const port = await freePort();
+    const script = `process.stderr.write('boom\\r\\n');process.exitCode=3`;
+    const error = (await ensureApp(
+      configFor(port, {
+        command: `"${process.execPath}" -e "${script}"`,
+        timeoutMs: 60_000,
+      }),
+    ).then(
+      () => null,
+      (e: Error) => e,
+    )) as Error;
+    expect(error?.message).toMatch(/exited with code 3[\s\S]*boom/);
+    expect(error.message).not.toContain("\r");
+  }, 20_000);
+
+  it("gives up after timeoutMs, with the output, and leaves nothing behind", async ({
+    skip,
+  }) => {
+    skip(WINDOWS, "a POSIX shell line: $$ and exec mean nothing to cmd.exe");
     const port = await freePort();
     // `exec` makes the sleep the very process the shell was, so the pid it
     // prints is the one that has to be gone afterwards.
@@ -214,7 +272,13 @@ describe("ensureApp", () => {
     ).rejects.toThrow(/answered HTTP 500 for 1\.0 s/);
   }, 20_000);
 
-  it("does not wait out the timeout for a command that has already died", async () => {
+  it("does not wait out the timeout for a command that has already died", async ({
+    skip,
+  }) => {
+    skip(
+      WINDOWS,
+      "a POSIX shell line: ; does not separate commands in cmd.exe",
+    );
     // A strict port that is taken, a typo in a script name: the command exits
     // at once, and two minutes of polling would help nobody.
     const port = await freePort();
@@ -243,10 +307,13 @@ describe("ensureApp", () => {
     expect(log).toContain(nodeServer(port, "hello from the dev server"));
     // And how it ended: whether it needed a SIGKILL is the first question
     // when a database it held comes back in a bad state.
-    expect(log).toMatch(/stopped: SIGTERM, all of it gone after/);
+    expect(log).toMatch(
+      WINDOWS ? /stopped: taskkill/ : /stopped: SIGTERM, all of it gone after/,
+    );
   }, 20_000);
 
-  it("says so when the app outlives its process group", async () => {
+  it("says so when the app outlives its process group", async ({ skip }) => {
+    skip(WINDOWS, "a tree kill reaches a detached grandchild, so none escapes");
     // The case that no signal to the group can fix: the start command hands
     // the server to something outside it — here a detached grandchild, in
     // life a container runtime — and exits. The port is what tells.
@@ -291,7 +358,10 @@ describe("ensureApp", () => {
       if (escaped > 0) process.kill(escaped, "SIGTERM");
     }
   }, 20_000);
-  it("does not hand the app what the recorder loaded for itself", async () => {
+  it("does not hand the app what the recorder loaded for itself", async ({
+    skip,
+  }) => {
+    skip(WINDOWS, "a POSIX shell line: $NAME and ; mean nothing to cmd.exe");
     // `.env.recording` holds the recorder's sign-in. The dev server gets the
     // shell's environment — and Vite would let a variable it inherited
     // override the app's own `.env`, so this is about behaviour, not tidiness.

@@ -13,6 +13,10 @@ and its entry here says how.
 - The command line starts on Windows. Every `npx versioncam` stopped in the launcher
   with `ERR_UNSUPPORTED_ESM_URL_SCHEME`, before any command ran, because it imported a
   `D:\\` path as though it were a URL.
+- The app's server stops on Windows. `process.kill(-pid)` signals a process group, which
+  Windows does not have, so every command left the dev server running and the next one
+  refused the port. There it is now stopped with `taskkill`, the whole tree at once. An
+  error message no longer carries a carriage return from what the server printed.
 
 ## 0.7.3 (2026-11-05)
 

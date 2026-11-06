@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import { constants } from "node:os";
 import { join } from "node:path";
@@ -22,6 +22,11 @@ import { inheritedEnv } from "./env.js";
  * whatever ran us — signals the whole group, not just the shell at its top.
  * A recorder that leaves dev servers behind after a failed clip is the kind
  * of thing that makes people stop using a tool.
+ *
+ * Windows has no process groups to signal and no SIGTERM to send, so there the
+ * same promise is kept another way: taskkill takes the command's whole process
+ * tree at once. Playwright does the same with its browsers, and its `webServer`
+ * says outright that graceful shutdown is not supported on Windows.
  */
 
 export type AppHandle = {
@@ -29,9 +34,17 @@ export type AppHandle = {
   started: boolean;
   /** One line for a person: what was found or done, and the HTTP status. */
   detail: string;
-  /** Stop what was started. Resolves once the whole process group is gone. */
+  /**
+   * Stop what was started. Resolves once the whole process group is gone, or
+   * on Windows the whole process tree.
+   */
   stop(): Promise<void>;
 };
+
+const WINDOWS = process.platform === "win32";
+
+/** What taskkill exits with for a pid it cannot find. */
+const TASKKILL_NOT_FOUND = 128;
 
 export type Probe =
   { up: true; status: number } | { up: false; reason: string };
@@ -216,13 +229,15 @@ function tailOf(stream: Readable, tail: string[]): void {
   let partial = "";
   stream.setEncoding("utf8");
   stream.on("data", (chunk: string) => {
-    const lines = (partial + chunk).split("\n");
+    // Either line ending: what Windows programs print would otherwise carry a
+    // carriage return into the error message, which overwrites its own line.
+    const lines = (partial + chunk).split(/\r?\n/);
     partial = lines.pop() ?? "";
     tail.push(...lines);
     if (tail.length > TAIL_LINES) tail.splice(0, tail.length - TAIL_LINES);
   });
   stream.on("end", () => {
-    if (partial) tail.push(partial);
+    if (partial) tail.push(partial.replace(/\r$/, ""));
   });
 }
 
@@ -244,13 +259,17 @@ async function start(
   // also takes the group out of the terminal's, so a Ctrl-C meant for us does
   // not reach the server before we have decided what to do about it.
   //
+  // On Windows `detached` makes no group, only a console window of its own, so
+  // the command stays attached and hidden, and `killTree` is what stops it.
+  //
   // The environment is the shell's, not this process's: what the recorder
   // loaded from `.env.recording` for its own sign-in stays with the recorder.
   const child = spawn(server.command, {
     shell: true,
     cwd: server.cwd,
     env: { ...inheritedEnv(), ...server.env },
-    detached: true,
+    detached: !WINDOWS,
+    windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -291,15 +310,27 @@ async function start(
   // before an async stop gets anywhere: Playwright's own SIGINT handler closes
   // its browsers and calls `process.exit(130)`. The `exit` handler is the last
   // resort for the same reason — it cannot wait, but it can still ask.
+  //
+  // On Windows the first thing is the only thing: taskkill, which is synchronous
+  // and works from all three. Once, because a second one would find nothing and
+  // log "already exited" about a server the first has just killed. And not at
+  // all once the shell has exited, because Windows hands pids out again and the
+  // number may be somebody else's by now.
+  let treeOutcome: string | null = null;
+  const stopTree = (): string =>
+    (treeOutcome ??= exit ? "stopped: it had already exited" : killTree(pid));
   let stopped = false;
   const onSignal = (signal: NodeJS.Signals) => {
-    signalGroup(pid, "SIGTERM");
+    if (WINDOWS) stopTree();
+    else signalGroup(pid, "SIGTERM");
     void stop().finally(() =>
       process.exit(128 + (constants.signals[signal] ?? 0)),
     );
   };
   const onExit = () => {
-    if (!stopped) signalGroup(pid, "SIGTERM");
+    if (stopped) return;
+    if (WINDOWS) stopTree();
+    else signalGroup(pid, "SIGTERM");
   };
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"];
   for (const signal of signals) process.on(signal, onSignal);
@@ -308,7 +339,14 @@ async function start(
   let stopping: Promise<void> | null = null;
   const stop = (): Promise<void> =>
     (stopping ??= (async () => {
-      const outcome = await stopGroup(pid, exited);
+      let outcome: string;
+      if (WINDOWS) {
+        outcome = stopTree();
+        // Lets Node reap the shell, and read the last of what it printed.
+        await within(exited, 2_000);
+      } else {
+        outcome = await stopGroup(pid, exited);
+      }
       stopped = true;
       for (const signal of signals) process.off(signal, onSignal);
       process.off("exit", onExit);
@@ -323,11 +361,18 @@ async function start(
       // app is gone is a question about the port, and it is the one the next
       // command will trip over — a container, say, that the start command
       // handed the work to and that no signal to the group reaches.
-      const after = await probe(server.url, 1_000);
+      let after = await probe(server.url, 1_000);
+      if (after.up && WINDOWS) {
+        // taskkill returns once the processes are told, and a socket can outlive
+        // that by a moment. A server that is really there is there a second on.
+        await sleep(1_000);
+        after = await probe(server.url, 1_000);
+      }
       if (after.up) {
         const warning =
           `webServer: stopped "${server.command}", but ${server.url} still ` +
-          "answers: something it started is outside its process group and still running.";
+          `answers: something it started is outside its process ${WINDOWS ? "tree" : "group"} ` +
+          "and still running.";
         log.write(`--- ${warning}\n`);
         process.stderr.write(`${warning}\n`);
       }
@@ -418,6 +463,36 @@ function within(promise: Promise<unknown>, ms: number): Promise<void> {
       resolve();
     });
   });
+}
+
+/**
+ * Windows's way to stop a server: every process under `pid`, at once, with no
+ * grace period, because Windows has no SIGTERM to give one with.
+ *
+ * Blocking, so it works from a signal handler and from the `exit` handler, which
+ * cannot wait for anything. Returns what happened, for the log. Reads the exit
+ * status and never the words, which taskkill translates into the machine's
+ * language. It does not decide whether the server is gone either: the port check
+ * after it does that, so a status this does not know is reported, not judged.
+ */
+function killTree(pid: number): string {
+  const began = Date.now();
+  const result = spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], {
+    windowsHide: true,
+    encoding: "utf8",
+  });
+  if (result.error) {
+    const code = (result.error as NodeJS.ErrnoException).code;
+    return `stopped: taskkill could not run (${code})`;
+  }
+  if (result.status === 0) {
+    return `stopped: taskkill, the whole tree after ${seconds(Date.now() - began)}`;
+  }
+  if (result.status === TASKKILL_NOT_FOUND) {
+    return "stopped: it had already exited";
+  }
+  const said = result.stderr.split(/\r?\n/)[0];
+  return `stopped: taskkill exited with ${result.status}: ${said}`;
 }
 
 /**
