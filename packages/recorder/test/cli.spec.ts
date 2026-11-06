@@ -317,6 +317,23 @@ test.describe("the versioncam CLI", () => {
     }
   });
 
+  test("doctor does not fail a machine for having no ffprobe", async () => {
+    // Only `render --sequence` reads it, and the skill stops on a failed doctor,
+    // so a failure here stopped everything on a machine that lacked it. An empty
+    // PATH, which hides the system's: whether ffmpeg is found then depends on
+    // ffmpeg-static, so the line is what is asserted, not the exit code.
+    const app = await servedDir();
+    const empty = mkdtempSync(join(tmpdir(), "versioncam-no-path-"));
+    try {
+      const { stdout } = await runAsync(["doctor"], app.dir, { PATH: empty });
+      expect(stdout).toMatch(
+        /✓ ffprobe\s+not found; only render --sequence needs it/,
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   test("doctor counts a login page as reachable", async () => {
     // An app behind a sign-in answers 401 or redirects, and records perfectly
     // well once `auth` is configured. Only silence means it is not there.

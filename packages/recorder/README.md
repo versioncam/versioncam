@@ -40,9 +40,9 @@ and a server-rendered app is recorded like any other, its page loads included.
 `npx versioncam doctor` checks the rest: Node 22 or later, Chromium, ffmpeg,
 your config and the scenes module it names, if any, and whether the app
 starts. ffmpeg and ffprobe come from the
-system (`brew install ffmpeg`, `apt install ffmpeg`). The optional
-`ffmpeg-static` package covers a machine that has neither, but it has no
-ffprobe. versioncam is tested on macOS and Linux. Windows is untested.
+system (`brew install ffmpeg`, `apt install ffmpeg`, `winget install ffmpeg`).
+The optional `ffmpeg-static` package covers a machine that has neither, but it
+has no ffprobe, which only `render --sequence` reads. versioncam is tested on macOS and Linux. Windows is untested.
 
 Use `versioncam install`, not `npx playwright install`. versioncam pins its
 Playwright exactly, because a new Chromium changes every captured pixel. Your

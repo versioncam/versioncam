@@ -198,13 +198,16 @@ export async function doctor(): Promise<number> {
     name: "ffmpeg",
     ok: ffmpeg !== null,
     detail: ffmpeg ?? "not found",
-    fix: "brew install ffmpeg  (or apt install ffmpeg)",
+    fix: "brew install ffmpeg  (or apt install ffmpeg, or winget install ffmpeg)",
   });
+  // Reported and never a failure. Only `render --sequence` reads it, and it has
+  // its own message; `check`, `record` and a plain `render` all work without it,
+  // on ffmpeg-static alone. A failure here stopped the skill, which requires
+  // `doctor` to pass, on a machine that could do everything the skill asks for.
   checks.push({
     name: "ffprobe",
-    ok: ffprobe !== null,
-    detail: ffprobe ?? "not found",
-    fix: "Installs with ffmpeg; ffmpeg-static does not include it.",
+    ok: true,
+    detail: ffprobe ?? "not found; only render --sequence needs it",
   });
 
   const config = findConfigFile(process.cwd());

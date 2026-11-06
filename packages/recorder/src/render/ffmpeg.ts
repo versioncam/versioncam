@@ -34,8 +34,8 @@ export function ffmpegPath(): string {
   const fallback = fromStaticPackage();
   if (fallback) return (cachedFfmpeg = fallback);
   throw new Error(
-    "ffmpeg not found. Install it (`brew install ffmpeg`, `apt install ffmpeg`) " +
-      "or add the optional ffmpeg-static dependency.",
+    "ffmpeg not found. Install it (`brew install ffmpeg`, `apt install ffmpeg`, " +
+      "`winget install ffmpeg`) or add the optional ffmpeg-static dependency.",
   );
 }
 
@@ -48,8 +48,9 @@ export function ffprobePath(): string {
   if (cachedFfprobe) return cachedFfprobe;
   if (onPath("ffprobe")) return (cachedFfprobe = "ffprobe");
   throw new Error(
-    "ffprobe not found. It usually installs alongside ffmpeg; on a minimal " +
-      "image install the full ffmpeg package rather than ffmpeg-static.",
+    "ffprobe not found. It usually installs alongside ffmpeg (on Windows, " +
+      "`winget install ffmpeg`); on a minimal image install the full ffmpeg " +
+      "package rather than ffmpeg-static.",
   );
 }
 

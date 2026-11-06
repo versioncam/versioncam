@@ -17,6 +17,9 @@ and its entry here says how.
   Windows does not have, so every command left the dev server running and the next one
   refused the port. There it is now stopped with `taskkill`, the whole tree at once. An
   error message no longer carries a carriage return from what the server printed.
+- `doctor` no longer fails on a missing ffprobe. Only `render --sequence` reads it, and
+  the skill stops when `doctor` fails, so it stopped on a machine that could do
+  everything the skill asks for. The hints for ffmpeg name `winget install ffmpeg`.
 
 ## 0.7.3 (2026-11-05)
 
