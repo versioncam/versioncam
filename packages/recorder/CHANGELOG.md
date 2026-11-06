@@ -6,7 +6,15 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## Unreleased
+## 0.7.4 (2026-11-06)
+
+A patch: versioncam runs on Windows. Every command stopped there before it started, and
+this is the first version a Windows machine can use. CI records and renders the example
+app on a Windows runner, and an Angular app and a Next.js app passed there too. The
+package's full test suite does not pass there yet, because of what its tests assume about
+paths and line endings, and it has not been tried on a Windows desktop. Nothing changes
+in the config or the clip DSL, and the example app's clips record the same frames as on
+0.7.3. On macOS and Linux the one change anyone will see is in `doctor`.
 
 ### Fixed
 
@@ -19,7 +27,8 @@ and its entry here says how.
   error message no longer carries a carriage return from what the server printed.
 - `doctor` no longer fails on a missing ffprobe. Only `render --sequence` reads it, and
   the skill stops when `doctor` fails, so it stopped on a machine that could do
-  everything the skill asks for. The hints for ffmpeg name `winget install ffmpeg`.
+  everything the skill asks for. What is absent but not wrong now has a hyphen beside it,
+  not a tick. The hints for ffmpeg name `winget install ffmpeg`.
 - `inspect /` and `measure /` work in Git Bash, where Claude Code runs commands on
   Windows. Git Bash rewrites an argument that begins with a slash into a Windows path
   before node sees it, and the page asked for was then no page at all.

@@ -42,7 +42,12 @@ your config and the scenes module it names, if any, and whether the app
 starts. ffmpeg and ffprobe come from the
 system (`brew install ffmpeg`, `apt install ffmpeg`, `winget install ffmpeg`).
 The optional `ffmpeg-static` package covers a machine that has neither, but it
-has no ffprobe, which only `render --sequence` reads. versioncam is tested on macOS and Linux. Windows is untested.
+has no ffprobe, which only `render --sequence` reads.
+
+versioncam is tested on macOS and Linux on every change. Windows is new in
+0.7.4: CI records and renders the example app on a Windows runner, and an Angular
+app and a Next.js app passed there too. The package's full test suite does not
+pass there yet, and it has not been tried on a Windows desktop.
 
 Use `versioncam install`, not `npx playwright install`. versioncam pins its
 Playwright exactly, because a new Chromium changes every captured pixel. Your
@@ -83,7 +88,8 @@ already installed there.
 You were probably asked for a product demo, a README or landing-page video, a
 GIF, or docs screenshots that stay current. versioncam fits when the subject
 is a web app that starts from a command and whose controls can be reached by
-test id, role, label or placeholder, on Node 22 or later, on macOS or Linux.
+test id, role, label or placeholder, on Node 22 or later, on macOS or Linux,
+or on Windows, which is new in 0.7.4 and less proven.
 It does not fit native mobile apps, terminal demos (VHS does those),
 interactive HTML tours, narrated screencasts, or a UI that will never change
 again.
@@ -983,8 +989,8 @@ every WebM carried a random id and no two were the same file.
 
 Across machines the claim is narrower. The **timeline** is identical: it is
 what the driver decided, and nothing in it depends on the host. The captured
-**pixels** are identical only where the rendering environment is. macOS and
-Linux rasterise text differently, so the same page in the same state is the
+**pixels** are identical only where the rendering environment is. macOS, Linux
+and Windows rasterise text differently, so the same page in the same state is the
 same picture and a different file. Byte-identity belongs to a fixed
 environment. In CI that means one runner image, and the Playwright container
 for the version versioncam pins is the simplest (see *In CI*).
