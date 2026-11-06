@@ -156,7 +156,21 @@ describe("ensureApp", () => {
     const pid = Number(/server (\d+)/.exec(log)?.[1]);
     expect(pid).toBeGreaterThan(0);
     expect(await refuses(port)).toBe(true);
-    expect(() => process.kill(pid, 0)).toThrow();
+    // Its parent is gone, so nothing here reaps it, and until something does a
+    // zombie can still answer: asked for a moment, not once.
+    await expect
+      .poll(
+        () => {
+          try {
+            process.kill(pid, 0);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { timeout: 2_000 },
+      )
+      .toBe(false);
   }, 20_000);
 
   it("takes the carriage returns off what a dead command printed", async () => {
