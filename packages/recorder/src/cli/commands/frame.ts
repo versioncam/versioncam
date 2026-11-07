@@ -29,7 +29,7 @@ export async function frame(argv: string[]): Promise<number> {
     (nth === undefined && byTime === undefined && byBeat === undefined)
   ) {
     process.stderr.write(
-      "Usage: versioncam frame <id> <n>  (or --t <seconds>, or --at <beat label>)\n",
+      "frame needs a clip id and a frame. Usage: versioncam frame <id> <n>  (or --t <seconds>, or --at <beat label>)\n",
     );
     return 1;
   }
@@ -38,7 +38,7 @@ export async function frame(argv: string[]): Promise<number> {
   const dir = join(config.recordingsDir, id);
   if (!existsSync(join(dir, "timeline.json"))) {
     process.stderr.write(
-      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
+      `There is no recording of "${id}". If "${id}" is a clip id, run \`npx versioncam record ${id}\` first.\n`,
     );
     return 1;
   }

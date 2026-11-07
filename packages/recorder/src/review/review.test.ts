@@ -193,7 +193,7 @@ describe("reviewRecording", () => {
     const rendered = item(result, "rendered");
     expect(rendered.pass).toBe(false);
     expect(rendered.warning).toBe(true);
-    expect(rendered.detail).toContain("camera key at 11.1s");
+    expect(rendered.detail).toContain("camera move at 11.1s");
     // A warning is a finding, not a verdict.
     expect(result.pass).toBe(true);
   });
@@ -213,9 +213,9 @@ describe("reviewRecording", () => {
     }
     const rendered = item(review({ timeline }), "rendered");
     expect(rendered.warning).toBe(true);
-    expect(rendered.detail.match(/camera key/g)).toHaveLength(1);
+    expect(rendered.detail.match(/camera move/g)).toHaveLength(1);
     expect(rendered.detail).toContain(
-      `camera key at ${(640 / FPS).toFixed(1)}s`,
+      `camera move at ${(640 / FPS).toFixed(1)}s`,
     );
   });
 

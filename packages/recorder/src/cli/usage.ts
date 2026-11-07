@@ -18,15 +18,15 @@ export const USAGE = `versioncam: record and render demo clips of a real app
 Set up
   versioncam install                 the headless Chromium this version of versioncam records with
       --with-deps                    and its system libraries (Linux CI)
-      --full                         and the full browser, which login and preview open
+      --full                         also the full Chromium, which login and preview need for their window
   versioncam init                    install the authoring skill into .claude/
-      --into <dir>                   into <dir>/versioncam/ instead, for another host
+      --into <dir>                   into <dir>/versioncam/ instead, for an agent that reads skills from elsewhere
       --force                        overwrite files that are already there
   versioncam doctor                  check this machine can record, and that the app starts
   versioncam login                   sign in once and save the browser session
 
 Write
-  versioncam inspect <path>          what a clip can click, and where each name came from
+  versioncam inspect <path>          what a clip can click, by accessible name, and where each name came from
       --json                         machine-readable
       --viewport <w>x<h>             at this size: 390x844 for a phone clip
   versioncam measure <path> <sel>    where a selector's matches are, and what they say
@@ -35,8 +35,8 @@ Write
 
 Record
   versioncam record [id…]            drive the app and capture frames
-      --draft                        15fps at CSS scale: cheap, for writing clips
-      --replay <mode>                auto, record, replay or live, instead of the config's replay
+      --draft                        a quick recording at 15fps and CSS scale, for writing clips
+      --replay <mode>                how to use recorded network answers, overriding the config: auto, record, replay or live
   versioncam check [id…]             record every clip; exit 1 if any breaks
       --report <file>                and write each clip's result there, as JSON
   versioncam stability [id…]         record each clip twice the same way, and say if they match
@@ -46,11 +46,11 @@ Record
 
 Review
   versioncam sheet <id>              an eight-frame contact sheet
-      --at-marks                     sample the beats instead of even spacing
+      --at-marks                     one tile per beat instead of even spacing
   versioncam frame <id> <n>          one frame at output size, to a png
       --t <seconds>                  pick the frame by time instead
       --at <label>                   or by the beat it shows
-  versioncam review <id>             the checks that need nobody to look; PASS/FAIL, exit 0/1
+  versioncam review <id>             the automatic checks, PASS or FAIL, with exit code 0 or 1
       --beats <file>                 the beats the clip should show, as [{ label, expect }]
       --min <s> --max <s>            duration bounds (default 9 and 11)
   versioncam preview <id>            open the scrubber in a real browser
@@ -59,8 +59,8 @@ Review
 
 Output
   versioncam render [id…]            composite and encode recordings and scenes
-                                     no ids: every one, stale recordings included
-      --scene <id>                   and this scene, whatever the ids say (repeatable)
+                                     with no ids, it renders all of them, stale recordings too
+      --scene <id>                   also render this scene, even if no id names it (repeatable)
       --sequence                     stitch the results into one piece
       --report <file>                and write what it made there, as JSON
 
@@ -75,16 +75,16 @@ Publish
 Manage
   versioncam cloud login             sign in to version.cam, with a code you approve in a browser
       --label <name>                 what the approval page calls this machine
-  versioncam cloud logout            sign out: revoke the token, and delete it
-  versioncam cloud status [project]  each clip, current or broken, and what plays meanwhile
-  versioncam cloud failure <clip>    why a clip broke, and its picture, into .versioncam/failures/
+  versioncam cloud logout            sign out, which revokes the token and deletes it
+  versioncam cloud status [project]  each clip, current or broken, and the version its link plays while broken
+  versioncam cloud failure <clip>    print why a clip broke, and save its picture in .versioncam/failures/
   versioncam cloud ack <clip>        acknowledge a broken clip, which stops the reminders
   versioncam cloud embed <clip>      the snippets that embed a clip, and its files
   versioncam cloud set <name> <val>  change a setting, once you approve it in a browser:
                                      visibility public|unlisted|private, retention <days>|off,
                                      viewers on|off, alerts email|slack <address>|off,
                                      alerts issues on|off
-  versioncam cloud plan [account]    the plan, and the pages to upgrade and pay on
+  versioncam cloud plan [account]    the plan, and the links to upgrade and to billing
       --project <owner/repo>         which project, when not this repository's
       --json                         machine-readable, for status, failure, embed and plan
 

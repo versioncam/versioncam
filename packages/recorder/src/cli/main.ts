@@ -77,7 +77,9 @@ async function main(): Promise<number> {
 
   const command = COMMANDS[name];
   if (!command) {
-    process.stderr.write(`Unknown command "${name}".\n\n${USAGE}`);
+    process.stderr.write(
+      `Unknown command "${name}". These are the commands:\n\n${USAGE}`,
+    );
     return 1;
   }
   const unknown = unknownFlag(name, argv);

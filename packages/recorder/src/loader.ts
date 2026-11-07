@@ -74,7 +74,7 @@ const CONFIG_NAMES = [
  * first; by hand is the way for anyone not using the skill.
  */
 export const NO_CONFIG =
-  "Run `npx versioncam init`, then `/versioncam` in your agent. Its first run writes one from the repository.\n" +
+  "Run `npx versioncam init`, then `/versioncam` in your agent. The skill's first run writes the config from what it finds in the repository.\n" +
   "Or write one by hand: a default export from defineRecorder(), as in the README's Configure section.";
 
 export function findConfigFile(cwd: string): string | null {

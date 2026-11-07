@@ -8,7 +8,7 @@ import { formatReview, reviewRecording } from "../../review/review.js";
 import type { Beat } from "../../review/review.js";
 
 const USAGE =
-  "Usage: versioncam review <id> [--beats <file>] [--min <s>] [--max <s>]\n";
+  "review needs a clip id. Usage: versioncam review <id> [--beats <file>] [--min <s>] [--max <s>]\n";
 
 /** The beat sheet, checked as it is read: a bad one is an authoring mistake. */
 function readBeats(file: string): Beat[] {
@@ -62,7 +62,7 @@ export async function review(argv: string[]): Promise<number> {
   const timelineFile = join(dir, "timeline.json");
   if (!existsSync(timelineFile)) {
     process.stderr.write(
-      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
+      `There is no recording of "${id}". If "${id}" is a clip id, run \`npx versioncam record ${id}\` first.\n`,
     );
     return 1;
   }

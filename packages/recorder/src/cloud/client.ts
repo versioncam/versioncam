@@ -85,7 +85,7 @@ export function cloudClient(options: CloudClientOptions) {
     if (signedIn) {
       if (!options.token) {
         throw new CloudError(
-          "Not signed in. Run `versioncam cloud login` first.",
+          "You're not signed in. Run `versioncam cloud login` first.",
           401,
           "unauthorized",
         );

@@ -221,7 +221,9 @@ export async function runCloud(argv: string[], io: CloudIo): Promise<number> {
   // Its own names only: `constructor` is on every object, and no command.
   const command = Object.hasOwn(SUBCOMMANDS, name) ? SUBCOMMANDS[name] : null;
   if (!command) {
-    scrubbed.err(`Unknown command "cloud ${name}".\n\n${cloudUsage()}`);
+    scrubbed.err(
+      `Unknown command "cloud ${name}". These are the cloud commands:\n\n${cloudUsage()}`,
+    );
     return 1;
   }
   const extra = (Object.keys(values) as Flag[]).filter(
@@ -450,7 +452,7 @@ async function logout(c: Context): Promise<number> {
   const credential = readCredential(c.io.env, c.api);
   const path = shown(credentialsPath(c.io.env), c.io);
   if (!credential) {
-    c.io.out(`Not signed in to ${c.origin}.\n`);
+    c.io.out(`You're not signed in to ${c.origin}.\n`);
     return 0;
   }
   c.secrets.push(credential.token);
@@ -489,7 +491,7 @@ function signIn(
   const credential = readCredential(c.io.env, c.api);
   if (!credential) {
     c.io.err(
-      `Not signed in to ${c.origin}. Run \`versioncam cloud login\` first.\n`,
+      `You're not signed in to ${c.origin}. Run \`versioncam cloud login\` first.\n`,
     );
     return null;
   }

@@ -58,7 +58,7 @@ export async function stability(argv: string[]): Promise<number> {
   if (clips.length === 0) {
     process.stderr.write(
       positionals.length > 0
-        ? `No clip matched ${positionals.join(", ")}.\n`
+        ? `No clip id contains ${positionals.join(", ")}. The clips are: ${(await loadClips(config, [])).map((clip) => clip.id).join(", ") || "none"}.\n`
         : `No clips found. The config looks for ${config.clips.join(", ")} under ${config.root}.\n`,
     );
     return 1;

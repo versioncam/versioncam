@@ -117,7 +117,7 @@ export async function init(argv: string[]): Promise<number> {
     process.stderr.write(
       `These files already exist:\n` +
         existing.map((c) => `  ${relative(cwd, c.to)}\n`).join("") +
-        "Nothing was copied. Pass --force to overwrite them.\n",
+        "init copied nothing. Pass --force to overwrite them.\n",
     );
     return 1;
   }
@@ -130,7 +130,7 @@ export async function init(argv: string[]): Promise<number> {
 
   if (into) {
     process.stdout.write(
-      `\nThe reviewer agent is ${relative(cwd, reviewerTarget)}. If your host can register agents, register it as versioncam-reviewer. If it can't, the skill reads it from there.\n`,
+      `\nThe reviewer agent is ${relative(cwd, reviewerTarget)}. If your coding agent can register subagents, register it as versioncam-reviewer. If it can't, the skill reads the file from there.\n`,
     );
   }
 
@@ -159,8 +159,8 @@ export async function init(argv: string[]): Promise<number> {
   }
 
   process.stdout.write(
-    `\nInstalled. Ask your agent: /versioncam "<what the clip should show>"\n` +
-      "The first run sets up this repository. Documentation: https://version.cam\n",
+    `\nThe skill is installed. To make a clip, ask your agent: /versioncam "<what the clip should show>"\n` +
+      "The first run writes versioncam.config.ts, then checks that the app starts and records the same way twice. Documentation: https://version.cam\n",
   );
   return 0;
 }

@@ -83,7 +83,7 @@ function checkSettles(settles: SettleReport[]): ReviewItem {
     pass: late.length === 0,
     detail:
       late.length === 0
-        ? `${settles.length} settled, none timed out`
+        ? `the page settled ${settles.length === 1 ? "once" : `${settles.length} times`}, and no wait timed out`
         : late
             .map((s) => `"${s.label}" timed out waiting on ${s.lastBlocker}`)
             .join("; "),
@@ -143,7 +143,9 @@ function checkProgress(timeline: Timeline): ReviewItem {
     pass: still.length === 0,
     detail:
       still.length === 0
-        ? `the screen changed across all ${marks.length - 1} beat gaps`
+        ? marks.length === 2
+          ? "the screen changed between the two beats"
+          : `the screen changed between each beat and the next (${marks.length} beats)`
         : still.join("; "),
   };
 }
@@ -169,7 +171,7 @@ function checkRendered(timeline: Timeline): ReviewItem {
   // stopped says everything they do.
   const lastKey = timeline.camera[timeline.camera.length - 1];
   if (lastKey && late(lastKey.t)) {
-    unseen.push(`a camera key at ${seconds(lastKey.t)}`);
+    unseen.push(`a camera move at ${seconds(lastKey.t)}`);
   }
   for (const highlight of timeline.highlights) {
     if (late(highlight.t0)) {
@@ -196,7 +198,7 @@ function checkRendered(timeline: Timeline): ReviewItem {
     detail:
       `${unseen.join(", ")} ${unseen.length === 1 ? "comes" : "come"} after the clip ends at frame ${lastFrame} ` +
       `(${seconds(timeline.durationFrames / timeline.fps)}), so no frame shows ${unseen.length === 1 ? "it" : "them"}. ` +
-      "Writing to a track takes no clip time: add a `hold` after it so it has time on screen.",
+      "Camera moves, highlights and captions take no clip time, so add a `hold` after the last one to give it time on screen.",
   };
 }
 

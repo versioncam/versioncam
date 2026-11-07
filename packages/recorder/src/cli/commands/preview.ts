@@ -32,14 +32,16 @@ export async function preview(argv: string[]): Promise<number> {
   const sceneId = values.scene as string | undefined;
   const id = sceneId ?? (positionals[0] as string | undefined);
   if (!id) {
-    process.stderr.write("Usage: versioncam preview <id> | --scene <id>\n");
+    process.stderr.write(
+      "preview needs a clip id or --scene <id>. Usage: versioncam preview <id> | --scene <id>\n",
+    );
     return 1;
   }
 
   const dir = join(config.recordingsDir, id);
   if (!sceneId && !existsSync(join(dir, "timeline.json"))) {
     process.stderr.write(
-      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
+      `There is no recording of "${id}". If "${id}" is a clip id, run \`npx versioncam record ${id}\` first.\n`,
     );
     return 1;
   }

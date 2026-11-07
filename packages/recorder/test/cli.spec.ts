@@ -553,7 +553,7 @@ test.describe("the versioncam CLI", () => {
     const status = run(["cloud", "status", "acme/app"], dir, env);
     expect(status.status).toBe(1);
     expect(status.stderr).toBe(
-      "Not signed in to http://127.0.0.1:9. Run `versioncam cloud login` first.\n",
+      "You're not signed in to http://127.0.0.1:9. Run `versioncam cloud login` first.\n",
     );
     const usage = run(["cloud"], dir, env);
     expect(usage.status).toBe(1);
@@ -576,7 +576,7 @@ test.describe("the versioncam CLI", () => {
       ".env sets VERSIONCAM_API to http://127.0.0.1:9, but versioncam cloud ignores it. " +
         "It reads the API's address only from the shell, so that no repository can send your sign-in, or a request that carries your token, to a server it chose. " +
         "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n" +
-        "Not signed in to https://api.version.cam. Run `versioncam cloud login` first.\n",
+        "You're not signed in to https://api.version.cam. Run `versioncam cloud login` first.\n",
     );
 
     // The shell's own value still counts, and then the file has nothing to
@@ -586,7 +586,7 @@ test.describe("the versioncam CLI", () => {
       VERSIONCAM_API: "http://127.0.0.1:7",
     });
     expect(set.stderr).toBe(
-      "Not signed in to http://127.0.0.1:7. Run `versioncam cloud login` first.\n",
+      "You're not signed in to http://127.0.0.1:7. Run `versioncam cloud login` first.\n",
     );
   });
 
@@ -1216,9 +1216,11 @@ test.describe("the versioncam CLI", () => {
       "name: versioncam-reviewer",
     );
     expect(first.stdout).toContain(
-      'Installed. Ask your agent: /versioncam "<what the clip should show>"',
+      'The skill is installed. To make a clip, ask your agent: /versioncam "<what the clip should show>"',
     );
-    expect(first.stdout).toContain("The first run sets up this repository.");
+    expect(first.stdout).toContain(
+      "The first run writes versioncam.config.ts, then checks that the app starts and records the same way twice.",
+    );
     // Not in a repository, so not below one's root either.
     expect(first.stdout).not.toContain("Claude Code loads the skill");
     // No config stub: the first run writes the real one.
@@ -1248,7 +1250,7 @@ test.describe("the versioncam CLI", () => {
     const { status, stderr } = run(["init"], dir);
     expect(status).toBe(1);
     expect(stderr).toContain("versioncam-reviewer.md");
-    expect(stderr).toContain("Nothing was copied");
+    expect(stderr).toContain("init copied nothing");
     expect(existsSync(join(dir, ".claude", "skills", "versioncam"))).toBe(
       false,
     );

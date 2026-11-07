@@ -223,7 +223,7 @@ export async function renderRecording(
   const dir = join(config.recordingsDir, id);
   if (!existsSync(join(dir, "timeline.json"))) {
     throw new Error(
-      `No recording for "${id}". Run \`versioncam record ${id}\` first.`,
+      `There is no recording of "${id}". If "${id}" is a clip id, run \`npx versioncam record ${id}\` first.`,
     );
   }
   return renderTarget(browser, config, { kind: "recording", id, dir });

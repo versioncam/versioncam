@@ -15,7 +15,9 @@ export async function sheet(argv: string[]): Promise<number> {
   });
   const id = positionals[0] as string | undefined;
   if (!id) {
-    process.stderr.write("Usage: versioncam sheet <id> [--at-marks]\n");
+    process.stderr.write(
+      "sheet needs a clip id. Usage: versioncam sheet <id> [--at-marks]\n",
+    );
     return 1;
   }
 
@@ -23,7 +25,7 @@ export async function sheet(argv: string[]): Promise<number> {
   const dir = join(config.recordingsDir, id);
   if (!existsSync(join(dir, "timeline.json"))) {
     process.stderr.write(
-      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
+      `There is no recording of "${id}". If "${id}" is a clip id, run \`npx versioncam record ${id}\` first.\n`,
     );
     return 1;
   }

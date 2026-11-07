@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { chooseIds, loadConfig, loadSceneIds } from "../../loader.js";
 import { renderRecording, renderScene } from "../../render/render.js";
@@ -167,7 +167,7 @@ export async function render(argv: string[]): Promise<number> {
         process.stdout.write(
           `  ${id}: ${out.durationFrames} frames at ${out.fps}fps ` +
             `(${(out.durationFrames / out.fps).toFixed(1)}s), ` +
-            `took ${((performance.now() - began) / 1000).toFixed(0)}s\n`,
+            `took ${((performance.now() - began) / 1000).toFixed(0)}s, saved in ${relative(process.cwd(), dirname(out.mp4)) || "."}\n`,
         );
       } catch (error) {
         failures.push({ id, error: error as Error });

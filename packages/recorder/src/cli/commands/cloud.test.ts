@@ -756,7 +756,7 @@ describe("versioncam cloud logout", () => {
     const again = await pc.run("logout");
     expect(again).toEqual({
       code: 0,
-      out: `Not signed in to ${fake.url}.\n`,
+      out: `You're not signed in to ${fake.url}.\n`,
       err: "",
     });
   });
@@ -926,7 +926,7 @@ describe("a sign-in that is no good", () => {
     const { code, err } = await pc.run("status", "acme/app");
     expect(code).toBe(1);
     expect(err).toBe(
-      `Not signed in to ${fake.url}. Run \`versioncam cloud login\` first.\n`,
+      `You're not signed in to ${fake.url}. Run \`versioncam cloud login\` first.\n`,
     );
     expect(fake.seen).toHaveLength(0);
   });

@@ -20,7 +20,9 @@ export async function measure(argv: string[]): Promise<number> {
 
   const [path, selector] = positionals as string[];
   if (!path || !selector) {
-    process.stderr.write("Usage: versioncam measure <path> <selector>\n");
+    process.stderr.write(
+      "measure needs a path and a selector. Usage: versioncam measure <path> <selector>\n",
+    );
     return 1;
   }
 
