@@ -31,11 +31,12 @@ the same way twice, and only then writes the clip. See *Authoring*.
 In a monorepo, run all three in the app's own directory. The skill goes
 there, and so does the config its first run writes.
 
-An app that is not Node installs versioncam the same way, in its own directory:
-npm makes a `package.json` there if there is none, and `node_modules/` then goes
-in `.gitignore`. Nothing else cares what the app is written in. `webServer` runs
-any command (`.venv/bin/python manage.py runserver 8000`, `bin/rails server`),
-and a server-rendered app is recorded like any other, its page loads included.
+An app that is not written for Node installs versioncam the same way, in its own
+directory. npm creates a `package.json` there if there is none, and you add
+`node_modules/` to `.gitignore`. Nothing else depends on the app's language.
+`webServer` runs any command (`.venv/bin/python manage.py runserver 8000`,
+`bin/rails server`), and the recorder records a server-rendered app like any
+other, page loads included.
 
 `npx versioncam doctor` checks the rest: Node 22 or later, Chromium, ffmpeg,
 your config and the scenes module it names, if any, and whether the app
@@ -44,21 +45,24 @@ system (`brew install ffmpeg`, `apt install ffmpeg`, `winget install ffmpeg`).
 The optional `ffmpeg-static` package covers a machine that has neither, but it
 has no ffprobe, which only `render --sequence` reads.
 
-versioncam is tested on macOS and Linux on every change. Windows is new in
-0.7.4: CI records and renders the example app on a Windows runner, and an Angular
-app and a Next.js app passed there too. The package's full test suite does not
-pass there yet, and it has not been tried on a Windows desktop.
+We test versioncam on macOS and Linux on every change. Windows support is new in
+0.7.4. CI records and renders the example app on a Windows runner, and an Angular
+app and a Next.js app passed there too. On 2026-11-07 the skill wrote, recorded,
+reviewed and rendered a first clip end to end on a Windows 11 desktop: a fresh
+Vite app, `npm i -D versioncam`, `install`, `doctor`, `init`, then `/versioncam`.
+The package's own test suite does not pass on Windows yet, and we have not
+tested stopping a recording with Ctrl+C there.
 
 Use `versioncam install`, not `npx playwright install`. versioncam pins its
 Playwright exactly, because a new Chromium changes every captured pixel. Your
 app may have a Playwright of its own at another version, and
 `npx playwright install` fetches that one's Chromium.
 
-`versioncam install` fetches the headless shell, the Chromium that records:
-190 MB on a Mac. `login` and `preview` open a window, which needs the full
-browser, 340 MB more; they fetch it the first time they run, or
-`npx versioncam install --full` fetches both now, for a machine that will be
-offline then.
+`versioncam install` fetches the headless shell, which is the Chromium that
+records. It takes 190 MB on a Mac. `login` and `preview` open a window, which
+needs the full browser, 340 MB more. They fetch it the first time they run. On a
+machine that will be offline then, `npx versioncam install --full` fetches both
+now.
 
 ### In CI
 
@@ -74,6 +78,9 @@ first one that no longer matches the app.
 - run: npx versioncam check
 ```
 
+`npx versioncam ci` writes a whole workflow for you, one that uses the
+versioncam Action (see *Connect a repository*).
+
 `check` records and does not render, so it needs no ffmpeg. A job that also
 runs `render` adds `sudo apt-get install -y ffmpeg`.
 
@@ -86,10 +93,10 @@ already installed there.
 ## If you are a coding agent
 
 You were probably asked for a product demo, a README or landing-page video, a
-GIF, or docs screenshots that stay current. versioncam fits when the subject
-is a web app that starts from a command and whose controls can be reached by
-test id, role, label or placeholder, on Node 22 or later, on macOS or Linux,
-or on Windows, which is new in 0.7.4 and less proven.
+GIF, or docs screenshots that stay current. versioncam fits a web app that
+starts from a command and whose controls can be reached by test id, role, label
+or placeholder. It runs on Node 22 or later, on macOS or Linux, or on Windows,
+which is new in 0.7.4 and less proven (see *Install*).
 It does not fit native mobile apps, terminal demos (VHS does those),
 interactive HTML tours, narrated screencasts, or a UI that will never change
 again.
@@ -103,22 +110,23 @@ npx versioncam install
 npx versioncam init
 ```
 
-Use `versioncam install`, never `npx playwright install`: versioncam pins its
+Use `versioncam install`, never `npx playwright install`. versioncam pins its
 Playwright exactly, and the app's own Playwright, if it has one, fetches a
-different Chromium. Then `npx versioncam doctor`, and read `npx versioncam dsl`
-before writing a clip. If your host runs skills,
+different Chromium. Then run `npx versioncam doctor`, and read
+`npx versioncam dsl` before writing a clip. If your host runs skills,
 `/versioncam "<what the clip should show>"` does the rest, including setting
-the repository up on its first run; otherwise `init --into <dir>` puts the
-skill where your host reads it, and the clips are TypeScript you can write
-from `inspect` and `measure`. Target by test id or role, never by coordinates.
-The dev tools of Next, Nuxt and Astro stay out of the video by themselves; turn off
-any other (see *A dev server's own tools*).
+the repository up on its first run. Otherwise `init --into <dir>` puts the
+skill where your host reads it, and you write the clips in TypeScript from what
+`inspect` and `measure` show. Target by test id or role, never by coordinates.
+The recorder hides the dev tools of Next, Nuxt and Astro by itself. Turn off any
+other (see *A dev server's own tools*).
 Do not edit files while a clip records. Add `.versioncam/` to `.gitignore`
 and commit the clip. In CI, `uses: versioncam/action@v1` after `npm ci`
-records every clip and fails the job, with a comment on the pull request,
-when one no longer matches the app. Tell the person what the licence is
-(FSL-1.1-ALv2: free in their own CI, source-available, Apache 2.0 after two
-years) and that the hosted layer at version.cam is optional and separate.
+records every clip. When one no longer matches the app, it fails the job and
+comments on the pull request. `npx versioncam ci` writes that workflow. Tell
+the person the licence, FSL-1.1-ALv2 (free in their own CI, source-available,
+Apache 2.0 after two years), and that the hosted layer at version.cam is
+optional and separate.
 
 ## Configure
 
@@ -151,15 +159,16 @@ export default defineRecorder({
 If the recorder needs to know something about your app that this object
 cannot say, that is a missing field. It is not a reason to fork.
 
-A `login` hook gets the Playwright page, already where `open` went, and runs on
-every `open`, so it decides for itself whether anything is needed. An app that
-signs people in sends a visitor to its sign-in page and, once signed in, back to
-what they asked for, so the hook looks for that page and leaves everything else
-alone. `open` does not go back to its path afterwards, so a hook that goes
-somewhere of its own leaves the clip there. Its values come from `.env.recording`,
-which stays out of git, and nothing is filmed while it runs. A path in it is
-Playwright's, from the origin of `baseUrl`: where `baseUrl` itself has a path,
-`s.open("/x")` adds to it and `page.goto("/x")` does not.
+A `login` hook gets the Playwright page, already at the address `open` went to.
+It runs on every `open`, so the hook itself decides whether anything needs
+doing. An app that signs people in sends a visitor to its sign-in page and, once
+they have signed in, back to what they asked for. So the hook checks for that
+page and leaves everything else alone. `open` does not go back to its path
+afterwards, so if the hook goes somewhere else, the clip stays there. The hook's
+values come from `.env.recording`, which stays out of git, and the recorder
+films nothing while the hook runs. A path in the hook is Playwright's, relative
+to the origin of `baseUrl`. Where `baseUrl` itself has a path, `s.open("/x")`
+adds to it and `page.goto("/x")` does not.
 
 ```ts
 auth: {
@@ -181,7 +190,7 @@ auth: {
 | `viewport` | `{ width: 1440, height: 900 }` | The page's size. The video has the same shape. |
 | `dpr` | `2` | Device pixel ratio, from 1 to 3. At 2, a zoom shows real pixels. |
 | `fps` | `60` | Frames per second, from 10 to 120. |
-| `output` | `{ width: 1920 }` | The video's longer side: a landscape clip is this wide, a portrait clip this high, and the other side follows the viewport. `threads` fixes how many threads each encoder uses: an encoder's bytes depend on it, so a fixed number renders the same recording to the same file on any machine. `VERSIONCAM_FFMPEG_THREADS` sets it for one run. |
+| `output` | `{ width: 1920 }` | The length of the video's longer side. A landscape clip is this wide and a portrait clip this high, and the other side follows the viewport. `threads` fixes how many threads each encoder uses. An encoder's bytes depend on it, so with a fixed number the same recording renders to the same file on any machine. `VERSIONCAM_FFMPEG_THREADS` sets it for one run. |
 | `auth` | none | How the app signs in: a saved session, `{ storageState }`, or a hook, `{ login }`. |
 | `settle` | `quietMs: 150`, `timeoutMs: 15000`, `yieldMs: 20` | When a page counts as done. `ready` adds a condition of your own. |
 | `capture` | `gate: true`, `forceCaptureEvery: 30`, `transitions: "play"` | Which frames get a screenshot (see *Speed*), and whether the app's CSS transitions play on its clock or take no time, `"zero"` (see *Determinism*). |
@@ -211,13 +220,13 @@ auth: {
 Every command that drives the app (`record`, `check`, `stability`, `inspect`,
 `measure`, `login` and `doctor`) goes through the same steps:
 
-1. It asks `url` whether anything is serving. Any answer below 500 counts, a
-   401 or a redirect included. A 5xx is a server that cannot serve yet, as Nuxt's
-   dev server answers while it compiles, so the command keeps asking until
-   `timeoutMs`, and then stops and says what it got.
+1. It asks `url` whether anything is serving. Any answer below 500 counts,
+   including a 401 or a redirect. A 5xx means the server cannot serve yet
+   (Nuxt's dev server answers with one while it compiles), so the command keeps
+   asking until `timeoutMs`. Then it stops and says what it got.
 2. If something answers, it uses that server as it is and leaves it running.
-   With `CI` set it refuses instead: on a runner, a server that was up before
-   the job started is not the build under test. `reuseExistingServer: true`
+   With `CI` set it refuses instead, because on a runner a server that was up
+   before the job started is not the build under test. `reuseExistingServer: true`
    allows it.
 3. If nothing answers, it runs `command` with the shell's environment plus
    `env`. It does not pass on what the recorder loaded from `.env.recording`
@@ -229,8 +238,8 @@ Every command that drives the app (`record`, `check`, `stability`, `inspect`,
 
 A process the start command hands off to outside its group, such as a
 container runtime, is out of reach. The command warns when the port still
-answers after the stop. Start a stack like that yourself, and any stack with a
-slow cold start: every command reuses what is already running.
+answers after the stop. Start a stack like that yourself, and also any stack
+that is slow to start cold. Every command reuses what is already running.
 
 For a stack of several services, point `url` at the one that is ready last,
 not at the page. A dev server answers seconds before the API behind it, and a
@@ -239,10 +248,10 @@ clip that opens too early meets a sign-in form with nothing to sign in to.
 ### Presentation
 
 `theme.presentation` is what surrounds the app in the video. A backdrop, a
-device frame and padding are off by default, because the product should
-record the product. They are there for a clip that should look like a
-product shot, on a landing page say. A caption is drawn over the app on a
-soft scrim unless `caption` says otherwise.
+device frame and padding are off by default, because the video should show
+the product. Use them for a clip that should look like a product shot, on a
+landing page for example. The recorder draws a caption over the app on a soft
+scrim unless `caption` says otherwise.
 
 ```ts
 theme: {
@@ -296,9 +305,8 @@ for a straight one, `s.lasso` for a closed loop) are written in fractions of a
 target's box for the same reason. A clip built from locators survives a layout
 change.
 
-A long answer or a list is read by scrolling it, and `s.scroll` does that on
-the clip's clock, one step a frame, so every frame of it is the same on every
-run. Give it the pane that scrolls, or `"page"`, and where to go: `{ by: 400 }`,
+To show a long answer or a list, scroll it. `s.scroll` scrolls on the clip's
+clock, one step a frame, so every frame of it is the same on every run. Give it the pane that scrolls, or `"page"`, and where to go: `{ by: 400 }`,
 `{ to: "bottom" }`, or `{ into: s.byTestId("citation-3") }` to bring one thing
 into view.
 
@@ -307,28 +315,29 @@ await s.moveTo(s.byTestId("answer"));
 await s.scroll(s.byTestId("answer"), { into: s.byTestId("citation-3") });
 ```
 
-The cursor stays put while the pane moves, so a clip moves it over the pane
-first, where a hand on a mouse wheel would be.
+The cursor stays still while the pane moves, so move it over the pane first,
+where a hand on a mouse wheel would be.
 
-An upload is filmed from `s.fileWindow`, a file window drawn over the page,
-since the browser's own file dialog is outside it. The clip selects files in
-it and drags them onto the app's dropzone, which receives them as real files
-through the events a real drag sends. The window is staged; say so where the
-clip is shown.
+To film an upload, use `s.fileWindow`. It draws a file window over the page,
+because the browser's own file dialog is outside the page. The clip selects
+files in it and drags them onto the app's dropzone, which receives them as real
+files through the events a real drag sends. The window is staged, so say so
+where the clip is shown.
 
 ```ts
 const files = await s.fileWindow([{ name: "cases.csv", content: csv }], { title: "Case data" });
 await s.drag(files.item(0), s.byTestId("dropzone"));
 ```
 
-A page that loads another document, a plain link or a form post on a
-server-rendered app, is filmed like anything else that takes time. The video cuts
-to the new page once it has finished, whatever the server took: give the beat a
-label with `s.settle` after the click. A page that has not arrived after 90
-seconds fails the clip and names the address it was going to. A second `s.open`
-goes to another page and the clip goes on from where it is. The page's clock
-carries on across the load, and does not move while the server takes its time. A
-reload nobody asked for still fails the clip (see *While recording*).
+When a page loads another document, such as a plain link or a form post on a
+server-rendered app, the recorder films it like anything else that takes time.
+The video cuts to the new page once it has finished loading, however long the
+server took. Give the beat a label with `s.settle` after the click. If the page
+has not arrived after 90 seconds, the clip fails and names the address it was
+going to. A second `s.open` goes to another page, and the clip carries on from
+there. The page's clock carries on across the load, and does not move while the
+server takes its time. A reload nobody asked for still fails the clip (see
+*While recording*).
 
 ```ts
 await s.typeInto(s.byLabel("Username"), "mira");
@@ -412,11 +421,11 @@ await s.hold(1200);
 ```
 
 A camera that follows keeps the cursor inside a dead zone in the middle of
-the frame, and moves only when the cursor leaves it: a move to the next field
+the frame, and moves only when the cursor leaves it. A move to the next field
 of a form does not move the picture. It never shows beyond the page's edge,
-and it moves smoothly, without overshooting. Its path is worked out from the
-whole cursor track once the clip has run, so it sets off with the cursor
-instead of trailing behind it. `s.camera.release()` stops it where it is.
+and it moves smoothly, without overshooting. The recorder works out its path
+from the whole cursor track after the clip has run, so it starts moving with
+the cursor instead of trailing behind it. `s.camera.release()` stops it where it is.
 
 Every camera line starts from wherever the camera is, still or moving, and
 eases into its new framing over its `duration`. A zoom written while the last
@@ -438,8 +447,9 @@ npx versioncam inspect / --viewport 390x844  # the same, at a phone's size
 ```
 
 `inspect` says where each name came from: `[aria-label]`, `[label]`,
-`[placeholder]`, `[text]` or `[name]`. That decides the locator. `byLabel`
-finds the first two but not a placeholder; `byPlaceholder` finds that.
+`[placeholder]`, `[text]` or `[name]`. That tells you which locator to use.
+`byLabel` finds the first two but not a placeholder, and `byPlaceholder` finds
+that.
 `measure` prints what each match says, so a beat's `expect` can quote the
 status line it waits for instead of guessing at it.
 
@@ -479,9 +489,9 @@ versioncam dsl                     the clip DSL: every method, its options and d
 
 ### Record
 
-`check` is the CI command. It does not render: a clip that no longer matches
-the app fails while it records, at the step that no longer exists. A video of
-the wreckage would help nobody.
+`check` is the CI command. It does not render. A clip that no longer matches
+the app fails while it records, at the step that no longer exists, and a video
+of the failure would help nobody.
 
 ```
 versioncam record [id…]            drive the app and capture frames
@@ -518,15 +528,14 @@ versioncam preview <id>            open the scrubber in a real browser
 Turn recordings and scenes into video.
 
 With no ids, `render` renders every recording in `.versioncam/recordings/`,
-and stale ones are recordings too: a draft or a trial run, or a clip since
-renamed or deleted, stays there until its directory is deleted. It renders
+stale ones included. A draft, a trial run, or the recording of a clip you have
+since renamed or deleted stays there until you delete its directory. It renders
 every scene as well. Ids choose among recordings and scenes alike, by
 substring, as they choose clips for `record`, and an id that is exactly a
-clip's picks that one alone. `--scene` names a scene
-exactly, and it renders whatever the ids are. Without ids, the scenes it
-names are the only scenes rendered. An id that matches nothing, or a
-`--scene` the scenes module does not define, stops the command before
-anything renders.
+clip's id picks that one alone. `--scene` names a scene exactly, and renders it
+whatever the ids are. With `--scene` and no ids, the scenes it names are the
+only scenes rendered. An id that matches nothing, or a `--scene` the scenes
+module does not define, stops the command before anything renders.
 
 ```
 versioncam render [id…]            composite and encode recordings and scenes
@@ -539,28 +548,29 @@ versioncam render [id…]            composite and encode recordings and scenes
 A clip has no sound. The files carry a video stream only, so a player's
 mute control has nothing to do. Narration is not a feature yet.
 
-A render is the slow step, and at a terminal it says what it is rendering: it draws
-every frame and encodes two videos, so a ten-second clip takes one to two minutes
-on a laptop.
-`record --draft` and `versioncam sheet` are how to look at a clip before that.
+Rendering is the slow step. It draws every frame and encodes two videos, so a
+ten-second clip takes one to two minutes on a laptop. At a terminal, it says
+what it is rendering. Use `record --draft` and `versioncam sheet` to look at a
+clip before that.
 
 ### Publish
 
 Send what the last run recorded to [version.cam](https://version.cam), which
-renders it and keeps it at a living address. `publish` records nothing and
-renders nothing: for each clip the config defines, it sends the recording if
+renders it and keeps it at a permanent link. `publish` does not record or
+render anything. For each clip the config defines, it sends the recording if
 the clip's last run passed, or the failure if it did not, so version.cam
-knows when a clip broke (see *When a clip breaks*). Only the states the
-service has not seen are uploaded, so a version that changed one screen
-sends one screen.
+knows when a clip broke (see *When a clip breaks*). It uploads only the states
+version.cam has not seen, so a version that changed one screen sends one
+screen. `versioncam ci` writes the GitHub Actions workflow that runs `check`
+and `publish` for you (see *Connect a repository*).
 
-It needs a credential in the environment, never on the command line:
-`VERSIONCAM_OIDC_TOKEN`, which the versioncam GitHub Action requests from
-GitHub for the run (no secret to store), or `VERSIONCAM_TOKEN`, a project
+It needs a credential in the environment, never on the command line. That is
+either `VERSIONCAM_OIDC_TOKEN`, which the versioncam GitHub Action requests
+from GitHub for the run (no secret to store), or `VERSIONCAM_TOKEN`, a project
 token from version.cam for a repository outside GitHub (see *Other CI*).
 `VERSIONCAM_API` points it somewhere other than `https://api.version.cam`.
-Outside GitHub Actions it reads the commit and branch from git;
-`VERSIONCAM_COMMIT` and `VERSIONCAM_BRANCH` set them outright.
+Outside GitHub Actions it reads the commit and branch from git.
+`VERSIONCAM_COMMIT` and `VERSIONCAM_BRANCH` set them directly.
 
 ```
 versioncam publish [id…]           send the recordings and their checks to version.cam
@@ -573,11 +583,12 @@ versioncam ci                      write the GitHub Actions workflow that checks
 
 ### Manage
 
-What version.cam knows about a project, and its settings, from the command
-line: what the dashboard shows and does, once you have signed in with a code
-you approve in a browser. A setting changes only when you approve that one
-change in the browser too. These need no `versioncam.config.ts`, and run
-anywhere in a clone of the repository. See *From the command line*.
+See what version.cam knows about a project, and change its settings, from the
+command line. These commands show and do what the dashboard does, once you have
+signed in with a code you approve in a browser. A setting changes only when you
+approve that one change in the browser too. These commands need no
+`versioncam.config.ts`, and run anywhere in a clone of the repository. See
+*From the command line*.
 
 ```
 versioncam cloud login             sign in to version.cam, with a code you approve in a browser
@@ -599,16 +610,16 @@ versioncam cloud plan [account]    the plan, and the pages to upgrade and pay on
 ### From another directory
 
 In a monorepo the app is one directory among many. A command run from
-somewhere else, the repository root or a subdirectory of the app, can name
-the app's directory. The config, `.env.recording` and `.env`, `.versioncam/`
-and any relative path are then that directory's. `--cwd` can go anywhere on
-the line.
+somewhere else, such as the repository root or a subdirectory of the app, can
+name the app's directory. The config, `.env.recording` and `.env`,
+`.versioncam/` and any relative path then belong to that directory. `--cwd` can
+go anywhere on the line.
 
 `npx` runs the versioncam it finds in the directory it is run from, or in the
-nearest one above it, never in one below. From above an app that has
-versioncam in its own `node_modules`, it runs another copy, or downloads the
+nearest one above it, never in one below. If you run it from above an app that
+has versioncam in its own `node_modules`, it runs another copy or downloads the
 latest. So `--cwd` refuses a directory whose own versioncam is not the one
-running, and says to `cd` into it instead.
+running, and tells you to `cd` into it instead.
 
 ```
 versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
@@ -618,10 +629,10 @@ versioncam --version               which versioncam this is
 ## version.cam
 
 [version.cam](https://version.cam) renders what `versioncam publish` sends
-and keeps each clip at a living address,
+and keeps each clip at a permanent link,
 `clips.version.cam/<owner>/<repo>/<clip>`. It plays the newest version from
 your default branch that passed, so a page that embeds it never needs
-editing. Projects are managed on [app.version.cam](https://app.version.cam).
+editing. You manage projects on [app.version.cam](https://app.version.cam).
 
 ### Phone and desktop in one link
 
@@ -629,13 +640,12 @@ A clip whose id is another clip's id with `-mobile` on the end is that
 clip's phone version: `01-checkout-mobile` beside `01-checkout`, recorded at
 a phone's viewport. The clip's page, its embed page and the `<version-cam>`
 element of its script snippet show the phone clip on a screen under 768 CSS
-pixels wide and the desktop clip on a wider one, so one link serves both. The element measures
-its own width, not the window's, and takes the shape of the clip it will
-show. The plain snippets cannot: the video snippet is the desktop clip's
-file, and the iframe snippet keeps the desktop clip's shape, since an
-iframe without a script keeps the box it was given, so on a phone the
-phone clip plays inside that box. Use the element where a page should fit
-both. Until the phone clip has a video, the desktop clip shows everywhere.
+pixels wide and the desktop clip on a wider one, so one link serves both. The
+element measures its own width, not the window's, and takes the shape of the
+clip it will show. The plain snippets cannot do that. The video snippet is the
+desktop clip's file. The iframe snippet keeps the desktop clip's shape, because
+an iframe without a script keeps the box it was given, so on a phone the phone
+clip plays inside that box. Use the element where a page should fit both. Until the phone clip has a video, the desktop clip shows everywhere.
 The phone clip has its own page and snippets as well, to place it by hand.
 
 The recorder sets the viewport and nothing else: no touch events and no
@@ -645,33 +655,50 @@ layout, narrow.
 
 ### Connect a repository
 
-Sign in at [app.version.cam](https://app.version.cam) with GitHub, and
-install the Versioncam GitHub App on the repositories you choose. Then
-publish from GitHub Actions with the
-[versioncam Action](https://github.com/versioncam/action), which signs in
-with GitHub's own token, so there is no secret to store. A repository's
-project appears the first time it publishes, or when the App is installed
-on it.
+1. Install versioncam and record a first clip. *Install* and the authoring
+   skill do that.
+2. Run `npx versioncam ci`. It writes `.github/workflows/versioncam.yml` at the
+   repository's root. In that workflow the
+   [versioncam Action](https://github.com/versioncam/action) checks the clips
+   on every pull request. On every push to the default branch it checks them
+   and then publishes them to version.cam. It signs in with GitHub's own token,
+   so there is no secret to store. If your app needs more than `npm ci` to
+   install, change that step. `--print` prints the file instead of writing it,
+   and `--force` replaces an existing one. After writing the file, the command
+   says what comes next. That depends on whether the repository is public or
+   private, which it asks GitHub's public API, without a token.
+3. Push to the default branch. The first push publishes, and that is when the
+   repository's project appears on version.cam. It also appears when the
+   GitHub App is installed on the repository.
+4. Sign in to see the project and change its settings: at
+   [app.version.cam](https://app.version.cam) with GitHub, or with
+   `npx versioncam cloud login` from a terminal (see *From the command line*).
+   `npx versioncam cloud status` tells you when a repository is not on
+   version.cam yet, and what to do.
 
-The App is how version.cam learns from GitHub, each time someone signs in,
-who may do what: whoever may read a repository sees its project, and
-whoever administers the repository changes the project's settings. The App
-also reports each publish on GitHub: a check on its commit, and on a pull
-request a comment naming the clips that look different and the ones that
-failed.
+A private repository needs the
+[Versioncam GitHub App](https://github.com/apps/versioncam), and the Pro plan.
+Install the App on the repositories you choose. It is how version.cam knows
+who may see a repository's clips. Whoever can read a repository on GitHub sees
+its project, and whoever administers it changes the project's settings.
+version.cam learns this from GitHub each time someone signs in. The App also
+reports each publish on GitHub. It puts a check on the commit, and on a pull
+request it posts a comment naming the clips that look different and the ones
+that failed.
 
 ### Plans
 
-Priced per project, never per seat, and planned until the first bill
-confirms them. Free, for public repositories: three projects, ten clips a
-project, thirty days of history, clips to sixty seconds, a gigabyte, the
-pull request check and the badge. Pro, $35 a project a month or $350 a
-year: private repositories too, unlimited history, a hundred clips a
-project, and the team told by email, Slack or a GitHub issue when a clip
-breaks. Max, $145 a month for ten projects with everything Pro has. The
-recorder and the Action are free whatever the plan. While the beta is
-private nothing is sold: Free works for anyone who signs in, and the first
-ten accounts that write to hello@version.cam have Pro free until it ends.
+Priced per project, not per seat. The prices are marked "planned" because we
+will confirm them after the first invoices. Free is for public repositories:
+three projects, ten clips a project, thirty days of history, clips up to sixty
+seconds, a gigabyte, the pull request check and the badge. Pro costs $35 a
+project a month or $350 a year. It adds private repositories, unlimited
+history and a hundred clips a project, and we email your team, post to Slack or
+open a GitHub issue when a clip breaks. Max costs $145 a month for ten projects
+with everything Pro has. The recorder and the Action are free whatever the
+plan. version.cam is in private beta, so you can't buy a plan yet and we don't
+ask for a card. Free works for anyone who signs in. The first ten people who
+ask at hello@version.cam get Pro for free until the beta ends.
 
 ### When a clip breaks
 
@@ -681,33 +708,33 @@ came, or the app would not start. A change in how the app looks never breaks
 a clip. It makes a new version.
 
 Your pages keep playing the last version that passed, and say nothing about
-the break. A project that wants its viewers told, open source docs perhaps,
-turns on "Tell viewers when a clip is broken" in its settings.
+the break. If you want viewers to know, for open source docs perhaps, turn on
+"Tell viewers when a clip is broken" in the project's settings.
 
-On every plan, CI says so, and so does the dashboard: a pull request's check
-fails and the Action comments on it, the App's check on the commit says the
-clip is broken, and the summary of the job that publishes says what your
-pages play meanwhile.
+On every plan, CI and the dashboard show the break. A pull request's check
+fails and the Action comments on it. The App's check on the commit says the
+clip is broken. The summary of the job that publishes says what your pages
+play meanwhile.
 
-On Pro and Max, version.cam also tells your team, by email, in Slack or with
-a GitHub issue, as the project's settings choose. It reminds them two days
-after a clip broke and then every week, until the clip passes again or
-someone acknowledges it on the dashboard ("I know, keep the old one"). An
+On Pro and Max, we also tell your team by email, in Slack or with a GitHub
+issue, as the project's settings choose. We remind them two days after a clip
+broke and then every week, until the clip passes again or someone
+acknowledges it on the dashboard ("I know, keep the old one"). An
 acknowledged clip gets one more reminder a month later if it is still
-broken. When the clip passes again, the team is told it is fixed.
+broken. When the clip passes again, we tell the team it is fixed.
 
 ### Who can see the clips
 
 | Visibility | Who can see the clips |
 |---|---|
 | public | Anyone, and search engines. |
-| unlisted | Anyone with the address, kept out of search. The address is made of names, so unlisted means not listed, not secret. |
+| unlisted | Anyone with the link. It is kept out of search. The link is made of names, so unlisted means not listed, not secret. |
 | private | Whoever GitHub lets read the repository, signed in at app.version.cam. |
 
 A private repository's clips start private, and a public repository's start
-public. A private clip plays only for the people who may see it, so never on
-a public page: to show a private repository's clips in public docs or on a
-landing page, make them public or unlisted in the project's settings.
+public. A private clip plays only for the people who may see it, so it never
+plays on a public page. To show a private repository's clips in public docs or
+on a landing page, make them public or unlisted in the project's settings.
 
 ### From the command line
 
@@ -723,23 +750,24 @@ npx versioncam cloud failure checkout   # where a broken clip stopped, and the p
 **Signing in.** `cloud login` prints an address and a code. Open the address
 on any device, sign in with GitHub, check that the page shows the same code,
 and approve it. Nothing calls back to the machine that runs the command, so
-it works over SSH and in a sandbox. The command line then holds a token that
-lasts seven days, in `~/.config/versioncam/credentials.json`, or under
-`$XDG_CONFIG_HOME` when that is set: a file only you may read, which no
-command prints. On Windows, where file modes do not apply, it is as private as
-the folder it is in, which by default is your user profile. `cloud logout` revokes it. `VERSIONCAM_API`, set in the
-shell, points the commands at another version.cam, and each one's sign-in
-is kept apart. Unlike `publish`, they never take it, or `XDG_CONFIG_HOME`,
-from a `.env` file, so a repository you clone cannot send your sign-in to a
-server of its choosing, or have the token written inside it.
+it works over SSH and in a sandbox. The command line then keeps a token that
+lasts seven days in `~/.config/versioncam/credentials.json`, or under
+`$XDG_CONFIG_HOME` when that is set. Only you can read that file, and no
+command prints it. On Windows, where file modes do not apply, it is as private
+as the folder it is in, which by default is your user profile. `cloud logout`
+revokes it. `VERSIONCAM_API`, set in the shell, points the commands at another
+version.cam, and they keep a separate sign-in for each one. Unlike `publish`,
+they never read `VERSIONCAM_API` or `XDG_CONFIG_HOME` from a `.env` file. So a
+repository you clone cannot send your sign-in to a server of its choosing, or
+get the token written inside it.
 
 **Reading** needs nothing more. `status` lists the clips: current or broken,
 since when, who acknowledged a broken one, and the version your pages play
-meanwhile; then the plan, and where to manage the project. `failure <clip>`
-says which step stopped a broken clip and why, and saves the page as it was
-then to `.versioncam/failures/<clip>.png`. `embed <clip>` prints the
-snippets that embed it, and `plan` says which plan, why and until when, and
-where to upgrade and pay. Each takes `--json`. They act on the repository
+meanwhile. Then it shows the plan, and where to manage the project.
+`failure <clip>` says which step stopped a broken clip and why, and saves the
+page as it was then to `.versioncam/failures/<clip>.png`. `embed <clip>` prints
+the snippets that embed it. `plan` says which plan, why and until when, what it
+includes, and where to upgrade and pay. Each takes `--json`. They act on the repository
 they run in, from its `origin` remote on GitHub, or on the one that
 `--project owner/repo` names. `ack <clip>` is the dashboard's "I know, keep
 the old one".
@@ -752,9 +780,8 @@ without you seeing what it asked for. The settings are `visibility`,
 `retention`, `viewers` ("Tell viewers when a clip is broken") and `alerts`,
 by email, in Slack or with a GitHub issue.
 
-Three things stay a click on app.version.cam: paying (`cloud plan` prints
-the page), deleting a project, and making a project token for CI outside
-GitHub.
+You still do three things on app.version.cam: pay (`cloud plan` prints the
+page), delete a project, and make a project token for CI outside GitHub.
 
 The authoring skill runs these commands too: `/versioncam status`,
 `/versioncam fix [clip]` and `/versioncam embed <clip>`.
@@ -762,19 +789,20 @@ The authoring skill runs these commands too: `/versioncam status`,
 ### Other CI
 
 A repository on GitHub publishes from GitHub Actions, whatever builds it
-otherwise. GitHub's token says which repository, commit and branch a run is
-of, and version.cam takes them from it. A project token, `VERSIONCAM_TOKEN`,
-would have to say all that itself, with nothing to check it against, so it
-speaks only for a project with no GitHub repository.
+otherwise. GitHub's token says which repository, commit and branch a run
+belongs to, and version.cam reads them from it. A project token,
+`VERSIONCAM_TOKEN`, would have to state all that itself, with nothing to check
+it against, so it works only for a project with no GitHub repository.
 
-So when your CI runs elsewhere, run just the clips in GitHub Actions: a
-workflow beside the CI you have, with the versioncam Action checking the
-clips on pull requests and publishing them from your default branch. The
+So when your CI runs elsewhere, run just the clips in GitHub Actions, in a
+workflow beside the CI you have. In it, the versioncam Action checks the clips
+on pull requests and publishes them from your default branch.
+`npx versioncam ci` writes that workflow, and the
 [Action's README](https://github.com/versioncam/action) has one to copy.
 
 A repository outside GitHub publishes with a project token, given to
 `versioncam publish` as `VERSIONCAM_TOKEN` and made on the project's page at
-app.version.cam. Its project is set up by hand: write to hello@version.cam.
+app.version.cam. We set up its project by hand, so write to hello@version.cam.
 
 ## What a recording leaves behind
 
@@ -793,7 +821,7 @@ app.version.cam. Its project is set up by hand: write to hello@version.cam.
 The timeline's `frames` say which state each frame shows. Beside them are the
 tracks the renderer draws: `cursor`, `pointer`, `camera`, `highlights` and
 `captions`. A camera that follows the cursor, or eases from one move into
-another, is kept as a key a frame. Three more fields are there for reading:
+another, is stored as one key per frame. Three more fields are there for reading:
 
 - **`marks`** are the clip's beats: one per labelled `settle()`, at the first
   frame that shows what the wait was for. `versioncam sheet --at-marks`
@@ -844,8 +872,8 @@ and press states really fire in the captured frames. It records that path as
 data. The glyph, the press and the ripple are drawn later at output
 resolution, so the look can change without recording again.
 
-**Motion is modelled.** Minimum-jerk profiles, slight Bézier arcs, Fitts-law
-durations and a dwell before each click. All of it is seeded, so it never
+**Motion is modelled.** The driver uses minimum-jerk profiles, slight Bézier
+arcs, Fitts-law durations and a dwell before each click. All of it is seeded, so it never
 looks metronomic and never differs between runs.
 
 **Rendering needs nothing running.** The page, the recording, the config and
@@ -969,7 +997,7 @@ directory. That is the part worth reading and committing.
 
 **What it costs.** Six to twelve minutes and one or two rounds for a clip on
 the example app, most of it model latency rather than the recorder. It is not
-cheap and it is not instant. It is, however, unattended.
+cheap and it is not instant. But it runs unattended.
 
 **What it is not.** The skill cannot sign your app in for you. It asks how you
 want that handled, and `versioncam login` is yours to run because it waits
@@ -994,7 +1022,7 @@ Across machines the claim is narrower. The **timeline** is identical: it is
 what the driver decided, and nothing in it depends on the host. The captured
 **pixels** are identical only where the rendering environment is. macOS, Linux
 and Windows rasterise text differently, so the same page in the same state is the
-same picture and a different file. Byte-identity belongs to a fixed
+same picture and a different file. Identical bytes need a fixed
 environment. In CI that means one runner image, and the Playwright container
 for the version versioncam pins is the simplest (see *In CI*).
 
@@ -1037,7 +1065,7 @@ its CSS motion:
 ### Live data
 
 A map's tiles, a model's answer, a job's status, a count that grows: each
-comes from a server, at the server's speed and in its words of the day, so
+comes from a server, at the server's speed and with that day's answer, so
 two recordings of a clip that shows one differ wherever it reaches the page.
 `replay` records those responses the first time a clip runs and serves them,
 from a file, on every run after:
@@ -1159,17 +1187,19 @@ in the video, usually under the caption, and arrive when it arrives, which fails
 `stability` at frame 0. The recorder hides these three by itself, and no setting is
 needed.
 
-Next's error dialog is in the same element as its badge and goes with it, so an
-error is told another way. Whatever the page throws is printed, by `record` and
-`check` for a clip that goes on and beside the failure of one that does not, and a
-failed clip leaves `failure-tools.png` beside `failure.png`, with the tools showing:
-that is where Next's build error is. A video of a broken page still looks like one.
+Next's error dialog is in the same element as its badge, so it is hidden too, and
+the recorder shows errors another way. `record` and `check` print whatever the
+page throws: for a clip that goes on, and beside the failure of one that does not.
+A failed clip also leaves `failure-tools.png` beside `failure.png`, with the tools
+showing. That is where you find Next's build error. A video of a broken page still
+looks broken.
 
-Any other tool stays, a debug toolbar or a query inspector, and is the first thing
-to look for when frame 0 differs. Turn it off in its own config. To keep it for your
-own work, read a variable there (`enabled: !process.env.RECORDING`) and set it for
-the recorder with `webServer: { env: { RECORDING: "1" } }`; a server you already
-have running is reused as it is, so stop it first. Or record a production build,
+Any other tool stays, such as a debug toolbar or a query inspector, and it is the
+first thing to look for when frame 0 differs. Turn it off in its own config. To keep
+it for your own work, read a variable there (`enabled: !process.env.RECORDING`) and
+set it for the recorder with `webServer: { env: { RECORDING: "1" } }`. The recorder
+reuses a server that is already running as it is, so stop yours first. Or record a
+production build,
 `webServer: { command: "npm run build && npm start" }`, which has no dev tools at
 all, and no reloads either.
 
@@ -1185,10 +1215,10 @@ await s.offCamera((page) =>
 
 Do not edit files. A dev server pushes a full page reload to every connected
 client, including the page being recorded. The driver detects it and says so,
-but the run is lost either way. So is the run of an app that reloads itself on
-purpose once a clip is under way: a link or a form post is filmed, and a reload
-is not. One that reloads itself as it opens has lost nothing, and frame 0 is of
-the page that stayed.
+but the run is lost either way. The same goes for an app that reloads itself on
+purpose once a clip is under way. The recorder films a link or a form post, but
+not a reload. An app that reloads itself as it opens loses nothing, and frame 0
+shows the page that stayed.
 
 Record one clip at a time against a given app session. The CLI already does.
 The thing to avoid is a browser tab left open on the same session.
