@@ -11,6 +11,7 @@ import {
   type DeviceToken,
   type Me,
   type ProjectStatus,
+  type PublicPlans,
 } from "./protocol.js";
 
 /**
@@ -189,6 +190,9 @@ export function cloudClient(options: CloudClientOptions) {
       call<ChangeState>("GET", CLOUD_PATHS.change(project, change)),
     plan: (account: string) =>
       call<AccountPlan>("GET", CLOUD_PATHS.plan(account)),
+    /** The public price list, which needs no sign-in. */
+    plans: () =>
+      call<PublicPlans | null>("GET", CLOUD_PATHS.plans, { signedIn: false }),
   };
 }
 

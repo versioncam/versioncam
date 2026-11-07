@@ -68,6 +68,9 @@ Publish
   versioncam publish [id…]           send the recordings and their checks to version.cam
       --dry-run                      print what would be sent, and send nothing
       --report <file>                and write the living URLs there, as JSON
+  versioncam ci                      write the GitHub Actions workflow that checks and publishes the clips
+      --print                        print it instead, and write nothing
+      --force                        replace the workflow file if there is one
 
 Manage
   versioncam cloud login             sign in to version.cam, with a code you approve in a browser
@@ -104,6 +107,7 @@ Run from a directory containing versioncam.config.ts, or name it with --cwd.
  */
 export const FLAGS: Record<string, readonly string[]> = {
   check: ["report"],
+  ci: ["print", "force"],
   cloud: ["json", "project", "label"],
   doctor: [],
   dsl: [],

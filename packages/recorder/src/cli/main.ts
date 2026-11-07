@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { check } from "./commands/check.js";
+import { ci } from "./commands/ci.js";
 import { cloud } from "./commands/cloud.js";
 import { doctor } from "./commands/doctor.js";
 import { dsl } from "./commands/dsl.js";
@@ -28,6 +29,7 @@ const COMMANDS: Record<string, Command> = {
   record,
   render,
   publish,
+  ci,
   cloud,
   check,
   stability,

@@ -105,6 +105,12 @@ export type ProjectStatus = {
     slack: boolean;
     issues: boolean;
   } | null;
+  /**
+   * Whether the Versioncam GitHub App is installed on the repository, which
+   * a private repository's clips need. Absent from a service older than the
+   * field, and then nothing is said either way.
+   */
+  appInstalled?: boolean;
   /** This month's. */
   usage: { publishes: number; renderSeconds: number; storageBytes: number };
   clips: ClipStatus[];
@@ -164,6 +170,17 @@ export type AccountPlan = {
   billing: string | null;
 };
 
+/**
+ * `GET /v1/plans`, the public price list, of which the command line reads
+ * one field. `privateBeta` is where to ask for Pro while the beta is private,
+ * and null or absent when it is not: the command line never assumes a beta
+ * the server did not announce, so no installed copy goes on offering one
+ * after it ends.
+ */
+export type PublicPlans = {
+  privateBeta?: { ask: string } | null;
+};
+
 /** `POST …/clips/:clip/ack`. */
 export type Acknowledged = { acknowledged: Acknowledgment };
 
@@ -210,6 +227,7 @@ export const CLOUD_PATHS = {
   change: (project: string, change: string) =>
     `/v1/projects/${projectPath(project)}/changes/${encodeURIComponent(change)}`,
   plan: (account: string) => `/v1/accounts/${encodeURIComponent(account)}/plan`,
+  plans: "/v1/plans",
 } as const;
 
 /** `owner/repo` as two path segments, each escaped on its own. */

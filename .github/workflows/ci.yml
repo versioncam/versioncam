@@ -184,6 +184,12 @@ jobs:
       - name: versioncam render
         working-directory: examples/demo-app
         run: npx versioncam render 01-create-a-shipment
+      # The workflow it writes names directories with forward slashes, on
+      # Windows too, or GitHub's Linux runners would not find the app.
+      - name: versioncam ci
+        working-directory: examples/demo-app
+        shell: bash
+        run: npx versioncam ci --print | diff --strip-trailing-cr - ../../packages/recorder/test/fixtures/workflow-nested.yml
 
       # Where Claude Code runs commands on Windows, and it rewrites an argument
       # that begins with a slash before node sees it. The first step shows what

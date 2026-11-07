@@ -56,6 +56,21 @@ function run(
   }
 }
 
+/** The default branch `ci` reads from git in `dir`: the remote's HEAD, else main. */
+function defaultBranchOf(dir: string): string {
+  try {
+    return execFileSync(
+      "git",
+      ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+      { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    )
+      .trim()
+      .replace(/^origin\//, "");
+  } catch {
+    return "main";
+  }
+}
+
 /**
  * The same, without blocking this process.
  *
@@ -570,6 +585,24 @@ test.describe("the versioncam CLI", () => {
     });
     expect(set.stderr).toBe(
       "Not signed in to http://127.0.0.1:7. Run `versioncam cloud login` first.\n",
+    );
+  });
+
+  // The example app sits below this repository's root, with the workspace's
+  // lockfile at the root: the layout that needs `working-directory`, read
+  // from a real clone rather than a fixture of one.
+  test("ci --print in the example app is the template for an app below the root", () => {
+    const example = resolve(PACKAGE, "..", "..", "examples", "demo-app");
+    const { status, stdout } = run(["ci", "--print"], example);
+    expect(status).toBe(0);
+    expect(stdout).toBe(
+      readFileSync(
+        join(PACKAGE, "test", "fixtures", "workflow-nested.yml"),
+        "utf8",
+      )
+        .replace(/\r\n/g, "\n")
+        // A clone whose remote names another default branch says so.
+        .replace(/main\b/g, defaultBranchOf(example)),
     );
   });
 

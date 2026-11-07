@@ -566,6 +566,9 @@ Outside GitHub Actions it reads the commit and branch from git;
 versioncam publish [id…]           send the recordings and their checks to version.cam
     --dry-run                      print what would be sent, and send nothing
     --report <file>                and write the living URLs there, as JSON
+versioncam ci                      write the GitHub Actions workflow that checks and publishes the clips
+    --print                        print it instead, and write nothing
+    --force                        replace the workflow file if there is one
 ```
 
 ### Manage
