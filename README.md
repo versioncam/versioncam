@@ -100,12 +100,12 @@ differs.
 on the example app, headless, on 2026-09-22, with three intents. Each took
 $1.09 to $2.69 of list-price tokens and 5.8 to 11.8 minutes, with a median of
 one review round. A reviewer approves every clip. It sees the contact sheet,
-the beats and a checklist, and nothing of the author's reasoning. The reviewer
-is a registered reviewer agent where the host supports one, otherwise a
-subagent given the same instructions, or, on a host with no subagents, the
-session itself working through the checklist. The verdict records which of
-the three it was. After that, you decide whether the clip
-is good.
+the beats and a checklist, and nothing of the author's reasoning. Where the
+host supports it, the reviewer is a registered reviewer agent. Where it does
+not, the reviewer is a subagent given the same instructions. On a host with no
+subagents at all, the session works through the checklist itself. The verdict
+records which of the three it was. After that, you decide whether the clip is
+good.
 
 **What is paid?** The recorder and the Action are free and run in your CI.
 version.cam is the hosted service. It hosts each published clip at a
@@ -120,7 +120,7 @@ people who ask get Pro for free until the beta ends.
 
 Time is **authored, not measured**: the script decides when each frame
 happens, and the recorder does not measure how long the app really took. The
-driver steps the app through it one output frame at a time: it advances the
+driver steps the app through the script's timeline one output frame at a time: it advances the
 page's fake clock by exactly 1/fps and captures a frame. Anything slow (a
 query, a map tile, a model) happens inside a *settle*, which advances the clock
 but captures nothing, so it never reaches the video. The cursor is real input

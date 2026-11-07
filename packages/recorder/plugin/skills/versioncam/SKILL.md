@@ -227,7 +227,8 @@ design. A fresh reviewer is trusted because it has not watched the clip being
 built, and a session that has watched three rounds is the least independent
 judge there is.
 
-Get **one** second opinion, from a fresh reviewer on the same rung: same
+Get **one** second opinion, from a fresh reviewer of the same kind (registered, plain subagent, or
+yourself): same
 sheet, same beats, same frame numbers, and nothing about the first verdict or
 what you think it got wrong. Save it as `round-N/verdict-2.json`. That verdict
 stands, whichever way it goes. If it agrees with the first, the clip has failed
@@ -254,7 +255,7 @@ Copy that final sheet into `.versioncam/author/<id>/`. Write
 { "id": "<id>", "rounds": 2, "passed": true, "wallMs": 812000, "reviewer": "restricted" }
 ```
 
-`reviewer` is the rung the passing verdict came from. Include `wallMs` only if you
+`reviewer` is the kind of reviewer the passing verdict came from. Include `wallMs` only if you
 can measure it. Leave it out rather than guess: a harness running you measures
 it from outside. After a first run that found the app unstable, add
 `"stable": false`.

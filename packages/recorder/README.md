@@ -168,8 +168,10 @@ page and leaves everything else alone. `open` does not go back to its path
 afterwards, so if the hook goes somewhere else, the clip stays there. The hook's
 values come from `.env.recording`, which stays out of git, and the recorder
 films nothing while the hook runs. The hook uses Playwright directly, so
-Playwright resolves a path in it against the origin of `baseUrl`. Where `baseUrl` itself has a path, `s.open("/x")`
-adds to it and `page.goto("/x")` does not.
+Playwright resolves a path in it against the origin of `baseUrl` and ignores
+any path `baseUrl` has. For example, when `baseUrl` is
+`http://localhost:3000/app`, `s.open("/x")` in a clip goes to `/app/x`, but
+`page.goto("/x")` in the hook goes to `/x`.
 
 ```ts
 auth: {
@@ -272,8 +274,8 @@ theme: {
 A caption inset is in the video's pixels, not the page's. The video is
 `output.width` wide, 1920 unless the config says otherwise. So with a page
 1440 wide, the video is 4/3 the page's width, and an inset of 40 video pixels
-is 30 of the page's. When versioncam loads the config, it refuses an inset that
-is not less than `output.width`. A phone clip's video is narrower than that, so
+is 30 of the page's. When versioncam loads the config, it refuses an inset of
+`output.width` or more. A phone clip's video is narrower than that, so
 give a config with phone clips an inset that fits them too.
 
 ## Write a clip
@@ -338,8 +340,9 @@ The video cuts to the new page once it has finished loading, however long the
 server took. Give the beat a label with `s.settle` after the click. If the page
 has not arrived after 90 seconds, the clip fails and names the address it was
 going to. A second `s.open` goes to another page, and the clip carries on from
-there. The page's clock carries on across the load, and does not move while the
-server takes its time. A reload nobody asked for still fails the clip (see
+there. The new page's clock starts where the old page's clock stopped. It does
+not advance while the server is slow to answer, so the wait leaves no gap in the
+clip's time. A reload nobody asked for still fails the clip (see
 *While recording*).
 
 ```ts
@@ -468,7 +471,7 @@ Run these once per machine, and once per repository.
 ```
 versioncam install                 the headless Chromium this version of versioncam records with
     --with-deps                    and its system libraries (Linux CI)
-    --full                         also the full Chromium, which login and preview need for their window
+    --full                         also the full Chromium, which login and preview need to open a window
 versioncam init                    install the authoring skill into .claude/
     --into <dir>                   into <dir>/versioncam/ instead, for an agent that reads skills from elsewhere
     --force                        overwrite files that are already there
@@ -497,7 +500,7 @@ of the failure would help nobody.
 
 ```
 versioncam record [id…]            drive the app and capture frames
-    --draft                        a quick recording at 15fps and CSS scale, for writing clips
+    --draft                        a quick recording at 15fps in CSS pixels, for writing clips
     --replay <mode>                how to use recorded network answers, overriding the config: auto, record, replay or live
 versioncam check [id…]             record every clip; exit 1 if any breaks
     --report <file>                and write each clip's result there, as JSON
@@ -531,18 +534,23 @@ Turn recordings and scenes into video.
 
 With no ids, `render` renders every recording in `.versioncam/recordings/`,
 stale ones included. A draft, a trial run, or the recording of a clip you have
-since renamed or deleted stays there until you delete its directory. It renders
-every scene as well. Ids choose among recordings and scenes alike, by
-substring, as they choose clips for `record`, and an id that is exactly a
-clip's id picks that one alone. `--scene` adds one scene, named exactly, to
-whatever the ids chose. With no ids, `render` still renders every recording,
-but only the scenes that `--scene` names. An id that matches nothing, or a `--scene` the scenes
+since renamed or deleted stays there until you delete its directory. Ids
+choose among recordings and scenes alike, by substring, as they choose clips
+for `record`, and an id that is exactly a clip's id picks that one alone.
+`--scene` names one scene exactly. Together:
+
+- No ids and no `--scene`: every recording and every scene.
+- Ids: the recordings and scenes the ids choose.
+- `--scene` with ids: what the ids choose, plus each scene `--scene` names.
+- `--scene` with no ids: every recording, and only the scenes `--scene` names.
+
+An id that matches nothing, or a `--scene` the scenes
 module does not define, stops the command before anything renders.
 
 ```
 versioncam render [id…]            composite and encode recordings and scenes
                                    with no ids, it renders all of them, stale recordings too
-    --scene <id>                   also render this scene, even if no id names it (repeatable)
+    --scene <id>                   also render this scene, even when the ids leave it out (repeatable)
     --sequence                     stitch the results into one piece
     --report <file>                and write what it made there, as JSON
 ```
@@ -670,8 +678,8 @@ desktop layout, squeezed into the phone's width.
    says what comes next. That depends on whether the repository is public or
    private. The command asks GitHub's public API which it is, without a token.
 3. Push to the default branch. The first push publishes, and that is when the
-   repository's project appears on version.cam. It also appears when the
-   GitHub App is installed on the repository.
+   repository's project appears on version.cam. It also appears when someone
+   installs the GitHub App on the repository.
 4. Sign in to see the project and change its settings: at
    [app.version.cam](https://app.version.cam) with GitHub, or with
    `npx versioncam cloud login` from a terminal (see *From the command line*).
@@ -790,8 +798,8 @@ The authoring skill runs these commands too: `/versioncam status`,
 
 ### Other CI
 
-A repository on GitHub publishes from GitHub Actions, whatever builds it
-otherwise. GitHub's token says which repository, commit and branch a run
+A repository on GitHub publishes from GitHub Actions, even when another CI
+service builds and tests it. GitHub's token says which repository, commit and branch a run
 belongs to, and version.cam reads them from it. A project token,
 `VERSIONCAM_TOKEN`, would have to state all that itself, with nothing to check
 it against, so it works only for a project with no GitHub repository.
@@ -878,7 +886,7 @@ resolution, so the look can change without recording again.
 arcs, Fitts-law durations and a dwell before each click. All of it is seeded, so it never
 looks metronomic and never differs between runs.
 
-**Rendering needs nothing running.** The page, the recording, the config and
+**Rendering does not need the app running.** The page, the recording, the config and
 your scenes are served from an in-memory route table. `versioncam render`
 needs only a recording on disk and a browser.
 
@@ -929,8 +937,8 @@ full recording fails on a media query that depends on the DPR. It does ignore a 
 the full capture's, so a draft is for looking at, not for comparing against.
 
 `versioncam record` prints where the time went. That tells you whether to
-save time in the frames or in the other parts: opening the page, the waits,
-and writing the files:
+save time in the frames or in the other parts, which are opening the page, the
+waits, and writing the files:
 
 ```
   01-create-a-shipment: 425 frames, 63 states, 1 cut · plays 7.1s · took 6.3s
@@ -992,8 +1000,8 @@ written: a reviewer that has read the author's reasoning agrees with it. Its
 verdict comes back as fixes to make, and the round repeats. After six rounds
 at most it stops and says why. On a host that cannot register the reviewer as
 an agent, the same file is a subagent's prompt. On a host with no subagents at
-all, it is a checklist the session applies to its own sheet, and the verdict
-says which.
+all, it is a checklist the session applies to its own sheet. The verdict
+records which of the three kinds of reviewer judged the clip.
 
 **What you get** is under `.versioncam/author/<id>/`: the beat sheet, a
 `summary.json`, the final sheet, and for each round what the author found,
@@ -1027,14 +1035,15 @@ every WebM carried a random id and no two were the same file.
 Across machines the claim is narrower. The **timeline** is identical: it is
 what the driver decided, and nothing in it depends on the host. The captured
 **pixels** are identical only where the rendering environment is. macOS, Linux
-and Windows rasterise text differently, so the same page in the same state is the
-same picture and a different file. Identical bytes need a fixed
+and Windows rasterise text differently. The same page in the same state looks
+the same on each, but the image files differ byte for byte. Identical bytes need a fixed
 environment. In CI that means one runner image, and the Playwright container
 for the version versioncam pins is the simplest (see *In CI*).
 
 If two recordings of your clip on one machine differ, something outside the
 authored clock reached a frame: an unwarmed resource, a real timer, a font
-that had not finished loading. Find the cause. The next section is how.
+that had not finished loading. Find the cause. *When a clip will not
+reproduce* below says how.
 
 ### The app's own motion
 
@@ -1056,8 +1065,8 @@ its CSS motion:
   that starts partway through a clip is already past its duration when it
   appears, and the video shows only its end. Once a one-off animation's time is
   up it finishes, as in a browser nobody is filming: its `finished` promise
-  resolves and `animationend` fires, so a dialog that unmounts after its exit
-  animation goes, and does not sit invisibly over the page.
+  resolves and `animationend` fires. So a dialog that unmounts after its exit
+  animation is removed, and does not sit invisibly over the page.
 - **Smooth scrolling is instant.** A stylesheet's `scroll-behavior: smooth`
   and a script's `{ behavior: "smooth" }` both scroll at once, since the
   browser would animate either on a clock the recorder does not move. A chat
@@ -1093,7 +1102,7 @@ replay: {
 | `dir` | `"replay"` | Where the files go, beside the config. Commit them: a replay is an input, like a fixture, and CI needs it to record the clip the same way. |
 | `pace` | none | Responses the page reads a piece at a time, an event stream or lines of JSON: delivered one event or one line every `chunkMs` of the page's clock, so each piece lands on the same frame every run, at any frame rate. |
 | `redact` | none | Query parameters left out of the file, and of the match, by name. |
-| `onMissing` | `"fail"` | A request the replay covers and does not hold fails the clip, naming it, since a request that quietly went live is what this exists to stop. `"live"` sends it to the network with a warning instead. |
+| `onMissing` | `"fail"` | A request that matches `record` but has no answer in the replay file fails the clip, naming it, since a request that quietly went live is what this exists to stop. `"live"` sends it to the network with a warning instead. |
 
 Each clip has its own file, `replay/<clip>.har`, a HAR that a browser's
 developer tools can open. Text bodies are in it, where a diff can read them;
@@ -1103,9 +1112,9 @@ their hash, so clips that load the same tiles keep them once. The
 written. The bodies are written as the server sent them, so read a replay
 before committing it if the server's answers can hold anything private.
 
-A request the same URL answers several times, a job's status polled until it
-is done, is answered in the order it was recorded, and the last answer again
-after that. A request the clip answers itself, with `page.route` from
+Some requests go to the same URL several times, such as a job's status polled
+until it is done. The replay answers them in the order it recorded them, and
+gives the last answer again after that. A request the clip answers itself, with `page.route` from
 `offCamera`, never reaches the replay, so a hand-written mock still wins
 where a clip has one. The frame loop waits for the replay's answers, so a
 response arrives in the frame it was asked for on every run.
@@ -1198,7 +1207,8 @@ needed.
 
 Next's error dialog is in the same element as its badge, so it is hidden too, and
 the recorder shows errors another way. `record` and `check` print whatever the
-page throws: for a clip that goes on, and beside the failure of one that does not.
+page throws. For a clip that carries on, they print it as it happens. For a clip
+that fails, they print it beside the failure.
 A failed clip also leaves `failure-tools.png` beside `failure.png`, with the tools
 showing. That is where you find Next's build error. Hiding the tools never hides
 a failure: a video of a broken page still shows the broken page.

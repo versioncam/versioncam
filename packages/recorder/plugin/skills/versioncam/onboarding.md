@@ -17,7 +17,7 @@ fix the config.
 Work in the app's directory, the one that step 0 of the skill chose. The config
 goes there, and every `versioncam` command reads it from there. Step 0 found
 no `versioncam.config.*` anywhere in the repository, so this config will be
-the only one. With a second, every later run would have to ask which app it
+the only one. With a second config, every later run would have to ask which app it
 is for (step 0 of the skill), and each command would read whichever config is
 in the directory it runs from.
 
@@ -51,8 +51,8 @@ has to run from somewhere else (`cwd: "../.."` for a repository root two levels
 up). For a stack of several services started by one command (a `make start`, a
 `docker compose up`), point `url` at the service that is ready *last*, usually
 a backend's health endpoint, not at the page. A dev server answers seconds
-before the API behind it. A clip that opens then finds the sign-in form, but
-the API that signs you in is not up yet. Give such a stack `timeoutMs: 180_000`.
+before the API behind it. A clip that opens as soon as the dev server answers
+finds the sign-in form, but the API that signs you in is not up yet. Give such a stack `timeoutMs: 180_000`.
 
 **If the port comes from an environment variable, or there are several
 plausible commands, ask**, with `AskUserQuestion`, listing the candidates

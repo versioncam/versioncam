@@ -97,8 +97,9 @@ a `settle` gives it that time.
 
 Go to `baseUrl` plus `path`, or to `path` itself when it is a full URL. Then,
 if the config's `auth` has a `login` hook, sign in. Then settle and capture
-frame 0. Every clip starts here. A later `open` goes to another page, and the
-clip carries on from where it is. The video cuts to the new page once it has
+frame 0. Every clip starts here. A later `open` goes to another page without
+starting the clip again: there is no new frame 0, and the clip's time carries
+on. The video cuts to the new page once it has
 finished loading.
 
 | Option | Default | What it sets |
@@ -189,8 +190,8 @@ one of three:
   `"center"` or `"end"` of the pane's visible box. The default is
   `"center"`.
 
-The end is clamped to what the element can scroll, and the recording keeps
-the end it reached. The recorder refuses an element with nothing to
+A scroll never goes past what the element can scroll: it stops at that limit,
+and the recording keeps the position where it stopped. The recorder refuses an element with nothing to
 scroll. It is nearly always a wrapper around the one that scrolls, which `inspect` shows.
 
 The cursor stays where it is. For a scroll that reads as a mouse wheel, move
@@ -224,8 +225,8 @@ await s.drag(files.item(0), s.byTestId("dropzone"), { duration: 1000 });
 
 A click selects one row, a click with Shift extends to it, and one with
 Meta adds or removes it. A press on a selected row drags the whole
-selection, and letting go over the page sends the element under the pointer
-the drag events a real drag sends, carrying the files as `File` objects, so
+selection. Letting go over the page sends the drag events a real drag sends
+to the element under the pointer. They carry the files as `File` objects, so
 the app takes them through its own dropzone. The window then closes. A file
 is `{ name, content?, type?, size? }`. Unless you give them, the type and the
 Size and Kind columns follow from the name and the content. versioncam draws

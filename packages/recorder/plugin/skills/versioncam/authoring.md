@@ -86,7 +86,7 @@ the fold, where no frame will show it.
 - **Start the cursor clear of the controls.** `cursorStart` in the config
   sets where it rests in frame 0, before a clip's first line runs. The default
   was tuned for one app, and in others it lands on a row or a field. Look at
-  frame 0 (`npx versioncam frame <id> 0`) before the sheet does. If the cursor
+  frame 0 (`npx versioncam frame <id> 0`) before the reviewer sees the sheet. If the cursor
   sits on a control, the fix is `cursorStart`, the one change to the config
   allowed below.
 - **If `open()` lands on a sign-in screen, stop.** Say so and go no further.
@@ -149,7 +149,8 @@ pairs them.
 Film a page that loads another document (a plain link, or a form post on a
 server-rendered app) like anything else that takes time: follow the click with
 `s.settle({ label })`, and the next frame shows the finished page. A second
-`s.open` carries on from where the clip is.
+`s.open` goes to another page without starting the clip again: the clip's
+time and frames carry on from where they were.
 
 ## Write the beat sheet before you record
 

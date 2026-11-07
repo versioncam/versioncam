@@ -78,9 +78,10 @@ when it has been broken, whether someone acknowledged it, and what the public
 sees meanwhile: the version that plays, and when it was recorded. Then tell
 them the clips that are current, the plan, and where to manage the project.
 Outside a clone, `status` lists every project the user can see. For a private
-project it shows no clip's address. Each address carries a signature that
-lets anyone who has it open the clip for an hour. `--json` still includes these
-addresses, so do not show them to anyone either.
+project it does not print the clips' addresses. Each of those addresses
+carries a signature that lets anyone who has it open the clip for an hour.
+`--json` still includes them, so do not show the addresses from `--json` to
+anyone either.
 
 When `cloud status` says the repository isn't on version.cam yet, tell the
 user so in its words, and stop.
