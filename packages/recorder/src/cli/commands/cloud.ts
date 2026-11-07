@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { join, relative, sep } from "node:path";
 import { parseArgs } from "node:util";
@@ -39,6 +40,7 @@ import {
   type Clock,
 } from "../../cloud/wait.js";
 import { inheritedEnv, loadedFrom } from "../../env.js";
+import { askOf, defaultBranchIn } from "./ci.js";
 import { DEFAULT_API } from "../../publish/protocol.js";
 import { USAGE } from "../usage.js";
 
@@ -415,7 +417,33 @@ async function login(c: Context): Promise<number> {
     `Signed in to ${c.origin} as ${plainLine(who)}, until ${when(expires_at, c.io)}.\n` +
       `The token is kept in ${shown(path, c.io)}${private_}.\n`,
   );
+  // The one moment everyone who will ever use version.cam reads this
+  // command's output, so the offer is made here rather than only on the
+  // upgrade page, which a person who stays in a terminal never opens.
+  const ask = await privateBeta(c);
+  if (ask) {
+    c.io.out(
+      "version.cam is in private beta, so you can't buy a plan yet. " +
+        "If you'd like Pro for free during the beta (private repositories, unlimited history, and alerts when a clip breaks), " +
+        `email ${ask} and mention your account name, ${plainLine(who)}. ` +
+        "The first ten people who ask get it.\n",
+    );
+  }
   return 0;
+}
+
+/**
+ * Where to ask for Pro while the beta is private, as version.cam's price
+ * list says, or null: not private, an older service without the field, or
+ * no answer. Never an error, since it only adds a sentence.
+ */
+async function privateBeta(c: Context): Promise<string | null> {
+  try {
+    const plans = await cloudClient({ api: c.api, fetch: c.io.fetch }).plans();
+    return askOf(plans?.privateBeta);
+  } catch {
+    return null;
+  }
 }
 
 async function logout(c: Context): Promise<number> {
@@ -554,9 +582,63 @@ async function status(c: Context): Promise<number> {
     c.io.out(c.json ? json(me) : meText(me));
     return 0;
   }
-  const answer = await signed.client.project(project);
+  let answer: ProjectStatus;
+  try {
+    answer = await signed.client.project(project);
+  } catch (error) {
+    // The API answers one 404 for a project that is not there and for one
+    // this person may not see. The first is what a new repository hits, and
+    // what it needs is the next step, so that comes first.
+    if (error instanceof CloudError && error.status === 404) {
+      const own = originRepository(c.io.cwd, c.io.env) === project;
+      c.io.err(notThereText(project, own ? ownRepository(c) : null));
+      return 1;
+    }
+    throw error;
+  }
   c.io.out(c.json ? json(answer) : statusText(answer, c.io));
   return 0;
+}
+
+/** For the repository this directory is a clone of: its default branch, and whether the workflow is there. */
+function ownRepository(c: Context): { branch: string; workflow: boolean } {
+  let root = c.io.cwd;
+  try {
+    root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: c.io.cwd,
+      env: c.io.env,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    // Not a clone after all: the directory it runs in.
+  }
+  return {
+    branch: defaultBranchIn(c.io.cwd, c.io.env),
+    workflow: existsSync(join(root, ".github", "workflows", "versioncam.yml")),
+  };
+}
+
+/**
+ * What to do about a project version.cam does not have. For this
+ * directory's own repository it can say whether the workflow is written;
+ * for one named on the command line it cannot.
+ */
+function notThereText(
+  project: string,
+  own: { branch: string; workflow: boolean } | null,
+): string {
+  const branch = own?.branch ?? "main";
+  const lines = [
+    `${plainLine(project)} isn't on version.cam yet. It appears after the workflow in .github/workflows/versioncam.yml runs on ${branch} for the first time.` +
+      (own === null
+        ? ""
+        : own.workflow
+          ? ` Push to ${branch}, or check the Actions tab if you already have.`
+          : " If there is no workflow yet, `npx versioncam ci` writes one."),
+    "If it has published already and you still see this, sign in again at https://app.version.cam: version.cam checks which repositories you can read when you sign in there.",
+  ];
+  return `${lines.join("\n")}\n`;
 }
 
 async function failure(c: Context): Promise<number> {
@@ -698,7 +780,11 @@ async function plan(c: Context): Promise<number> {
     originRepository(c.io.cwd, c.io.env)?.split("/")[0] ??
     signed.credential.login;
   const answer = await signed.client.plan(account);
-  c.io.out(c.json ? json(answer) : planText(answer, c.io));
+  if (c.json) {
+    c.io.out(json(answer));
+    return 0;
+  }
+  c.io.out(planText(answer, await privateBeta(c), c.io));
   return 0;
 }
 
@@ -858,6 +944,13 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
     // The setting's own name on the dashboard, in `set viewers`'s words.
     `Tell viewers when a clip is broken: ${answer.showBroken ? "on" : "off"}`,
   );
+  // Only when the service says so: an older one sends no field, and then
+  // nothing is known either way.
+  if (answer.appInstalled === false) {
+    lines.push(
+      `The Versioncam GitHub App is not installed on this repository. Install it at ${APP_URL}: it tells version.cam who may see a private repository's clips, and adds a check to each commit.`,
+    );
+  }
   if (answer.plan.alerts) lines.push(`Alerts: ${alertsText(answer.alerts)}`);
   lines.push(
     `This month: ${count(answer.usage.publishes, "publish", "publishes")}, ` +
@@ -1014,33 +1107,82 @@ function embedText(
   return `${lines.join("\n")}\n`;
 }
 
-/** Why the account is on its plan, which says who can change it. */
-const SOURCE: Record<AccountPlan["plan"]["source"], string> = {
-  free: "",
-  beta: ", during the beta",
-  subscription: ", by subscription",
-  override: ", set by version.cam",
+/** Where version.cam asks for the Versioncam GitHub App to be installed. */
+const APP_URL = "https://github.com/apps/versioncam";
+
+/**
+ * What each plan opens, in a sentence: a person who has just been given Pro
+ * learns here that a private repository needs the App, and how to turn on
+ * alerts. The numbers are the service's limits (its plans table); a plan
+ * this does not know gets no sentence rather than a wrong one.
+ */
+const INCLUDES: Record<string, string> = {
+  free:
+    "Free covers public repositories: up to three projects, ten clips each, thirty days of history, clips up to sixty seconds, 1 GB. " +
+    "Checks on pull requests and the badge are included.",
+  pro:
+    `Pro includes private repositories (install the Versioncam GitHub App on each one: ${APP_URL}), unlimited history, up to a hundred clips per project, ` +
+    "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.",
+  max:
+    `Max includes private repositories, for up to ten private projects (install the Versioncam GitHub App on each one: ${APP_URL}), unlimited history, up to a hundred clips per project, ` +
+    "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.",
 };
 
-function planText(answer: AccountPlan, io: CloudIo): string {
+function planText(
+  answer: AccountPlan,
+  ask: string | null,
+  io: CloudIo,
+): string {
   const { plan } = answer;
-  // The private projects the plan covers, as the service counts them: Free
-  // one, Pro as many as it pays for (ten in the beta or when version.cam
-  // sets it), Max up to ten, which is a ceiling, and null for any number.
+  const account = plainLine(answer.account);
+  // The private projects the plan covers, as the service counts them: Pro
+  // as many as it pays for (ten in the beta or when version.cam sets it),
+  // and null for any number. Free covers none and Max's sentence says its
+  // ten, so neither repeats it here.
   const quantity =
-    plan.quantity === null
-      ? " for any number of private projects"
-      : typeof plan.quantity === "number"
-        ? ` for ${plan.name === "max" ? "up to " : ""}${count(plan.quantity, "private project")}`
-        : "";
-  const until = plan.until ? `, until ${day(plan.until, io)}` : "";
+    plan.name === "free" || plan.name === "max"
+      ? ""
+      : plan.quantity === null
+        ? " for any number of private projects"
+        : typeof plan.quantity === "number"
+          ? ` for ${count(plan.quantity, "private project")}`
+          : "";
+  const until = plan.until ? ` until ${day(plan.until, io, "long")}` : "";
+  // Why the account is on its plan, which says who can change it. Pro set
+  // by version.cam while the beta is private is the beta's grant.
+  const source =
+    plan.source === "beta"
+      ? ", free during the beta"
+      : plan.source === "subscription"
+        ? ", paid by subscription"
+        : plan.source === "override"
+          ? ask && plan.name === "pro"
+            ? ", free during the private beta"
+            : ", set by version.cam"
+          : "";
   const lines = [
-    `${plainLine(answer.account)}: ${plainLine(plan.title)}${quantity}${SOURCE[plan.source] ?? ""}${until}.`,
+    `${account} is on ${plainLine(plan.title)}${quantity}${until}${source}.`,
+  ];
+  const includes = Object.hasOwn(INCLUDES, plan.name)
+    ? INCLUDES[plan.name]
+    : null;
+  if (includes) lines.push(includes);
+  if (plan.name === "free" && ask) {
+    lines.push(
+      "",
+      "Pro is free during the private beta for the first ten people who ask. " +
+        `To ask, send this to ${ask} from the address GitHub has for you:`,
+      `  Subject: Pro for ${account} during the beta`,
+      `  Please switch on Pro for my account ${account}.`,
+      "",
+    );
+  }
+  lines.push(
     `Upgrade or change plans: ${plain(answer.upgrade)}`,
     answer.billing
       ? `Billing: ${plain(answer.billing)}`
-      : `Billing: for whoever may bill ${plainLine(answer.account)}.`,
-  ];
+      : `Only people who can bill ${account} see its billing page.`,
+  );
   return `${lines.join("\n")}\n`;
 }
 
@@ -1087,13 +1229,17 @@ function when(iso: string, io: CloudIo): string {
   }).format(date);
 }
 
-/** "5 Oct 2026". */
-function day(iso: string, io: CloudIo): string {
+/** "5 Oct 2026", or with `long`, "5 October 2026". */
+function day(
+  iso: string,
+  io: CloudIo,
+  month: "short" | "long" = "short",
+): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return plainLine(iso);
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
-    month: "short",
+    month,
     year: "numeric",
     timeZone: io.timeZone,
   }).format(date);

@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   statSync,
@@ -203,6 +204,8 @@ type Fake = {
   project: ProjectStatus;
   clip: ClipDetail;
   plans: Record<string, AccountPlan>;
+  /** `/v1/plans`'s `privateBeta`; left out of the answer when undefined. */
+  privateBeta?: { ask: string } | null;
   /** Answer `/v1/me` as a broken proxy would: with the request, token and all. */
   echo?: boolean;
   /** Answer a change's state as the API answers a bug: 500 `internal`. */
@@ -332,6 +335,17 @@ async function fakeApi(): Promise<Fake> {
         });
       }
       return refuse(400, answer, `The sign-in says ${answer}.`);
+    }
+
+    // The public price list: no token, and the beta's field as the service
+    // sends it, or not at all, as a service older than the field does.
+    if (method === "GET" && path === "/v1/plans") {
+      return send(200, {
+        plans: [],
+        ...(fake.privateBeta === undefined
+          ? {}
+          : { privateBeta: fake.privateBeta }),
+      });
     }
 
     // Everything else is for a person, by their token.
@@ -636,6 +650,29 @@ describe("versioncam cloud login", () => {
     );
   });
 
+  it("offers Pro during the private beta only when the service announces it", async () => {
+    const pc = machine(fake);
+    fake.tokenAnswers = ["token"];
+    const quiet = await pc.run("login");
+    expect(quiet.code).toBe(0);
+    expect(quiet.out).not.toContain("beta");
+
+    fake.privateBeta = { ask: "hello@version.cam" };
+    fake.tokenAnswers = ["token"];
+    const offered = await pc.run("login");
+    expect(offered.code).toBe(0);
+    expect(offered.out.split("\n").at(-2)).toBe(
+      "version.cam is in private beta, so you can't buy a plan yet. " +
+        "If you'd like Pro for free during the beta (private repositories, unlimited history, and alerts when a clip breaks), " +
+        "email hello@version.cam and mention your account name, peter. The first ten people who ask get it.",
+    );
+
+    // Something that is not an address is not offered as one.
+    fake.privateBeta = { ask: "write to me" } as { ask: string };
+    fake.tokenAnswers = ["token"];
+    expect((await pc.run("login")).out).not.toContain("beta");
+  });
+
   it("names the machine as --label says", async () => {
     const pc = machine(fake);
     fake.tokenAnswers = ["token"];
@@ -845,6 +882,7 @@ describe("a repository's .env", () => {
       expect(fake.seen.map((r) => r.path)).toEqual([
         "/v1/cli/device",
         "/v1/cli/token",
+        "/v1/plans",
         "/v1/projects/acme/app",
       ]);
       expect(existsSync(join(repo, "config"))).toBe(false);
@@ -1044,12 +1082,56 @@ describe("versioncam cloud status", () => {
     expect(fake.seen.map((r) => r.path)).toEqual(["/v1/me", "/v1/me"]);
   });
 
-  it("passes on the service's not_found for a project it may not see", async () => {
+  const RELOG =
+    "If it has published already and you still see this, sign in again at https://app.version.cam: version.cam checks which repositories you can read when you sign in there.\n";
+
+  it("says how a project gets onto version.cam when the service has none", async () => {
     const pc = machine(fake);
     pc.signIn();
-    const { code, err } = await pc.run("status", "acme/secret");
-    expect(code).toBe(1);
-    expect(err).toBe("No project acme/secret that you can see.\n");
+    // Named, and not this directory's: whether a workflow is written is
+    // not this directory's to say.
+    const named = await pc.run("status", "acme/secret");
+    expect(named.code).toBe(1);
+    expect(named.out).toBe("");
+    expect(named.err).toBe(
+      "acme/secret isn't on version.cam yet. It appears after the workflow in .github/workflows/versioncam.yml runs on main for the first time.\n" +
+        RELOG,
+    );
+
+    // This directory's own repository, with no workflow yet.
+    pc.clone("https://github.com/acme/new.git");
+    const fresh = await pc.run("status");
+    expect(fresh.code).toBe(1);
+    expect(fresh.err).toBe(
+      "acme/new isn't on version.cam yet. It appears after the workflow in .github/workflows/versioncam.yml runs on main for the first time. " +
+        "If there is no workflow yet, `npx versioncam ci` writes one.\n" +
+        RELOG,
+    );
+
+    // And with one.
+    mkdirSync(join(pc.cwd, ".github", "workflows"), { recursive: true });
+    writeFileSync(join(pc.cwd, ".github", "workflows", "versioncam.yml"), "");
+    expect((await pc.run("status")).err).toBe(
+      "acme/new isn't on version.cam yet. It appears after the workflow in .github/workflows/versioncam.yml runs on main for the first time. " +
+        "Push to main, or check the Actions tab if you already have.\n" +
+        RELOG,
+    );
+  });
+
+  it("says when the GitHub App is not installed, and nothing when the service does not say", async () => {
+    const pc = machine(fake);
+    pc.signIn();
+    const app =
+      "The Versioncam GitHub App is not installed on this repository. Install it at https://github.com/apps/versioncam: it tells version.cam who may see a private repository's clips, and adds a check to each commit.";
+    expect((await pc.run("status", "acme/app")).out).not.toContain(
+      "GitHub App",
+    );
+    fake.project.appInstalled = true;
+    expect((await pc.run("status", "acme/app")).out).not.toContain(
+      "GitHub App",
+    );
+    fake.project.appInstalled = false;
+    expect((await pc.run("status", "acme/app")).out).toContain(`\n${app}\n`);
   });
 });
 
@@ -1473,6 +1555,13 @@ describe("what cloud set takes", () => {
   });
 });
 
+const PRO =
+  "Pro includes private repositories (install the Versioncam GitHub App on each one: https://github.com/apps/versioncam), unlimited history, up to a hundred clips per project, " +
+  "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.\n";
+const FREE =
+  "Free covers public repositories: up to three projects, ten clips each, thirty days of history, clips up to sixty seconds, 1 GB. " +
+  "Checks on pull requests and the badge are included.\n";
+
 describe("versioncam cloud plan", () => {
   it("says the plan, why and until when, and where to upgrade and pay", async () => {
     const pc = machine(fake);
@@ -1481,11 +1570,17 @@ describe("versioncam cloud plan", () => {
     const { code, out } = await pc.run("plan");
     expect(code).toBe(0);
     expect(out).toBe(
-      "acme: Pro for 2 private projects, by subscription, until 5 Nov 2026.\n" +
+      "acme is on Pro for 2 private projects until 5 November 2026, paid by subscription.\n" +
+        PRO +
         "Upgrade or change plans: https://app.version.cam/upgrade?account=acme\n" +
         "Billing: https://app.version.cam/billing?account=acme\n",
     );
     expect(fake.seen[0].path).toBe("/v1/accounts/acme/plan");
+    // The price list goes without the token.
+    expect(fake.seen[1]).toMatchObject({
+      path: "/v1/plans",
+      authorization: null,
+    });
   });
 
   it("is the person's own account outside a clone, and the answer with --json", async () => {
@@ -1505,9 +1600,10 @@ describe("versioncam cloud plan", () => {
       billing: null,
     };
     expect((await pc.run("plan")).out).toBe(
-      "peter: Free for 1 private project.\n" +
+      "peter is on Free.\n" +
+        FREE +
         "Upgrade or change plans: https://app.version.cam/upgrade?account=peter\n" +
-        "Billing: for whoever may bill peter.\n",
+        "Only people who can bill peter see its billing page.\n",
     );
     expect(JSON.parse((await pc.run("plan", "--json")).out)).toEqual(
       fake.plans.peter,
@@ -1551,13 +1647,70 @@ describe("versioncam cloud plan", () => {
       },
     };
     expect((await pc.run("plan", "acme")).out.split("\n")[0]).toBe(
-      "acme: Pro for 10 private projects, during the beta, until 1 Nov 2026.",
+      "acme is on Pro for 10 private projects until 1 November 2026, free during the beta.",
     );
-    expect((await pc.run("plan", "globex")).out.split("\n")[0]).toBe(
-      "globex: Max for up to 10 private projects, set by version.cam.",
+    const max = (await pc.run("plan", "globex")).out.split("\n");
+    expect(max[0]).toBe("globex is on Max, set by version.cam.");
+    expect(max[1]).toBe(
+      "Max includes private repositories, for up to ten private projects (install the Versioncam GitHub App on each one: https://github.com/apps/versioncam), unlimited history, up to a hundred clips per project, " +
+        "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.",
     );
-    expect((await pc.run("plan", "initech")).out.split("\n")[0]).toBe(
-      "initech: Enterprise for any number of private projects, set by version.cam, until 1 Oct 2027.",
+    // A plan with no sentence of its own gets none, rather than a wrong one.
+    expect((await pc.run("plan", "initech")).out).toBe(
+      "initech is on Enterprise for any number of private projects until 1 October 2027, set by version.cam.\n" +
+        "Upgrade or change plans: https://app.version.cam/upgrade?account=initech\n" +
+        "Billing: https://app.version.cam/billing?account=initech\n",
+    );
+  });
+
+  it("during the private beta, says Pro was given free, and on Free, the mail that asks for it", async () => {
+    const pc = machine(fake);
+    pc.signIn();
+    fake.privateBeta = { ask: "hello@version.cam" };
+    fake.plans.acme = {
+      ...planOf("acme"),
+      plan: {
+        name: "pro",
+        title: "Pro",
+        source: "override",
+        until: "2027-12-05T00:00:00.000Z",
+        quantity: 10,
+      },
+    };
+    expect((await pc.run("plan", "acme")).out.split("\n")[0]).toBe(
+      "acme is on Pro for 10 private projects until 5 December 2027, free during the private beta.",
+    );
+
+    fake.plans.peter = {
+      account: "peter",
+      plan: {
+        name: "free",
+        title: "Free",
+        source: "free",
+        until: null,
+        quantity: 0,
+      },
+      upgrade: `${APP}/upgrade?account=peter`,
+      billing: `${APP}/billing?account=peter`,
+    };
+    expect((await pc.run("plan", "peter")).out).toBe(
+      "peter is on Free.\n" +
+        FREE +
+        "\n" +
+        "Pro is free during the private beta for the first ten people who ask. To ask, send this to hello@version.cam from the address GitHub has for you:\n" +
+        "  Subject: Pro for peter during the beta\n" +
+        "  Please switch on Pro for my account peter.\n" +
+        "\n" +
+        "Upgrade or change plans: https://app.version.cam/upgrade?account=peter\n" +
+        "Billing: https://app.version.cam/billing?account=peter\n",
+    );
+
+    // Once the service stops announcing it, the command stops offering it.
+    fake.privateBeta = null;
+    const after = (await pc.run("plan", "peter")).out;
+    expect(after).not.toContain("private beta");
+    expect((await pc.run("plan", "acme")).out.split("\n")[0]).toBe(
+      "acme is on Pro for 10 private projects until 5 December 2027, set by version.cam.",
     );
   });
 });

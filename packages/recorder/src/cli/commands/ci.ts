@@ -299,7 +299,16 @@ export function askOf(field: unknown): string | null {
 
 /** The default branch, from the remote's HEAD when git knows it, else `main`. */
 function defaultBranch(io: CiIo): string {
-  const head = git(io, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+  return defaultBranchIn(io.cwd, io.env);
+}
+
+/** The same for any directory: `cloud status` names it too. */
+export function defaultBranchIn(cwd: string, env: NodeJS.ProcessEnv): string {
+  const head = git({ cwd, env }, [
+    "symbolic-ref",
+    "--short",
+    "refs/remotes/origin/HEAD",
+  ]);
   const branch = head?.replace(/^origin\//, "");
   // A branch name goes into YAML unquoted, so only the names that need no quoting.
   return branch && /^[A-Za-z0-9._/-]+$/.test(branch) ? branch : "main";
@@ -319,7 +328,7 @@ function slashed(path: string): string {
 }
 
 /** Git's trimmed output, or null when git, the repository or the answer is missing. */
-function git(io: CiIo, args: string[]): string | null {
+function git(io: Pick<CiIo, "cwd" | "env">, args: string[]): string | null {
   try {
     const out = execFileSync("git", args, {
       cwd: io.cwd,
