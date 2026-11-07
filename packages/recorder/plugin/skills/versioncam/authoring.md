@@ -2,13 +2,13 @@
 
 You write one clip of a running web app and get it recording cleanly. The
 clip is a TypeScript file in the app's repository that drives the shipped UI
-through its own controls. Someone else decides whether it is a good demo; your
-job is that it runs, it satisfies the intent, and a person watching it can see
-each thing it claims to show.
+through its own controls. Someone else decides whether it is a good demo. Your
+job is to make sure it runs, it satisfies the intent, and a person watching it
+can see each thing it claims to show.
 
-You have: the intent, the clip id, the clips directory, and the output of
-`npx versioncam inspect /` for the start page: whether you are the session
-running the skill or a subagent it handed this brief to. Work from the
+You have the intent, the clip id, the clips directory, and the output of
+`npx versioncam inspect /` for the start page. That is true whether you are
+the session running the skill or a subagent it handed this brief to. Work from the
 directory that holds `versioncam.config.ts`. If you were given a `--cwd <dir>`
 to use instead, put it on the end of every `npx versioncam` command, and write
 files by their absolute paths.
@@ -17,8 +17,9 @@ files by their absolute paths.
 
 Three things, in this order, before the first line of the clip:
 
-1. **`npx versioncam dsl`.** The whole authoring surface, held to the code by
-   a test: the only list of methods worth trusting. Prose about this DSL has
+1. **`npx versioncam dsl`.** It prints the whole authoring surface, and a test
+   keeps it in line with the code, so it is the only list of methods worth
+   trusting. Prose about this DSL has
    been wrong before, and a clip written against a method that did not exist
    quietly did something else for months. If a method is not in that output,
    it does not exist, however plausible it sounds.
@@ -30,10 +31,10 @@ Three things, in this order, before the first line of the clip:
    inspected, navigate to it and inspect it before scripting anything there.
 
 Do not read the app's source to find a control. Clips written from source
-reach for things that are conditional, renamed, or not rendered at all;
+reach for things that are conditional, renamed, or not rendered at all.
 `inspect` reports what is actually on the page and what it is called. The
-bracket after each name says where the name came from, which is which
-locator finds it: `[aria-label]` and `[label]` are what `byLabel` finds,
+bracket after each name says where the name came from, and so which locator
+finds it. `[aria-label]` and `[label]` are what `byLabel` finds,
 `[placeholder]` is what `byPlaceholder` finds, `[text]` is a control's own
 words (`byRole("button", { name })`) and `[name]` or `[none]` means use the
 test id. Use `npx versioncam measure <path> <css>` when you need to know where
@@ -41,24 +42,24 @@ matches are.
 
 `measure` prints what each match says, too. **Read a status line before
 promising it in a beat**: `npx versioncam measure / '[data-testid="status"]'`
-answers `text="12 shipments"` and where it sits, including when that is
-below the fold, where no frame will show it.
+prints `text="12 shipments"` and where it sits. That includes a line below
+the fold, where no frame will show it.
 
 ## Rules
 
 - **Target by test id or role, never by coordinates.** `s.byTestId(…)`,
   `s.byRole(…)`, `s.byLabel(…)`. A clip built from locators survives a layout
-  change; one built from pixels is broken by the next padding tweak and does
-  not say so. Geometry belongs only inside a stroke authored as fractions of a
+  change; one built from pixels breaks at the next padding tweak and does not
+  say so. Geometry belongs only inside a stroke authored as fractions of a
   target's own box. A point is fine for one thing: parking the cursor in empty
   space at the end of a clip, with `s.moveTo([x, y])`.
-- **Nine to eleven seconds**, unless `review` in the config says otherwise:
-  `versioncam review` enforces whatever it says. Shorter reads as a fragment,
-  longer loses the viewer. Adjust holds to hit it; never drop a beat to save
+- **Nine to eleven seconds**, unless `review` in the config says otherwise.
+  `versioncam review` enforces whatever the config says. A shorter clip reads
+  as a fragment, and a longer one loses the viewer. Adjust holds to hit it; never drop a beat to save
   time.
-- **A caption.** A clip with no caption fails review. One caption, unless the
-  beats genuinely change subject, and if you write a second, look at the
-  contact sheet, because two captions on screen at once is the failure that
+- **A caption.** A clip with no caption fails review. Write one caption, unless
+  the beats really change subject. If you write a second, look at the contact
+  sheet, because two captions on screen at once is the failure that
   hides best.
 - **Every beat ends in `await s.settle({ label })`, then a `hold`.** The
   settle advances the page's clock without capturing, so the app's own waiting
@@ -71,23 +72,23 @@ below the fold, where no frame will show it.
   usual victim is a `s.camera.reset()` on the last line: the reset is in the
   timeline, no frame follows it, and the video ends zoomed in. Give it a hold.
 - **A canvas, a WebGL map or a video needs `forceCaptureEvery: 1`.** The
-  recorder skips the screenshot when nothing observable changed, and what it
-  watches is the DOM, the element under the cursor and the running animations,
-  none of which a surface that redraws itself ever touches. The symptom is
-  what you will see on the contact sheet: the map, the chart or the video is
+  recorder skips the screenshot when nothing observable changed. It watches
+  the DOM, the element under the cursor and the running animations, and a
+  surface that redraws itself touches none of them. You will see the symptom
+  on the contact sheet: the map, the chart or the video is
   *identical* in every tile while the cursor and the caption move normally,
   and nothing in the `record` or `review` output mentions it, because as far
   as either is concerned nothing changed. If the subject of the clip is such a
-  surface, say so in the clip's options and pay full price:
+  surface, say so in the clip's options and accept the full cost:
   `clip("<id>", { title: "…", capture: { forceCaptureEvery: 1 } }, …)`.
 - **End with nothing open.** No dialog, no menu, no tooltip, no focused
   dropdown, and the cursor clear of whatever the last frame is about.
-- **Start the cursor clear of the controls.** Where it rests in frame 0 is
-  `cursorStart` in the config, fixed before a clip's first line runs; the
-  default was tuned for one app and lands on a row or a field in others. Look
-  at frame 0 (`npx versioncam frame <id> 0`) before the sheet does; if the
-  cursor sits on a control, the fix is `cursorStart`: the one change to the
-  config allowed below.
+- **Start the cursor clear of the controls.** `cursorStart` in the config
+  sets where it rests in frame 0, before a clip's first line runs. The default
+  was tuned for one app, and in others it lands on a row or a field. Look at
+  frame 0 (`npx versioncam frame <id> 0`) before the sheet does. If the cursor
+  sits on a control, the fix is `cursorStart`, the one change to the config
+  allowed below.
 - **If `open()` lands on a sign-in screen, stop.** Say so and go no further.
   Signing the recorder in is the repository owner's job, through `auth` in
   `versioncam.config.ts`, and `versioncam login` is interactive so you cannot
@@ -97,18 +98,18 @@ below the fold, where no frame will show it.
 - **Do not run `git`.** You do not need it. Someone else reads your work and
   commits it.
 - **Do not edit the app, and leave `versioncam.config.ts` alone, with one
-  exception.** The app is not yours to change, and the config is every
-  clip's: a setting changed to make this clip pass changes all the others. The
-  exception is `cursorStart`, when a reviewer fails the cursor in the first
-  frame: frame 0 is taken before a clip's first line runs, so nothing in the
+  exception.** The app is not yours to change, and the config belongs to
+  every clip: a setting changed to make this clip pass changes all the others.
+  The exception is `cursorStart`, when a reviewer fails the cursor in the first
+  frame. Frame 0 is taken before a clip's first line runs, so nothing in the
   clip can move it, and the config is the only fix. Change it between
   recordings, never during one (a save the dev server sees reloads the page
   being recorded), and say so in what you write down.
 
 ## The shape of a clip
 
-Whenever the clips directory has clips in it, they are better models than this:
-they are the ones that already work against this app. This is the minimum,
+Whenever the clips directory has clips in it, they are better models than this,
+because they already work against this app. This is the minimum,
 for a repository whose first clip you are writing:
 
 ```ts
@@ -137,18 +138,18 @@ A phone clip is a second clip file, `<id>-mobile.clip.ts`, with
 the seed. It uses the same test ids as `<id>`, and its own steps where the
 phone layout differs: a menu behind a button, a list under the form rather
 than beside it. `npx versioncam inspect <path> --viewport 390x844` lists what
-the phone layout has, and a draft's contact sheet shows which. The recorder sets the
-viewport only, with no touch events and no phone user agent, so an app that
+the phone layout has, and a draft's contact sheet shows which layout you recorded. The
+recorder sets the viewport only, with no touch events and no phone user agent, so an app that
 chooses its layout by width shows its phone layout and one that reads the
-user agent does not. It is not listed in the
-config's `sequence`, which stitches clips of one size. On version.cam,
-`<id>-mobile` is shown in place of `<id>` on a narrow screen, so the name
-is the whole of joining them.
+user agent does not. A phone clip is not listed in
+the config's `sequence`, which stitches clips of one size. On a narrow screen,
+version.cam shows `<id>-mobile` in place of `<id>`, so the name alone is what
+pairs them.
 
-A page that loads another document, a plain link or a form post on a
-server-rendered app, is filmed like anything else that takes time: follow the
-click with `s.settle({ label })`, and the next frame is of the finished page.
-A second `s.open` goes on from where the clip is.
+Film a page that loads another document (a plain link, or a form post on a
+server-rendered app) like anything else that takes time: follow the click with
+`s.settle({ label })`, and the next frame shows the finished page. A second
+`s.open` carries on from where the clip is.
 
 ## Write the beat sheet before you record
 
@@ -164,10 +165,11 @@ A second `s.open` goes on from where the clip is.
 `label` is exactly the string you pass to `settle({ label })`: `versioncam
 review` matches them and fails on any beat with no mark. `expect` is one
 sentence about what a person should *see* once the beat has landed, not what
-the code did, and if it quotes the screen, it quotes what `measure` read.
+the code did. If it quotes the screen, it quotes what `measure` read.
 
-Write it before the first recording. Written afterwards it describes what you
-got instead of what you meant, which is precisely the check it exists to be.
+Write it before the first recording. A beat sheet written afterwards describes
+what you got instead of what you meant, and that comparison is the check it
+exists for.
 
 ## The round
 
@@ -182,8 +184,8 @@ The clip goes in the clips directory as `<id>.clip.ts`, and the id inside
 looks up.
 
 Record in `--draft` while you are working. It is the same page at the same
-viewport, captured cheaply, and it is what the loop is for; the full recording
-is taken once the reviewer passes the clip.
+viewport, captured cheaply, and it is what the loop is for. The full recording
+happens once the reviewer passes the clip.
 
 When `record --draft` fails it names the step, the locator and the frame, and
 writes `failure.png` and `failure.json` into the recording directory. **Read
@@ -195,24 +197,24 @@ contact sheet will show for it.
 **At most three `record` calls, then the sheet, whether or not review has
 passed.** If the third has not passed review, stop there and write down which
 check still fails, what you tried, and what you think is in the way. A fourth
-attempt on a stuck clip has not helped in this loop. The round after this one
-arrives with a picture of the clip and a reviewer's verdict, which is
-information you do not have.
+attempt on a stuck clip has not helped in this loop. The next round
+brings a picture of the clip and a reviewer's verdict, and you do not have
+that information now.
 
 In a later round you have that verdict. Fix what it names (the items that
-failed, read as written) and nothing else; then record again, in draft, and
+failed, read as written) and nothing else. Then record again, in draft, and
 run `review`.
 
 ## Failure → repair
 
-Every row of this happened while the recorder was being built, and two of them
-happened again the first time an agent used it.
+Every row of this table happened while we were building the recorder, and two
+of them happened again the first time an agent used it.
 
 | Failure | Repair |
 |---|---|
 | locator not found at step N | `inspect` at that moment; pick a control that exists; if none does, the beat is wrong |
 | beat produced no new state | missing `settle`, wrong target, or effect off-screen; check cuts and states |
-| settle timed out on `X` | add a `ready` hook, raise the timeout, or the source is live: name it in `replay.record` so its answer is recorded once and served after |
+| settle timed out on `X` | add a `ready` hook, raise the timeout, or the source is live: name it in `replay.record` so the recorder records its answer once and serves it after that |
 | two runs differ where the app fetched something (tiles, a count, an answer) | `replay.record` the request; `replay.pace` it too if the page reads it over time |
 | the clip fails with "its replay does not hold" | the app fetches something new; `versioncam record <id> --replay record` and look at the diff of `replay/<id>.har` |
 | document reloaded mid-clip | something navigated; find the trigger and avoid it |
@@ -235,8 +237,8 @@ Two more, from the tools rather than the app:
 
 ## What you write down
 
-Four things, at the end of every round, in `round-N/author.md` or as your
-reply if you are a subagent, and the fourth matters as much as the rest:
+Write down four things at the end of every round, in `round-N/author.md`, or
+as your reply if you are a subagent. The fourth matters as much as the rest:
 
 1. The path of the clip file you wrote.
 2. The path of `beats.json`.
@@ -244,10 +246,10 @@ reply if you are a subagent, and the fourth matters as much as the rest:
    `versioncam review` verdict.
 4. **One paragraph on what was awkward about the tools.** Where a message
    misled you, where you had to guess, what you looked for and could not find,
-   what took three attempts that should have taken one. Be blunt and specific;
-   naming the command and what you expected is worth more than a judgement
-   about it. This paragraph is kept and read: it is how the next fix to the
-   recorder gets found, and the last agent to write one produced the list that
+   what took three attempts that should have taken one. Be blunt and specific.
+   Naming the command and what you expected is worth more than a judgement
+   about it. We keep and read this paragraph: it is how we find the next fix
+   to the recorder, and the last agent to write one produced the list that
    became a work package.
 
 If you stopped without passing review, say so plainly in the first line. A

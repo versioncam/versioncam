@@ -18,9 +18,10 @@ The skill ships inside the `versioncam` npm package:
 npx versioncam init        # .claude/skills/versioncam/ and .claude/agents/versioncam-reviewer.md
 ```
 
-`init` installs the skill and nothing else, not even a config: the first run
-writes that. It refuses to overwrite a file that is already there, and
-refuses the whole install if any one is. `--force` overwrites. For an agent
+`init` installs the skill and nothing else, not even a config. The first run
+writes the config. `init` refuses to overwrite a file that is already there,
+and if any one file is there, it refuses the whole install. `--force`
+overwrites. For an agent
 host that reads skills from somewhere other than `.claude/`, `--into <dir>`
 puts the skill directory at `<dir>/versioncam/`, with the reviewer inside it.
 
@@ -37,9 +38,9 @@ Code session (2.1.275 or later):
 /plugin install versioncam --marketplace versioncam/versioncam
 ```
 
-Loaded either of these two ways, the skill carries the plugin's name as a
-prefix: `/versioncam:versioncam "<intent>"`. Installed by `init`, it is
-`/versioncam`, as the examples below write it.
+If you load it either of these two ways, the skill carries the plugin's name
+as a prefix: `/versioncam:versioncam "<intent>"`. If `init` installed it, it
+is `/versioncam`, as the examples below write it.
 
 ## Run it
 
@@ -79,26 +80,26 @@ first run writes the config where `versioncam init` put the skill.
    and runs the checks in `versioncam review`. Three recordings at most, then
    it moves on. On a page too big to hold in context, it hands this step to a
    subagent and keeps that subagent for later rounds.
-3. A contact sheet sampled at the beats, and a **fresh reviewer** on it: one
-   picture, a five-item checklist, a JSON verdict. The reviewer is new every
+3. It makes a contact sheet sampled at the beats and gives it to a **fresh
+   reviewer**: one picture, a five-item checklist, a JSON verdict. The reviewer is new every
    round, on purpose. It sees the clip, never the argument for it.
-4. On a pass, a full-quality record and render. Otherwise the fixes the
-   verdict names, and another round.
+4. If the reviewer passes the clip, it records and renders at full quality.
+   Otherwise it makes the fixes the verdict names and runs another round.
 
 The reviewer is `agents/versioncam-reviewer.md`, one file used three ways.
 Claude Code registers it as an agent. A host that cannot register agents uses
 it as a plain subagent's prompt. A host with no subagents at all applies it as
 a checklist to the session's own sheet. The verdict records which, as
-`"reviewer": "restricted"`, `"unrestricted"` or `"self"`. A clip passed by its
-own author is a weaker claim, and says so.
+`"reviewer": "restricted"`, `"unrestricted"` or `"self"`. A clip that its own
+author passed is a weaker claim, and the verdict says so.
 
 Writing a clip never runs `git`. The clip lands in your clips directory as an
 ordinary file, for you to read and commit yourself.
 
 ## version.cam
 
-Once a repository publishes to version.cam, the same skill reads what is
-there, and changes it, through the `versioncam cloud` commands
+Once a repository publishes to version.cam, the same skill reads and changes
+what is there through the `versioncam cloud` commands
 (`skills/versioncam/platform.md`):
 
 ```
@@ -108,11 +109,11 @@ there, and changes it, through the `versioncam cloud` commands
 ```
 
 It answers questions about the project as well: who can see its clips, who
-is told when one breaks, and the plan. It changes a setting only when you
+gets an alert when one breaks, and the plan. It changes a setting only when you
 ask, and the change waits for you to approve it in your browser. A fix ends
 in a pull request, which it opens only with your yes. The token the commands
 sign in with stays in its file, and the skill never reads or prints it.
-Paying, deleting a project and tokens for CI outside GitHub stay on
+You pay, delete a project and make tokens for CI outside GitHub on
 app.version.cam.
 
 ## What it leaves behind
@@ -143,5 +144,5 @@ intents across two apps passed. Most of the time is model latency rather than
 the recorder. A round is a handful of recordings of a few seconds each, and a
 reviewer's single look at a single picture still takes a minute or two end to
 end. It runs on a subscription rather than a metered key, so the setup cost
-is close to zero. For anything higher-volume, the prompts in these files are
-what would move to a direct SDK loop, unchanged.
+is close to zero. For higher volume, the prompts in these files would move
+unchanged to a direct SDK loop.

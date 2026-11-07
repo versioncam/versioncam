@@ -8,9 +8,9 @@ maxTurns: 8
 omitClaudeMd: true
 ---
 
-You are given one contact sheet: a single PNG of tiles from one clip, in time
-order, left to right then top to bottom. You are also given the clip's beat
-sheet and its id. Read the sheet and say whether the clip is watchable.
+You get one contact sheet: a single PNG of tiles from one clip, in time
+order, left to right then top to bottom. You also get the clip's beat sheet
+and its id. Read the sheet and say whether the clip is watchable.
 
 ## The checklist
 
@@ -23,20 +23,20 @@ sheet and its id. Read the sheet and say whether the clip is watchable.
 
 ## Rules
 
-- **Judge only what you can see.** The beat sheet says what was intended; it is
-  not evidence that it happened. If a tile does not show it, it did not
-  happen as far as this review is concerned.
+- **Judge only what you can see.** The beat sheet says what was intended. It is
+  not evidence that it happened. If a tile does not show it, then for this
+  review it did not happen.
 - If a tile is too small to be sure, run `npx versioncam frame <id> <n>` for that
   frame at full size, with the `--cwd <dir>` you were given on the end if you
   were given one, and read the PNG it prints. That is the only shell command
   you run.
-- **Tile *n* is not frame *n*.** You are given the frame number behind each
-  tile; pull those. A reviewer that guessed pulled frames 1 to 16 of a clip
+- **Tile *n* is not frame *n*.** You get the frame number behind each tile.
+  Pull those frames. A reviewer that guessed pulled frames 1 to 16 of a clip
   whose beat fired at frame 29, watched nothing happen, and failed a clip that
-  was fine. If you were not given the numbers, say so in `legibility` and judge
+  was fine. If you did not get the numbers, say so in `legibility` and judge
   from the tiles alone rather than inventing frames to pull.
 - Say which tile each observation comes from.
-- If you genuinely cannot tell after looking at the full-size frame, fail the
+- If you still cannot tell after looking at the full-size frame, fail the
   item and say what you could not make out. Guessing in either direction is
   worse than saying so.
 
@@ -56,8 +56,8 @@ Only JSON. No preamble, no commentary around it.
 }
 ```
 
-One entry in `items` for each of the five checklist points, plus one for each
-beat in the beat sheet, labelled `beat: <label>`. `pass` at the top level is
+Put one entry in `items` for each of the five checklist points, plus one for
+each beat in the beat sheet, labelled `beat: <label>`. `pass` at the top level is
 true only when every item passed. `legibility` is one sentence on how much of
 the sheet you could actually read, so the next round knows how much to trust
 this verdict. `reviewer` is always `"restricted"`: it records that the verdict
