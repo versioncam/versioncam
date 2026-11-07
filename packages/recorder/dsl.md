@@ -1,10 +1,10 @@
 # The clip DSL
 
 Everything a clip body can call on its session, `s`, with every option and its
-default. A test holds this page and the session's code to the same list: a
-method here exists, and a method that exists is here.
+default. A test checks that this page and the session's code list the same
+methods: every method here exists, and every method that exists is here.
 
-Three rules hold across the whole surface:
+Three rules apply everywhere:
 
 - **Every `await` spends clip time and captures frames.** `hold`, `click`,
   `type` and the rest advance the authored clock.
@@ -21,7 +21,7 @@ point is `[x, y]` in viewport pixels, and a rect is `{ x, y, w, h }`.
 
 A locator resolves when it is used, not when it is written. It waits up to 15
 seconds for its element to be visible. A locator that matches several
-elements is an error that names the count: narrow it rather than reaching for
+elements is an error that names the count. Narrow it rather than reaching for
 the first match.
 
 ### `byTestId(testId)`
@@ -33,8 +33,8 @@ First choice. `data-testid` is the only handle an app can promise a clip.
 Second choice, and how a person would describe the control:
 `byRole("button", { name: "Save" })`. The options are Playwright's for
 `getByRole`. A name matches any part of the control's name, ignoring case, so
-`{ name: "Tutorial" }` also finds "Read the tutorial"; `{ exact: true }` beside
-it matches the whole name.
+`{ name: "Tutorial" }` also finds "Read the tutorial". Add `{ exact: true }` to
+match the whole name.
 
 ### `byLabel(text)`
 
@@ -46,7 +46,7 @@ A field with no label but a placeholder.
 
 ### `byText(text)`
 
-Content rather than a control, by a string or a regular expression. The
+Content rather than a control, by a string or a regular expression. It is the
 locator most likely to match twice.
 
 ### `css(selector)`
@@ -66,8 +66,8 @@ and what a track write needs after it.
 Wait for the page to stop working: the DOM quiet, no requests in flight, the
 fonts loaded, no CSS transition still running, and whatever `settle.ready` in
 the config adds. It advances the page's clock without capturing, so the wait
-never reaches the video. A new document loading, from a link or a form post, is
-part of the wait, and has up to 90 seconds.
+never reaches the video. A new document that loads from a link or a form post
+is part of the wait, and may take up to 90 seconds.
 
 Give every beat a `label`. `versioncam review` checks a beat sheet against the
 labels, and `sheet --at-marks` samples the frames they mark. A settle that
@@ -87,17 +87,18 @@ reaches `timeoutMs` warns and carries on, so the clip still records, and
 Run raw Playwright with nothing captured and no time spent: mocking an API,
 seeding data, priming a conversation. `fn` gets the Playwright `Page`, which
 is also `s.page`, and `offCamera` returns what `fn` returns. The page's clock
-does not move either. Whatever the app needs time to finish after `fn`, a
-`settle` gives it.
+does not move either. If the app needs time to finish something after `fn`,
+a `settle` gives it that time.
 
 ## Navigation
 
 ### `open(path, options?)`
 
-Go to `baseUrl` plus `path`, or to `path` itself when it is a full URL. Then
-sign in, if the config's `auth` has a `login` hook, settle, and capture frame
-0. Every clip starts here. A later `open` goes to another page and the clip goes
-on from where it is: the video cuts to the page once it has finished.
+Go to `baseUrl` plus `path`, or to `path` itself when it is a full URL. Then,
+if the config's `auth` has a `login` hook, sign in. Then settle and capture
+frame 0. Every clip starts here. A later `open` goes to another page, and the
+clip carries on from where it is. The video cuts to the new page once it has
+finished loading.
 
 | Option | Default | What it sets |
 |---|---|---|
@@ -137,8 +138,8 @@ already is. The press lasts 70 to 100 milliseconds, seeded.
 
 ### `drag(target, from, to, options?)`
 
-Press, draw a straight stroke, release. For a control that answers a stroke
-and ignores a click: a brush, a slider, a range handle. `target` is a locator
+Press, draw a straight stroke, release. Use it for a control that responds to
+a stroke and ignores a click: a brush, a slider, a range handle. `target` is a locator
 or a rect. `from` and `to` are fractions of its box, written `{ x, y }`, so
 the drag survives a layout change: `{ x: 0.18, y: 0.5 }` to
 `{ x: 0.36, y: 0.5 }` crosses the middle.
@@ -148,8 +149,8 @@ that starts at x 0.08 selects that text instead of the control.
 
 `drag(from, to, options?)` is the other form: from one thing to another,
 each a locator or a point, such as a file onto a dropzone or a card onto a
-column. It is told apart by its second argument, which is a locator or a
-point there, and a fraction `{ x, y }` in the first form.
+column. The recorder tells the two forms apart by the second argument: a
+locator or a point in this form, and a fraction `{ x, y }` in the first form.
 
 | Option | Default | What it sets |
 |---|---|---|
@@ -163,7 +164,7 @@ Press, follow a smoothed closed loop, release. The planner comes from
 of the target's box, so the stroke survives a layout change. Find the
 fractions with `versioncam measure <path> <selector>`.
 
-A frame from partway through the stroke looks wrong, and is not. The
+A frame from partway through the stroke looks wrong, but it is not. The
 smoothing curves outside the points it passes through, so a half-drawn loop
 swings wide of what it is about to enclose before it comes back. Judge the
 selection from a frame after the loop closes.
@@ -188,8 +189,8 @@ one of three:
   `"center"`.
 
 The end is clamped to what the element can scroll, and the recording keeps
-the end it reached. An element with nothing to scroll is refused: it is
-nearly always a wrapper around the one that scrolls, which `inspect` shows.
+the end it reached. The recorder refuses an element with nothing to
+scroll. It is nearly always a wrapper around the one that scrolls, which `inspect` shows.
 
 The cursor stays where it is. For a scroll that reads as a mouse wheel, move
 the cursor over the pane first. Never scroll with `offCamera` and
@@ -206,7 +207,7 @@ instant.
 ### `fileWindow(files, options?)`
 
 Draw a file window over the page, listing `files`, to drag onto the app's
-dropzone: the browser's own file dialog is outside the page, and nothing can
+dropzone. The browser's own file dialog is outside the page, and nothing can
 film it. It looks like a Finder window. Returns `{ item(i), close() }`:
 `item(i)` is row `i` as a locator, for `click`, `hover` and `drag`.
 
@@ -225,9 +226,9 @@ Meta adds or removes it. A press on a selected row drags the whole
 selection, and letting go over the page sends the element under the pointer
 the drag events a real drag sends, carrying the files as `File` objects, so
 the app takes them through its own dropzone. The window then closes. A file
-is `{ name, content?, type?, size? }`; the type and the Size and Kind columns
-follow from the name and the content unless given. The window is staged:
-say so wherever the clip is shown.
+is `{ name, content?, type?, size? }`. Unless you give them, the type and the
+Size and Kind columns follow from the name and the content. The window is
+staged, so say so wherever the clip is shown.
 
 | Option | Default | What it sets |
 |---|---|---|
@@ -256,8 +257,8 @@ None of these spends clip time, so each needs frames after it.
 
 Each camera line starts from wherever the camera is, still or moving, and
 eases into its new framing over its `duration`. A line written while the
-camera is still on its way somewhere takes over from there at once. Two
-written at the same instant are one: the second.
+camera is still on its way somewhere takes over from there at once. If two
+are written at the same instant, only the second counts.
 
 ### `camera.zoom(target, scale?, options?)`
 
@@ -290,8 +291,8 @@ Frame an exact rectangle, in viewport pixels.
 
 ### `camera.reset(options?)`
 
-Back to the whole viewport. Ending a clip on this and nothing after it is the
-classic mistake, and `versioncam review` warns about it.
+Back to the whole viewport. Ending a clip on this with nothing after it is a
+common mistake, and `versioncam review` warns about it.
 
 | Option | Default | What it sets |
 |---|---|---|
@@ -316,7 +317,7 @@ next `zoom`, `to`, `reset` or `follow` eases out of it the same way.
 | Option | Default | What it sets |
 |---|---|---|
 | `scale` | `1.35` | How far in. Unlike a zoom's, it is exact: the frame is `viewport.width / scale` wide the whole time. |
-| `deadZone` | `0.3` | The share of the frame, around its middle, the cursor can move in without moving the camera. `0` answers every movement. |
+| `deadZone` | `0.3` | The share of the frame, around its middle, the cursor can move in without moving the camera. `0` follows every movement. |
 | `smoothing` | `600` | How softly the camera moves, in milliseconds: about how long it takes over a move the cursor makes at once. Larger is softer. |
 | `duration` | `1100` | How long the camera takes to get from where it was into the follow. |
 
