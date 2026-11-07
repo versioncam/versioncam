@@ -80,6 +80,17 @@ current, the plan, and where to manage the project. Outside a clone,
 shows no clip's address, since each is signed for an hour and opens for
 anyone who has it; `--json` still carries them, and the same goes for those.
 
+When `cloud status` says the repository isn't on version.cam yet, tell the
+user so in its words, and stop.
+
+When `cloud plan` says the account is on Pro free during the private beta,
+and `cloud status` says the Versioncam GitHub App is not installed on the
+repository, say: "Pro is on for <account>. For a private repository,
+install the Versioncam GitHub App on it at
+https://github.com/apps/versioncam; the next push to main then publishes
+the clips, and only people who can read the repository will see them." When
+`cloud status` says nothing about the App, say nothing about it either.
+
 If a clip is broken, offer what comes next and wait for an answer:
 `/versioncam fix <clip>`, or acknowledging it with `cloud ack <clip>` ("I
 know, keep the old one"), which stops the reminders to the team.

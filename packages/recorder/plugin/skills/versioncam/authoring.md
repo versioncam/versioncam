@@ -50,7 +50,8 @@ below the fold, where no frame will show it.
   `s.byRole(…)`, `s.byLabel(…)`. A clip built from locators survives a layout
   change; one built from pixels is broken by the next padding tweak and does
   not say so. Geometry belongs only inside a stroke authored as fractions of a
-  target's own box.
+  target's own box. A point is fine for one thing: parking the cursor in empty
+  space at the end of a clip, with `s.moveTo([x, y])`.
 - **Nine to eleven seconds**, unless `review` in the config says otherwise:
   `versioncam review` enforces whatever it says. Shorter reads as a fragment,
   longer loses the viewer. Adjust holds to hit it; never drop a beat to save

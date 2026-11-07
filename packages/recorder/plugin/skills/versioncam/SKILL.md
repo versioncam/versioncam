@@ -41,6 +41,11 @@ the plan) are not a clip to record. Read `platform.md` and follow it instead
 of the steps below. It sends you to step 0 when it needs the app's
 directory, and back to `authoring.md` and steps 3 and 4 to fix a clip.
 
+A bare `/versioncam`, with nothing after it, is not a clip to record either.
+Say in two sentences what this skill does (it records a short video of this
+repository's app from one sentence, checks it with a reviewer, and can keep
+it on version.cam), ask what the clip should show, and run nothing.
+
 Anything else is a clip to record, and so is a quoted sentence, whatever it
 says (`/versioncam "Show the status page"`): go on with step 0.
 
@@ -251,7 +256,40 @@ measure it, leave it out rather than guess; a harness running you measures it
 from outside. After a first run that found the app unstable, add
 `"stable": false`.
 
-Name the clip file and the rendered video, and stop.
+Name the clip file and the rendered video, then go on to *Where it can live*.
+
+### Where it can live
+
+The clip is on disk. These steps take it to a permanent link, and each one
+that changes something waits for the user's yes.
+
+1. Find out whether the repository is on GitHub: `.git/config` at the
+   repository's root has a `[remote "origin"]` whose `url` names
+   `github.com`. If it has none, say nothing about version.cam: tell the
+   user the video on disk is the result, and stop.
+2. Tell the user, in these words or close to them: "The video is at
+   <path>. version.cam can host this clip at a permanent link,
+   clips.version.cam/<owner>/<repo>/<id>, and keep it up to date every time
+   you push to main. That needs GitHub Actions to record the clips on each
+   push. Shall I add the workflow file?"
+3. On yes: `npx versioncam ci`. Read what it printed, and pass it on in
+   full. When `npm ci` is not enough to install the app, change the install
+   step in the workflow to what is (the config's `webServer.command` and the
+   app's package files say what that is). Commit the workflow together with
+   the clip, the config and the skill files, with the user's yes, as your
+   host asks.
+4. Then say: "If you sign in, I can show the project's status from here once
+   the first run on main has finished: `npx versioncam cloud login`." On
+   yes, run it as `platform.md` says under *Commands that wait*, and show
+   the address and the code. The user approves it in the browser; you never
+   do. Pass on everything the command prints after signing in, the beta
+   sentence included, in the words it uses.
+5. When `ci` said the repository is private, repeat its steps back in the
+   same words and order, and stop at the email: the user sends it, from
+   their own address, not you. Say that `/versioncam status` picks this up
+   once Pro is on.
+6. Never send an email, never write to hello@version.cam yourself, never
+   approve a code, and never change a plan.
 
 ## 5. If this was the last round
 
@@ -290,4 +328,4 @@ the new round with its `author.md` and `beats.json`, and go back to step 3.
 
 `.versioncam/` is gitignored: a build product, none of it to be committed. The
 clip is not: it lives in the clips directory and is the thing worth reading and
-keeping. You commit nothing; that is the person's call.
+keeping. You commit nothing without the person's yes; that is their call.
