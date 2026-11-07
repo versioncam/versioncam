@@ -6,6 +6,50 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## 0.7.5 (2026-11-07)
+
+This patch adds the steps from a first clip to a permanent link. On 2026-11-07 the
+authoring skill wrote, recorded, reviewed and rendered a first clip end to end on a
+Windows 11 desktop, and the run ended with a video on disk and no next step. Now
+every stage says what comes next. Nothing changes in the config or the clip DSL, and
+no recording, rendering or publishing code changed: the example app's clips record
+the same frames as on 0.7.4.
+
+### Added
+
+- `npx versioncam ci` writes `.github/workflows/versioncam.yml` at the repository's
+  root: the versioncam Action checks the clips on every pull request, and on every
+  push to the default branch it checks them and publishes them to version.cam. A
+  config below the root gets `working-directory`, and `npm ci` runs where the
+  lockfile is. `--print` prints the file instead, and `--force` replaces one that is
+  there. Afterwards it says what to do next, which depends on whether GitHub's public
+  API says the repository is public or private. It asks without a token.
+
+### Changed
+
+- When version.cam doesn't have a repository yet, `cloud status` says that the
+  project appears after the workflow first runs on the default branch, and that
+  `npx versioncam ci` writes the workflow if there is none. It also says when the Versioncam GitHub App is not
+  installed on the repository, once version.cam reports that.
+- `cloud plan` says the plan in a sentence, then what it includes. Pro and Max say
+  that a private repository needs the GitHub App, and how to turn on alerts.
+- While version.cam's beta is private, `cloud login` and `cloud plan` say how to ask
+  for Pro for free, and `cloud plan` on Free prints the email to send. The CLI learns
+  this from version.cam, so it stops saying it when the beta ends.
+- The authoring skill goes on after the first clip: it offers the workflow, runs
+  `npx versioncam ci` with your yes, offers `cloud login`, and for a private
+  repository repeats the steps to get Pro. It never sends an email for you, and never approves a sign-in code. A bare `/versioncam` asks what the clip should show instead of starting.
+- `doctor`'s two notes begin with "optional:" and say which commands need the full
+  Chromium and ffprobe.
+- `render` on a terminal says which clip it is rendering, with its frames and frame
+  rate. Nothing changes without a terminal.
+- We rewrote every message the CLI prints, the READMEs, the skill and `dsl.md` in
+  plain language. Commands, numbers, exit codes and machine-readable output are
+  unchanged. `docs/voice.md` in the repository is the rule.
+- The README says what the Windows desktop run proved. The package's own test suite
+  still does not pass on Windows, and we have not tested stopping a recording with
+  Ctrl+C there.
+
 ## 0.7.4 (2026-11-06)
 
 A patch: versioncam runs on Windows. Every command stopped there before it started, and
