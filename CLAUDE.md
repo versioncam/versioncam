@@ -43,6 +43,9 @@ repository instead, and hides anything `files` leaves out of the tarball.
 
 ## Conventions
 
+- **Every sentence a user reads follows [`docs/voice.md`](docs/voice.md):**
+  the READMEs, `dsl.md`, the skill, the changelog and CLI messages. Code
+  comments keep the rule below.
 - **Comments say why**, at the density of the surrounding code. This code is
   unusually well commented on purpose: a function whose comment could not
   explain why it exists is not finished.
