@@ -6,7 +6,7 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
-## 0.7.5 (2026-11-07)
+## 0.7.5 (2026-11-08)
 
 This patch adds the steps from a first clip to a permanent link. On 2026-11-07 the
 authoring skill wrote, recorded, reviewed and rendered a first clip end to end on a
