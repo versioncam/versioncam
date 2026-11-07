@@ -537,7 +537,7 @@ stale ones included. A draft, a trial run, or the recording of a clip you have
 since renamed or deleted stays there until you delete its directory. Ids
 choose among recordings and scenes alike, by substring, as they choose clips
 for `record`, and an id that is exactly a clip's id picks that one alone.
-`--scene` names one scene exactly. Together:
+`--scene` names one scene exactly. This is what each combination renders:
 
 - No ids and no `--scene`: every recording and every scene.
 - Ids: the recordings and scenes the ids choose.
@@ -1065,8 +1065,8 @@ its CSS motion:
   that starts partway through a clip is already past its duration when it
   appears, and the video shows only its end. Once a one-off animation's time is
   up it finishes, as in a browser nobody is filming: its `finished` promise
-  resolves and `animationend` fires. So a dialog that unmounts after its exit
-  animation is removed, and does not sit invisibly over the page.
+  resolves and `animationend` fires. So a dialog that your app removes after its exit
+  animation goes away, rather than sitting invisibly over the page.
 - **Smooth scrolling is instant.** A stylesheet's `scroll-behavior: smooth`
   and a script's `{ behavior: "smooth" }` both scroll at once, since the
   browser would animate either on a clock the recorder does not move. A chat
