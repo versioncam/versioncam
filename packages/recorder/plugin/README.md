@@ -7,8 +7,8 @@ rounds run out. The first time it runs in a repository, it sets the
 repository up first.
 
 Nothing here calls a model's API. The model is whichever agent session runs
-the skill, and the vision step is that session's file reader opening a
-contact sheet. Everything is markdown, and you can edit all of it.
+the skill. To look at a contact sheet, that session opens the image with the
+same tool it uses to read files. Everything is markdown, and you can edit all of it.
 
 ## Install
 
@@ -64,7 +64,7 @@ up (`skills/versioncam/onboarding.md`):
 5. It records a three-second clip twice with `stability`, to prove the app
    records the same way twice before a clip is written for it.
 
-Nothing is committed.
+It commits nothing.
 
 **In a monorepo** the skill first looks for `versioncam.config.ts` across the
 whole repository, wherever the session started, and then works in the
@@ -77,12 +77,13 @@ first run writes the config where `versioncam init` put the skill.
 2. The session writes the clip itself, following
    `skills/versioncam/authoring.md`. It reads `versioncam dsl` and the
    existing clips, writes a beat sheet, writes the clip, records it in draft,
-   and runs the checks in `versioncam review`. Three recordings at most, then
-   it moves on. On a page too big to hold in context, it hands this step to a
+   and runs the checks in `versioncam review`. It makes three recordings at
+   most, then moves on. On a page too big to hold in context, it hands this step to a
    subagent and keeps that subagent for later rounds.
 3. It makes a contact sheet sampled at the beats and gives it to a **fresh
-   reviewer**: one picture, a five-item checklist, a JSON verdict. The reviewer is new every
-   round, on purpose. It sees the clip, never the argument for it.
+   reviewer**. The reviewer gets that one picture and a five-item checklist,
+   and answers with a JSON verdict. The reviewer is new every round, on
+   purpose. It sees the clip, never the argument for it.
 4. If the reviewer passes the clip, it records and renders at full quality.
    Otherwise it makes the fixes the verdict names and runs another round.
 
@@ -113,8 +114,8 @@ gets an alert when one breaks, and the plan. It changes a setting only when you
 ask, and the change waits for you to approve it in your browser. A fix ends
 in a pull request, which it opens only with your yes. The token the commands
 sign in with stays in its file, and the skill never reads or prints it.
-You pay, delete a project and make tokens for CI outside GitHub on
-app.version.cam.
+You still do three things yourself on app.version.cam: pay, delete a
+project, and make a project token for CI outside GitHub.
 
 ## What it leaves behind
 
@@ -130,11 +131,12 @@ app.version.cam.
   round-2/ …
 ```
 
-`.versioncam/` is a build product and is gitignored. Keep the clip. The
+`.versioncam/` is a build product and is gitignored. The clip is the file you
+keep and commit. The
 transcripts are for reading when something goes wrong, and for finding the
 next thing to fix in the recorder. The paragraph on awkward tooling is there
-because the first agent to write one produced a list that became a work
-package.
+because the first agent to write a clip listed what was awkward, and that list
+became our next set of fixes to the recorder.
 
 ## What it costs
 

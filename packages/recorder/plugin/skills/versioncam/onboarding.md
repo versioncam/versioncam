@@ -5,7 +5,8 @@ a clip, you have to teach the repository three things: how its app starts,
 whether it signs in, and what "the page is done" means. Then you answer one
 question before anything is authored: **does this app record the same way
 twice?** A clip is only as deterministic as the app it films. A clip written
-against an app that is not deterministic fails CI for reasons nobody wrote.
+against an app that is not deterministic fails CI on differences that no line
+of the clip caused.
 
 You do not run the app yourself: not with `npm run dev`, not in the
 background, not ever in this phase. You write what you learn into the config,
@@ -16,7 +17,9 @@ fix the config.
 Work in the app's directory, the one that step 0 of the skill chose. The config
 goes there, and every `versioncam` command reads it from there. Step 0 found
 no `versioncam.config.*` anywhere in the repository, so this config will be
-the only one. A second would split the repository in two.
+the only one. With a second, every later run would have to ask which app it
+is for (step 0 of the skill), and each command would read whichever config is
+in the directory it runs from.
 
 ## 1. How the app runs
 
@@ -48,8 +51,8 @@ has to run from somewhere else (`cwd: "../.."` for a repository root two levels
 up). For a stack of several services started by one command (a `make start`, a
 `docker compose up`), point `url` at the service that is ready *last*, usually
 a backend's health endpoint, not at the page. A dev server answers seconds
-before the API behind it, and a clip that opens then meets a sign-in
-form with nothing to sign in to. Give such a stack `timeoutMs: 180_000`.
+before the API behind it. A clip that opens then finds the sign-in form, but
+the API that signs you in is not up yet. Give such a stack `timeoutMs: 180_000`.
 
 **If the port comes from an environment variable, or there are several
 plausible commands, ask**, with `AskUserQuestion`, listing the candidates
@@ -102,8 +105,8 @@ export default defineRecorder({
 
 Add `auth` if step 2 said so, and `cursorStart` if step 7 says so. Do not add
 `settle`, `review` or `theme`. Every default is there because it is right for
-most apps, and a field nobody needed is a question the next person has to
-answer. In a comment above each field you did write, say why it has the value
+most apps, and a field nobody needed makes the next person wonder why it is
+there. In a comment above each field you did write, say why it has the value
 it has, for example: the port came from the dev script, the command from the
 README.
 

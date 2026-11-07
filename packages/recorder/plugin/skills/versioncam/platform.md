@@ -68,8 +68,8 @@ they approve anything, since a sign-in should go only to a service they
 trust. Never set `VERSIONCAM_API` yourself, or point a command anywhere,
 unless the user asks.
 
-Signing in lets the commands read, and acknowledge a broken clip. It changes
-no setting: each change needs its own approval.
+Signing in lets the commands read the project and acknowledge a broken clip.
+Signing in changes no setting, and each change needs its own approval.
 
 ## `/versioncam status`
 
@@ -78,9 +78,9 @@ when it has been broken, whether someone acknowledged it, and what the public
 sees meanwhile: the version that plays, and when it was recorded. Then tell
 them the clips that are current, the plan, and where to manage the project.
 Outside a clone, `status` lists every project the user can see. For a private
-project it shows no clip's address, since each address is signed for an hour
-and opens for anyone who has it. `--json` still includes them, and the same
-care applies to those.
+project it shows no clip's address. Each address carries a signature that
+lets anyone who has it open the clip for an hour. `--json` still includes these
+addresses, so do not show them to anyone either.
 
 When `cloud status` says the repository isn't on version.cam yet, tell the
 user so in its words, and stop.
@@ -204,7 +204,7 @@ nothing else until they do.
 | Which clips are broken, since when, and what plays meanwhile | `cloud status` |
 | Why a clip broke | `cloud failure <clip>` |
 | Who can see the clips | `cloud status`, its visibility |
-| Who gets an alert when a clip breaks | `cloud status`, its alerts, which the repository's administrators see |
+| Who gets an alert when a clip breaks | `cloud status`, its alerts (only the repository's administrators see who gets them) |
 | Which plan, why and until when, and how to upgrade | `cloud plan` |
 | Every project the user can see | `cloud status`, outside a clone |
 | Any of these to read closely | `--json` on `status`, `failure`, `embed` and `plan` |

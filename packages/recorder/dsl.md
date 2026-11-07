@@ -26,7 +26,8 @@ the first match.
 
 ### `byTestId(testId)`
 
-First choice. `data-testid` is the only handle an app can promise a clip.
+First choice. A `data-testid` is the only target an app can promise to keep
+the same for its clips.
 
 ### `byRole(role, options?)`
 
@@ -63,7 +64,7 @@ and what a track write needs after it.
 
 ### `settle(options?)`
 
-Wait for the page to stop working: the DOM quiet, no requests in flight, the
+Wait until the page is idle: the DOM quiet, no requests in flight, the
 fonts loaded, no CSS transition still running, and whatever `settle.ready` in
 the config adds. It advances the page's clock without capturing, so the wait
 never reaches the video. A new document that loads from a link or a form post
@@ -227,8 +228,9 @@ selection, and letting go over the page sends the element under the pointer
 the drag events a real drag sends, carrying the files as `File` objects, so
 the app takes them through its own dropzone. The window then closes. A file
 is `{ name, content?, type?, size? }`. Unless you give them, the type and the
-Size and Kind columns follow from the name and the content. The window is
-staged, so say so wherever the clip is shown.
+Size and Kind columns follow from the name and the content. versioncam draws
+the window; it is not the operating system's real one, so say so wherever the
+clip is shown.
 
 | Option | Default | What it sets |
 |---|---|---|
@@ -318,7 +320,7 @@ next `zoom`, `to`, `reset` or `follow` eases out of it the same way.
 |---|---|---|
 | `scale` | `1.35` | How far in. Unlike a zoom's, it is exact: the frame is `viewport.width / scale` wide the whole time. |
 | `deadZone` | `0.3` | The share of the frame, around its middle, the cursor can move in without moving the camera. `0` follows every movement. |
-| `smoothing` | `600` | How softly the camera moves, in milliseconds: about how long it takes over a move the cursor makes at once. Larger is softer. |
+| `smoothing` | `600` | How softly the camera moves, in milliseconds: roughly how long the camera takes to catch up when the cursor jumps to a new place in one move. Larger is softer. |
 | `duration` | `1100` | How long the camera takes to get from where it was into the follow. |
 
 The defaults are `followZoom`, `followDeadZone`, `followSmoothingMs` and

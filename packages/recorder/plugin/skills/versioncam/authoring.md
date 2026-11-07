@@ -59,8 +59,8 @@ the fold, where no frame will show it.
   time.
 - **A caption.** A clip with no caption fails review. Write one caption, unless
   the beats really change subject. If you write a second, look at the contact
-  sheet, because two captions on screen at once is the failure that
-  hides best.
+  sheet, because two captions on screen at once is the failure you are least
+  likely to notice any other way.
 - **Every beat ends in `await s.settle({ label })`, then a `hold`.** The
   settle advances the page's clock without capturing, so the app's own waiting
   never reaches the video. The hold after it is what makes the result
@@ -167,9 +167,9 @@ review` matches them and fails on any beat with no mark. `expect` is one
 sentence about what a person should *see* once the beat has landed, not what
 the code did. If it quotes the screen, it quotes what `measure` read.
 
-Write it before the first recording. A beat sheet written afterwards describes
-what you got instead of what you meant, and that comparison is the check it
-exists for.
+Write it before the first recording. The beat sheet exists so that what you
+meant can be compared with what you got. One written afterwards describes what
+you got, and leaves nothing to compare.
 
 ## The round
 
@@ -213,21 +213,21 @@ of them happened again the first time an agent used it.
 | Failure | Repair |
 |---|---|
 | locator not found at step N | `inspect` at that moment; pick a control that exists; if none does, the beat is wrong |
-| beat produced no new state | missing `settle`, wrong target, or effect off-screen; check cuts and states |
+| beat produced no new state | missing `settle`, wrong target, or effect off-screen; check the `states` and `cut` counts that `record` prints |
 | settle timed out on `X` | add a `ready` hook, raise the timeout, or the source is live: name it in `replay.record` so the recorder records its answer once and serves it after that |
 | two runs differ where the app fetched something (tiles, a count, an answer) | `replay.record` the request; `replay.pace` it too if the page reads it over time |
 | the clip fails with "its replay does not hold" | the app fetches something new; `versioncam record <id> --replay record` and look at the diff of `replay/<id>.har` |
 | document reloaded mid-clip | something navigated; find the trigger and avoid it |
 | drag or lasso selected nothing | `measure`, re-author geometry as fractions of the real box |
 | the frames inside a scroll differ between runs, or the page scrolls on its own | `s.scroll(pane, { by })`, `{ to }` or `{ into }`; never `scrollIntoView` or `mouse.wheel` from `offCamera`, which the browser animates on its own clock |
-| the clip has to show files being uploaded | `s.fileWindow([...])`, click the rows (Shift to extend), then `s.drag(files.item(0), dropzone)`; never `setInputFiles` from `offCamera`, which shows the files arriving from nowhere. Say in the summary that the window is staged |
+| the clip has to show files being uploaded | `s.fileWindow([...])`, click the rows (Shift to extend), then `s.drag(files.item(0), dropzone)`; never `setInputFiles` from `offCamera`, which shows the files arriving from nowhere. Say in the summary that versioncam drew the window, not the operating system |
 | `scroll` says the element does not scroll | it is a wrapper; `inspect` at that moment and scroll the child with `overflow: auto` |
 | duration drift | adjust holds, never the beats |
 | tooltip / menu open in a frame it should not be | move the cursor start; add a hold before the next action |
 | the caption covers something a beat points at | `theme.presentation.captionInset: { right: 40 }` in the config moves it to the bottom-right corner; it moves every clip's caption, so say so in what you write down |
 | the camera zooms in and out, or stops and starts between targets | one `s.camera.follow()` where the clip starts moving around the page, instead of a `zoom` before each thing the cursor uses; `s.camera.reset()` or `release()` where it should stop |
 
-Two more, from the tools rather than the app:
+Three more, from the tools rather than the app:
 
 | Failure | Repair |
 |---|---|
@@ -250,7 +250,7 @@ as your reply if you are a subagent. The fourth matters as much as the rest:
    Naming the command and what you expected is worth more than a judgement
    about it. We keep and read this paragraph: it is how we find the next fix
    to the recorder, and the last agent to write one produced the list that
-   became a work package.
+   became our next set of fixes to the recorder.
 
 If you stopped without passing review, say so plainly in the first line. A
 failure that names the obstacle is useful. A claim that it passed when it did

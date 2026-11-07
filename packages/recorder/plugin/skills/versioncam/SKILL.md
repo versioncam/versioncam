@@ -60,8 +60,8 @@ anything, look for the config in the whole repository, not only here.
 
 **Find it.** Glob `**/versioncam.config.{ts,js,mjs}` from the top of the
 repository (the directory holding `.git`), and leave out anything under
-`node_modules/`, `.versioncam/` or `.claude/worktrees/`, which is another
-checkout. What counts is the files on disk, committed or not. A first run's
+`node_modules/`, `.versioncam/` or `.claude/worktrees/` (a worktree there is
+another checkout of the repository). What counts is the files on disk, committed or not. A first run's
 config may not be committed yet, and a deleted one is gone.
 
 - **One** → its directory is the app's directory.
@@ -190,17 +190,19 @@ exactly this reason; pass it on verbatim.
 The reviewer's brief is `versioncam-reviewer.md`. It is in `agents/` two
 levels up from this skill's directory when the skill came from the plugin, in
 `.claude/agents/` when `versioncam init` installed it, and beside this file
-when it was installed with `--into`. Take the first rung of this ladder that
-your host allows:
+when it was installed with `--into`. Use the first of these three options
+that your host allows:
 
 1. **Registered.** If an agent named `versioncam-reviewer` is available (it is
    `versioncam:versioncam-reviewer` when it came with the plugin), spawn it
-   with those inputs. It is blind by construction: a fresh context holding the
-   sheet and the beats and nothing of how the clip was made. Its JSON says
+   with those inputs. It cannot see anything else. It starts in a fresh
+   context that holds the sheet and the beats, and nothing of how the clip was
+   made. Its JSON says
    `"reviewer": "restricted"`.
 2. **A plain subagent.** Otherwise, spawn a general-purpose subagent whose
    prompt is the full text of `versioncam-reviewer.md` followed by those
-   inputs. It is blind by instruction rather than by construction. Its JSON
+   inputs. Only its prompt keeps it from looking at the clip and your notes;
+   nothing else stops it. Its JSON
    will still say `"restricted"`, because the file it was given says so; save
    it with `"reviewer": "unrestricted"`, which is what it was.
 3. **No subagents.** Otherwise, read `versioncam-reviewer.md` and judge the
@@ -209,7 +211,7 @@ your host allows:
    verdict with `"reviewer": "self"`. The summary says so, because a clip that
    its own author passed is a weaker claim, and whoever reads it should know.
 
-A fresh reviewer every round is the point, not an accident. It must not see
+The reviewer is new every round on purpose. It must not see
 the author's reasoning, an earlier verdict, or how hard the clip was to get
 working. It sees only this round's picture. Never continue a reviewer, and never pass
 it the author's report.
@@ -286,9 +288,10 @@ that changes something waits for the user's yes.
    do. Pass on everything the command prints after signing in, the beta
    sentence included, in the words it uses.
 5. When `ci` said the repository is private, repeat its steps back in the
-   same words and order, and stop at the email. The user sends it from
-   their own address, not you. Say that `/versioncam status` picks this up
-   once Pro is on.
+   same words and order, and stop at the step that says to email
+   hello@version.cam. The user sends that email from their own address, not
+   you. Say that once Pro is on, `/versioncam status` can show the project's
+   status and the step to install the GitHub App.
 6. Never send an email, never write to hello@version.cam yourself, never
    approve a code, and never change a plan.
 
