@@ -202,7 +202,9 @@ export async function doctor(): Promise<number> {
     note: browsers.full === null,
     detail: browsers.full
       ? `full Chromium at ${browsers.full}`
-      : "full Chromium not fetched yet; login and preview fetch it on first use, or `npx versioncam install --full`",
+      : // "optional" first: on the Windows desktop run a line that only said
+        // "not fetched yet" read as something missing.
+        "optional: the full Chromium is not fetched yet; `login` and `preview` fetch it on first use, or `npx versioncam install --full`",
   });
 
   const { ffmpeg, ffprobe } = ffmpegStatus();
@@ -220,7 +222,9 @@ export async function doctor(): Promise<number> {
     name: "ffprobe",
     ok: true,
     note: ffprobe === null,
-    detail: ffprobe ?? "not found; only render --sequence needs it",
+    detail:
+      ffprobe ??
+      "optional: ffprobe is not installed; only `render --sequence` needs it",
   });
 
   const config = findConfigFile(process.cwd());

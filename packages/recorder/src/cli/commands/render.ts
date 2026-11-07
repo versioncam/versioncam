@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { launchBrowser } from "../../driver/launch.js";
 import { chooseIds, loadConfig, loadSceneIds } from "../../loader.js";
@@ -17,6 +17,36 @@ function recordedIds(recordingsDir: string): string[] {
     .map((e) => e.name)
     .filter((id) => existsSync(join(recordingsDir, id, "timeline.json")))
     .sort();
+}
+
+/**
+ * The line a render starts each recording with, for a person at a terminal,
+ * or null when nobody is watching one. A render takes a minute or three
+ * (151 s for a ten-second clip on the Windows desktop run), and a command
+ * that prints nothing for that long looks stuck. Only on a terminal: what a
+ * script reads stays the result lines, and nothing changes in a run
+ * without one. The frame count and rate are the recording's own, read
+ * before the render starts; a timeline that cannot be read gets the line
+ * without them.
+ */
+export function renderingLine(
+  id: string,
+  recordingsDir: string,
+  terminal: boolean,
+): string | null {
+  if (!terminal) return null;
+  try {
+    const timeline = JSON.parse(
+      readFileSync(join(recordingsDir, id, "timeline.json"), "utf8"),
+    ) as { durationFrames?: unknown; fps?: unknown };
+    const { durationFrames: frames, fps } = timeline;
+    if (typeof frames === "number" && typeof fps === "number") {
+      return `rendering ${id}, ${frames} frames at ${fps} fps\n`;
+    }
+  } catch {
+    // Said without the numbers.
+  }
+  return `rendering ${id}\n`;
 }
 
 /**
@@ -123,11 +153,12 @@ export async function render(argv: string[]): Promise<number> {
 
   try {
     for (const id of recordings) {
-      // A render takes a minute or three, and a command that prints nothing
-      // for that long looks stuck to the person watching it. Only to them: what
-      // a script reads stays the result lines, and stderr stays for what went
-      // wrong.
-      if (process.stderr.isTTY) process.stderr.write(`  ${id}: rendering\n`);
+      const starting = renderingLine(
+        id,
+        config.recordingsDir,
+        process.stderr.isTTY === true,
+      );
+      if (starting) process.stderr.write(starting);
       const began = performance.now();
       try {
         const out = await renderRecording(browser, config, id);

@@ -1,5 +1,8 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { chooseTargets } from "./render.js";
+import { chooseTargets, renderingLine } from "./render.js";
 
 const RECORDED = ["02-a", "04-b", "05-trial"];
 const DEFINED = ["01-x", "03-y"];
@@ -68,5 +71,33 @@ describe("what render renders", () => {
     expect(
       chooseTargets(RECORDED, DEFINED, ["02", "07"], []).unmatched,
     ).toEqual(["07"]);
+  });
+});
+
+describe("what render says as it starts a clip", () => {
+  const dir = mkdtempSync(join(tmpdir(), "versioncam-render-"));
+  mkdirSync(join(dir, "01-a"));
+  writeFileSync(
+    join(dir, "01-a", "timeline.json"),
+    JSON.stringify({
+      version: 1,
+      clipId: "01-a",
+      fps: 60,
+      durationFrames: 402,
+    }),
+  );
+
+  it("says the clip, its frames and its rate, on a terminal", () => {
+    expect(renderingLine("01-a", dir, true)).toBe(
+      "rendering 01-a, 402 frames at 60 fps\n",
+    );
+  });
+
+  it("says nothing without one, so a script reads only the results", () => {
+    expect(renderingLine("01-a", dir, false)).toBeNull();
+  });
+
+  it("names the clip alone when its timeline cannot be read", () => {
+    expect(renderingLine("02-gone", dir, true)).toBe("rendering 02-gone\n");
   });
 });
