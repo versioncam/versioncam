@@ -41,7 +41,7 @@ export function takeCwd(argv: string[]): {
     // directory called `--draft`.
     if (!value || value.startsWith("-")) {
       throw new Error(
-        "`--cwd` needs a directory: versioncam <command> --cwd <dir>",
+        "`--cwd` needs a directory after it, as in: versioncam <command> --cwd <dir>",
       );
     }
     cwd = value;
@@ -99,17 +99,19 @@ function nameOf(pkg: string): string {
 export function enterCwd(dir: string): void {
   const target = resolve(dir);
   if (!existsSync(target) || !statSync(target).isDirectory()) {
-    throw new Error(`\`--cwd ${dir}\`: there is no directory ${target}.`);
+    throw new Error(
+      `\`--cwd ${dir}\` names a directory that doesn't exist: ${target}.`,
+    );
   }
 
   const theirs = versioncamFrom(target);
   if (theirs !== null && theirs !== RUNNING) {
     const shown = relative(process.cwd(), target) || ".";
     throw new Error(
-      `\`--cwd ${dir}\`: that directory has its own ${nameOf(theirs)}, ` +
-        `and this is ${nameOf(RUNNING)}.\n` +
-        "npx looks for versioncam in the directory it runs in and in those above it, never below.\n" +
-        `Run the directory's own instead: cd ${shown}, then the same command without --cwd.`,
+      `\`--cwd ${dir}\` names a directory with its own ${nameOf(theirs)}, ` +
+        `but this command is running ${nameOf(RUNNING)}.\n` +
+        "npx looks for versioncam in the directory it runs in and in the ones above it, never below.\n" +
+        `To use the directory's own copy, run cd ${shown}, then the same command without --cwd.`,
     );
   }
 

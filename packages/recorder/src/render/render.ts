@@ -128,8 +128,8 @@ export async function openRenderPage(
   if (!response || !response.ok()) {
     await context.close();
     throw new Error(
-      `The render page did not load (${response?.status() ?? "no response"}). ` +
-        `Expected it at ${distPageDir()}. Run \`npm run build\` in the recorder package.`,
+      `The render page didn't load (${response?.status() ?? "no response"}). ` +
+        `It should be at ${distPageDir()}. Run \`npm run build\` in the recorder package.`,
     );
   }
 
@@ -283,7 +283,7 @@ export async function renderFrame(
   try {
     if (!Number.isInteger(frame) || frame < 0 || frame >= durationFrames) {
       throw new Error(
-        `Frame ${frame} is not in "${target.id}": it runs 0 to ${durationFrames - 1}.`,
+        `"${target.id}" has frames 0 to ${durationFrames - 1}, so there is no frame ${frame}.`,
       );
     }
     await page.evaluate((n) => window.__render?.setFrame(n), frame);

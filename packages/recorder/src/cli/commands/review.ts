@@ -29,7 +29,7 @@ function bound(value: unknown, flag: string): number | undefined {
   if (value === undefined) return undefined;
   const seconds = Number(value);
   if (!Number.isFinite(seconds)) {
-    throw new Error(`--${flag} must be a number of seconds, got "${value}".`);
+    throw new Error(`--${flag} must be a number of seconds, not "${value}".`);
   }
   return seconds;
 }

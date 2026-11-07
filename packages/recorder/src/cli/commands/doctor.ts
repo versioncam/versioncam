@@ -50,8 +50,8 @@ async function appCheck(cwd: string): Promise<Check> {
     return {
       name: "app",
       ok: false,
-      detail: `config did not load: ${(error as Error).message}`,
-      fix: "Fix versioncam.config.ts; every other command loads it too.",
+      detail: `the config didn't load: ${(error as Error).message}`,
+      fix: "Fix versioncam.config.ts. Every other command loads it too.",
     };
   }
 
@@ -77,7 +77,7 @@ async function appCheck(cwd: string): Promise<Check> {
     return {
       name: "app",
       ok: true,
-      detail: app.started ? `${app.detail} (stopped again)` : app.detail,
+      detail: app.started ? `${app.detail}, and stopped again` : app.detail,
     };
   } catch (error) {
     // The first line says what went wrong; the rest is the server's own
@@ -144,18 +144,19 @@ async function replayCheck(cwd: string): Promise<Check | null> {
     return {
       name: "replay",
       ok: false,
-      detail: `the clips did not load: ${(error as Error).message.split("\n")[0]}`,
+      detail: `the clips didn't load: ${(error as Error).message.split("\n")[0]}`,
     };
   }
   const lines = ids.map((id) => {
     const found = describeReplay(replay.dir, id);
-    if (!found.exists) return `${id}: none yet; its first recording makes one`;
+    if (!found.exists)
+      return `${id}: none yet. Its first recording will make one.`;
     const age = Number.isNaN(found.ageDays)
       ? "of unknown age"
       : `${found.ageDays} days old`;
     const stale =
       found.ageDays > STALE_DAYS
-        ? ", older than any answer should be trusted to stay"
+        ? ", so the app's answers may have changed since"
         : "";
     return `${id}: ${found.requests} requests, recorded ${found.recorded.slice(0, 10)}, ${age}${stale}`;
   });

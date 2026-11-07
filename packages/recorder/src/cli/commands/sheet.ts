@@ -22,7 +22,9 @@ export async function sheet(argv: string[]): Promise<number> {
   const config = await loadConfig(process.cwd());
   const dir = join(config.recordingsDir, id);
   if (!existsSync(join(dir, "timeline.json"))) {
-    process.stderr.write(`No recording for "${id}".\n`);
+    process.stderr.write(
+      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
+    );
     return 1;
   }
 

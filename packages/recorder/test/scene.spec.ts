@@ -97,7 +97,7 @@ test.describe("rendering a scene", () => {
     const browser = await launchBrowser();
     try {
       await expect(renderScene(browser, testConfig(), "ramp")).rejects.toThrow(
-        'No scene called "ramp". The config names no `scenes` module.',
+        'No scene called "ramp". The config has no `scenes` module.',
       );
     } finally {
       await browser.close();
@@ -132,7 +132,7 @@ test.describe("a scenes module the renderer cannot read", () => {
     ).toEqual([
       `${namedOnly} has no default export. It exports SCENES.`,
       expect.stringContaining("a Record<string, Scene> keyed by scene id"),
-      "SCENES is one: add `export default SCENES`.",
+      "SCENES looks like that record. Add `export default SCENES`.",
     ]);
   });
 

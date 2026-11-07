@@ -42,7 +42,7 @@ export async function stability(argv: string[]): Promise<number> {
   const runs = Number(values.runs);
   if (!Number.isInteger(runs) || runs < 2) {
     process.stderr.write(
-      `--runs must be a whole number of 2 or more, got ${values.runs}.\n`,
+      `--runs must be a whole number of 2 or more, not ${values.runs}.\n`,
     );
     return 1;
   }
@@ -153,8 +153,8 @@ async function compareRuns(
   // the verdict stays the last line of what the command prints.
   if (!stable && draft) {
     process.stderr.write(
-      "This was a draft. If the two pictures look the same, `versioncam " +
-        "stability --full` says whether the recording that renders differs.\n",
+      "This was a draft. If the two pictures look the same, run `versioncam " +
+        "stability --full` to compare the full-quality recordings, the ones that render.\n",
     );
   }
   return stable ? 0 : 1;

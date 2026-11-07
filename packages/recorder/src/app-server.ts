@@ -151,7 +151,7 @@ export async function ensureApp(config: ResolvedConfig): Promise<AppHandle> {
         `Something is already serving ${server.url} (port ${portOf(server.url)}), ` +
           `and webServer.reuseExistingServer is false` +
           (process.env.CI ? " (the default when CI is set)" : "") +
-          ". It is not ours to replace: stop it, or allow reusing it.",
+          ", so versioncam won't replace it. Stop it, or set webServer.reuseExistingServer to true.",
       );
     }
     const status = isReady(found.status)
@@ -189,10 +189,10 @@ async function untilReady(
     }
   }
   throw new Error(
-    `${server.url} answered HTTP ${status} for ${seconds(server.timeoutMs)}. ` +
-      "A 5xx is a server that cannot serve yet, so nothing was recorded. " +
-      "Open it and see what it says, or point webServer.url at what answers " +
-      "when the app is ready.",
+    `${server.url} answered HTTP ${status} for ${seconds(server.timeoutMs)}, ` +
+      "and a 5xx means the server can't serve pages yet, so nothing was recorded. " +
+      "Open the address to see what it says, or point webServer.url at a page " +
+      "that answers once the app is ready.",
   );
 }
 
@@ -202,8 +202,8 @@ async function untilReady(
  */
 function announceNotReady(server: ResolvedWebServer, status: number): void {
   process.stderr.write(
-    `app: ${server.url} answers HTTP ${status}, not ready yet; ` +
-      `waiting up to ${seconds(server.timeoutMs)}\n`,
+    `app: ${server.url} answers HTTP ${status}, so it isn't ready yet. ` +
+      `Waiting up to ${seconds(server.timeoutMs)}.\n`,
   );
 }
 
@@ -371,8 +371,8 @@ async function start(
       if (after.up) {
         const warning =
           `webServer: stopped "${server.command}", but ${server.url} still ` +
-          `answers: something it started is outside its process ${WINDOWS ? "tree" : "group"} ` +
-          "and still running.";
+          `answers. Something it started is outside its process ${WINDOWS ? "tree" : "group"} ` +
+          "and is still running.";
         log.write(`--- ${warning}\n`);
         process.stderr.write(`${warning}\n`);
       }
@@ -386,7 +386,7 @@ async function start(
     // The exit can land a moment before the last of the output does.
     await within(new Promise((resolve) => child.once("close", resolve)), 250);
     const output = tail.length
-      ? `\nIts last ${tail.length} lines of output (all of it is in ${logFile}):\n` +
+      ? `\nIts last ${tail.length} lines of output (the full output is in ${logFile}):\n` +
         tail.map((line) => `  ${line}`).join("\n")
       : `\nIt printed nothing (${logFile}).`;
     throw new Error(`${why}${output}`);
@@ -413,9 +413,11 @@ async function start(
         `webServer timed out: "${server.command}" ` +
           (lastStatus === null
             ? `did not answer at ${server.url} `
-            : `answered only HTTP ${lastStatus} at ${server.url}, which is a ` +
-              "server that cannot serve yet, ") +
-          `within ${seconds(server.timeoutMs)}.`,
+            : `answered only HTTP ${lastStatus} at ${server.url} `) +
+          `within ${seconds(server.timeoutMs)}` +
+          (lastStatus === null
+            ? "."
+            : ", and a 5xx means the server can't serve pages yet."),
       );
     }
     const answer = await probe(server.url, Math.min(5_000, remaining));
@@ -423,7 +425,7 @@ async function start(
       return {
         started: true,
         detail:
-          `started with "${server.command}", HTTP ${answer.status} ` +
+          `started with "${server.command}", answered HTTP ${answer.status} ` +
           `after ${seconds(Date.now() - began)}`,
         stop,
       };
@@ -435,7 +437,7 @@ async function start(
       waitingSaid = true;
       process.stderr.write(
         `app: still waiting for ${server.url} (up to ` +
-          `${seconds(server.timeoutMs)}); what it prints is in ${logFile}\n`,
+          `${seconds(server.timeoutMs)}). Its output is in ${logFile}.\n`,
       );
     }
     await within(

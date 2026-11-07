@@ -165,7 +165,7 @@ describe("an OS Playwright does not know", () => {
     expect(runs[1].env).toEqual({
       PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: "ubuntu24.04-x64",
     });
-    expect(said).toContain("does not know this OS yet");
+    expect(said).toContain("doesn't support this OS yet");
     expect(said).toContain(
       "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 node cli.js install",
     );

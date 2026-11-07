@@ -83,8 +83,8 @@ async function main(): Promise<number> {
   const unknown = unknownFlag(name, argv);
   if (unknown) {
     process.stderr.write(
-      `Unknown option ${unknown} for \`versioncam ${name}\`. ` +
-        "`npx versioncam --help` lists them.\n",
+      `\`versioncam ${name}\` has no option ${unknown}. ` +
+        "Run `npx versioncam --help` to see the options.\n",
     );
     return 1;
   }

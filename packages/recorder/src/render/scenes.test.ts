@@ -37,7 +37,9 @@ describe("reading a scenes module", () => {
     expect(what).toBe(`${FILE} has no default export. It exports SCENES.`);
     expect(shape).toContain("Record<string, Scene>");
     expect(shape).toContain("export default { [intro.id]: intro }");
-    expect(fix).toBe("SCENES is one: add `export default SCENES`.");
+    expect(fix).toBe(
+      "SCENES looks like that record. Add `export default SCENES`.",
+    );
   });
 
   it("suggests no fix it cannot be sure of", () => {
@@ -109,7 +111,7 @@ describe("asking for a scene the module does not define", () => {
 
   it("says when the config names no scenes module at all", () => {
     expect(missingScenes(["intro"], [], null)).toBe(
-      'No scene called "intro". The config names no `scenes` module.',
+      'No scene called "intro". The config has no `scenes` module.',
     );
   });
 });

@@ -155,7 +155,7 @@ export async function runWithFallback(
   const as = fallbackPlatform(first.output);
   if (as === null) return first.code;
   io.write(
-    `Playwright ${pinnedPlaywright().version} does not know this OS yet. Installing as ${as}, the newest Ubuntu it does, whose build and libraries record the same here:\n` +
+    `Playwright ${pinnedPlaywright().version} doesn't support this OS yet, so versioncam installs the build for ${as}, the newest Ubuntu it supports. That build and its libraries record the same here:\n` +
       `  PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=${as} ${[command, ...args].join(" ")}\n`,
   );
   return (
@@ -186,9 +186,9 @@ export async function ensureFullBrowser(
   const playwright = pinnedPlaywright();
   const [command, ...args] = fullBrowserArgv(process.execPath, playwright.cli);
   io.write(
-    "This opens a window, which needs the full Chromium; `versioncam install` " +
+    "This command opens a window, which needs the full Chromium. `versioncam install` " +
       "fetched only the headless shell that records.\n" +
-      `Fetching it once, for Playwright ${playwright.version}:\n` +
+      `Downloading the full Chromium once, for Playwright ${playwright.version}:\n` +
       `  ${[command, ...args].join(" ")}\n`,
   );
   return (await runWithFallback(command, args, io)) === 0;
@@ -217,8 +217,8 @@ export async function install(argv: string[]): Promise<number> {
   });
   process.stdout.write(
     (full
-      ? `Both Chromium builds for Playwright ${playwright.version}: the headless shell versioncam records with, and the browser login and preview open:\n`
-      : `The headless Chromium versioncam records with, for Playwright ${playwright.version}:\n`) +
+      ? `Installing both Chromium builds for Playwright ${playwright.version}: the headless shell that versioncam records with, and the full browser that login and preview open:\n`
+      : `Installing the headless Chromium that versioncam records with, for Playwright ${playwright.version}:\n`) +
       `  ${[command, ...args].join(" ")}\n`,
   );
   return runWithFallback(command, args, {

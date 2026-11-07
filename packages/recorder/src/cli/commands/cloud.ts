@@ -229,7 +229,7 @@ export async function runCloud(argv: string[], io: CloudIo): Promise<number> {
   );
   if (extra.length > 0) {
     scrubbed.err(
-      `cloud ${name} takes no --${extra.join(", --")}: ${command.usage}\n`,
+      `\`cloud ${name}\` has no option --${extra.join(", --")}. Usage: ${command.usage}\n`,
     );
     return 1;
   }
@@ -299,14 +299,14 @@ function ignoredText({ name, file, value }: Ignored): string {
       // Not an address: said without it.
     }
     return (
-      `${file} sets VERSIONCAM_API${origin ? ` to ${origin}` : ""}, which versioncam cloud ignores: ` +
-      "it takes the API's address only from the shell, so that no repository can send a sign-in, or a command holding a token, to a server of its choosing. " +
+      `${file} sets VERSIONCAM_API${origin ? ` to ${origin}` : ""}, but versioncam cloud ignores it. ` +
+      "It reads the API's address only from the shell, so that no repository can send your sign-in, or a request that carries your token, to a server it chose. " +
       "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n"
     );
   }
   return (
-    `${file} sets ${name}, which versioncam cloud ignores: ` +
-    "it keeps its sign-in where the shell's environment says, so that no repository can choose where a token is written. " +
+    `${file} sets ${name}, but versioncam cloud ignores it. ` +
+    "It keeps its sign-in where the shell's environment says, so that no repository can choose where your token is written. " +
     `To keep it elsewhere, set ${name} in the shell.\n`
   );
 }
@@ -371,18 +371,18 @@ async function login(c: Context): Promise<number> {
   c.io.out(
     (c.origin === own
       ? ""
-      : `This signs in to ${c.origin}, which VERSIONCAM_API names, rather than ${own}.\n`) +
-      "To sign in this command line to version.cam, open this address on any device:\n" +
+      : `This signs in to ${c.origin}, which VERSIONCAM_API names, instead of ${own}.\n`) +
+      "To sign in to version.cam from this command line, open this link on any device:\n" +
       `  ${plain(device.verification_uri_complete)}\n` +
-      `and approve the code ${plainLine(device.user_code)}. Only approve a code you started yourself.\n` +
+      `Then approve the code ${plainLine(device.user_code)}. Only approve a code you started yourself.\n` +
       `(Or open ${plain(device.verification_uri)} and enter the code there.)\n` +
-      `Waiting for the approval, for up to ${minutes(waitLimit(device.expires_in))}.\n`,
+      `Waiting up to ${minutes(waitLimit(device.expires_in))} for your approval.\n`,
   );
 
   const outcome = await waitForToken(client, device, c.io.clock);
   if (outcome.kind === "denied") {
     c.io.err(
-      "The sign-in was denied on the approval page. Nothing was saved.\n",
+      "Someone denied the sign-in on the approval page, so nothing was saved.\n",
     );
     return 1;
   }
@@ -414,8 +414,8 @@ async function login(c: Context): Promise<number> {
   // private as the folder it sits in, which this did not decide and cannot vouch for.
   const private_ = process.platform === "win32" ? "" : ", readable only by you";
   c.io.out(
-    `Signed in to ${c.origin} as ${plainLine(who)}, until ${when(expires_at, c.io)}.\n` +
-      `The token is kept in ${shown(path, c.io)}${private_}.\n`,
+    `Signed in to ${c.origin} as ${plainLine(who)} until ${when(expires_at, c.io)}.\n` +
+      `Your token is saved in ${shown(path, c.io)}${private_}.\n`,
   );
   // The one moment everyone who will ever use version.cam reads this
   // command's output, so the offer is made here rather than only on the
@@ -464,7 +464,7 @@ async function logout(c: Context): Promise<number> {
       // good, so it stays on disk for a second try.
       if (!(error instanceof CloudError) || error.status !== 401) {
         c.io.err(
-          `${refusal(error)}\nThe token was not revoked, and is still in ${path}: run \`versioncam cloud logout\` again.\n`,
+          `${refusal(error)}\nThe token wasn't revoked and is still in ${path}. Run \`versioncam cloud logout\` again.\n`,
         );
         return 1;
       }
@@ -473,8 +473,8 @@ async function logout(c: Context): Promise<number> {
   removeCredential(c.io.env, c.api);
   c.io.out(
     lapsed
-      ? `Signed out of ${c.origin}: the sign-in had expired, and is removed from ${path}.\n`
-      : `Signed out of ${c.origin}: the token is revoked, and removed from ${path}.\n`,
+      ? `Signed out of ${c.origin}. The sign-in had already expired, and it is removed from ${path}.\n`
+      : `Signed out of ${c.origin}. The token is revoked and removed from ${path}.\n`,
   );
   return 0;
 }
@@ -496,7 +496,7 @@ function signIn(
   c.secrets.push(credential.token);
   if (expired(credential, c.io)) {
     c.io.err(
-      `The sign-in to ${c.origin} as ${plainLine(credential.login)} expired on ${when(credential.expiresAt, c.io)}. Run \`versioncam cloud login\` to sign in again.\n`,
+      `Your sign-in to ${c.origin} as ${plainLine(credential.login)} expired on ${when(credential.expiresAt, c.io)}. Run \`versioncam cloud login\` to sign in again.\n`,
     );
     return null;
   }
@@ -532,7 +532,7 @@ function projectOf(
     const project = projectName(named);
     if (!project) {
       c.io.err(
-        `"${plainLine(named)}" is not a project: name one as owner/repo.\n`,
+        `"${plainLine(named)}" is not a project. Name the project as owner/repo.\n`,
       );
       return undefined;
     }
@@ -542,7 +542,7 @@ function projectOf(
   if (origin) return origin;
   if (optional) return null;
   c.io.err(
-    "This directory is not a clone of a GitHub repository, so name the project: --project owner/repo\n",
+    "This directory isn't a clone of a GitHub repository, so name the project with --project owner/repo.\n",
   );
   return undefined;
 }
@@ -554,7 +554,7 @@ function clipOf(c: Context): string | undefined {
   const clip = c.args[0];
   if (!CLIP_ID.test(clip)) {
     c.io.err(
-      `"${plainLine(clip)}" is not a clip id: letters, digits, dots, dashes and underscores.\n`,
+      `"${plainLine(clip)}" is not a clip id. A clip id has only letters, digits, dots, dashes and underscores.\n`,
     );
     return undefined;
   }
@@ -569,7 +569,9 @@ async function status(c: Context): Promise<number> {
     c.project !== undefined &&
     c.args[0] !== c.project
   ) {
-    c.io.err(`Name the project once: ${SUBCOMMANDS.status.usage}\n`);
+    c.io.err(
+      `You named two different projects. Name one: ${SUBCOMMANDS.status.usage}\n`,
+    );
     return 1;
   }
   const project = projectOf(c, c.args[0] ?? c.project, true);
@@ -656,7 +658,7 @@ async function failure(c: Context): Promise<number> {
     try {
       saved = await savePicture(c, answer.failure.picture, clip);
     } catch (error) {
-      problem = `The picture could not be saved: ${(error as Error).message}`;
+      problem = `versioncam couldn't save the picture: ${(error as Error).message}`;
     }
   }
   c.io.out(
@@ -730,14 +732,14 @@ async function ack(c: Context): Promise<number> {
   const who = `${plainLine(acknowledged.by)} on ${when(acknowledged.at, c.io)}`;
   c.io.out(
     (already
-      ? `${clip} was acknowledged already, by ${who}.\n`
-      : `Acknowledged ${clip}, as ${who}.\n`) +
+      ? `${clip} was already acknowledged by ${who}.\n`
+      : `Acknowledged ${clip} as ${who}.\n`) +
       (plays === undefined
         ? ""
         : plays === null
-          ? "Nothing plays meanwhile: no version of it has passed yet.\n"
+          ? "Nothing plays in the meantime, because no version of it has passed yet.\n"
           : `Your pages keep playing the version recorded ${when(plays.recordedAt, c.io)} (${commitOf(plays.commit)}).\n`) +
-      `${already ? "The reminders stopped then" : "The reminders stop"}. If it is still broken ${reminder}, version.cam reminds the team once more.\n`,
+      `${already ? "The reminders stopped then" : "The reminders stop now"}. If it is still broken ${reminder}, version.cam reminds the team once more.\n`,
   );
   return 0;
 }
@@ -768,7 +770,7 @@ async function embed(c: Context): Promise<number> {
 async function plan(c: Context): Promise<number> {
   const named = c.args[0];
   if (named !== undefined && !accountName(named)) {
-    c.io.err(`"${plainLine(named)}" is not an account's name.\n`);
+    c.io.err(`"${plainLine(named)}" is not an account name.\n`);
     return 1;
   }
   const signed = signIn(c);
@@ -799,7 +801,7 @@ export function changeRequest(args: string[]): ChangeRequest | string {
   const [setting, ...rest] = args;
   const onOff = (value: string | undefined) =>
     value === "on" ? true : value === "off" ? false : null;
-  const wrong = `cloud set takes one of: ${SETTINGS}.`;
+  const wrong = `cloud set takes one of these settings: ${SETTINGS}.`;
 
   if (setting === "alerts") {
     const [kind, value, ...more] = rest;
@@ -816,7 +818,7 @@ export function changeRequest(args: string[]): ChangeRequest | string {
       // address is never repeated back, since anyone who has it can post.
       return /^https:\/\/\S+$/.test(value)
         ? { slackWebhook: value }
-        : "A Slack webhook is an https:// address, from Slack's incoming webhooks.";
+        : "A Slack webhook address starts with https://. You get one from Slack's incoming webhooks.";
     }
     if (kind === "issues") {
       const issues = onOff(value);
@@ -830,7 +832,7 @@ export function changeRequest(args: string[]): ChangeRequest | string {
   if (setting === "visibility") {
     return ["public", "unlisted", "private"].includes(value)
       ? { visibility: value as Visibility }
-      : `Visibility is public, unlisted or private, not "${plainLine(value)}".`;
+      : `Visibility must be public, unlisted or private, not "${plainLine(value)}".`;
   }
   if (setting === "retention") {
     // What the settings form takes: whole days from one, or nothing, which
@@ -838,7 +840,7 @@ export function changeRequest(args: string[]): ChangeRequest | string {
     if (value === "off") return { retentionDays: null };
     return /^\d{1,4}$/.test(value) && Number(value) >= 1
       ? { retentionDays: Number(value) }
-      : "Retention is a number of days, from 1 to 9999, or off.";
+      : "Retention must be a number of days from 1 to 9999, or off.";
   }
   if (setting === "viewers") {
     const viewers = onOff(value);
@@ -861,10 +863,10 @@ async function set(c: Context): Promise<number> {
   const pending = await signed.client.change(project, request);
   c.io.out(
     `${plain(pending.describe)}\n\n` +
-      `To approve it, open this address, signed in as ${plainLine(signed.credential.login)}:\n` +
+      `To approve it, open this link while signed in as ${plainLine(signed.credential.login)}:\n` +
       `  ${plain(pending.verification_uri_complete)}\n` +
-      `and check that the page shows the code ${plainLine(pending.user_code)} and this change.\n` +
-      `Nothing changes until it is approved. Waiting, for up to ${minutes(waitLimit(pending.expires_in))}.\n`,
+      `Then check that the page shows the code ${plainLine(pending.user_code)} and this change.\n` +
+      `Nothing changes until you approve it. Waiting up to ${minutes(waitLimit(pending.expires_in))}.\n`,
   );
 
   let outcome: ChangeOutcome;
@@ -875,23 +877,23 @@ async function set(c: Context): Promise<number> {
     // the service could not say so: whether it applied is the settings'
     // to tell, not this command's to guess.
     c.io.err(
-      `${refusal(error)}\nWhether the change was approved meanwhile, the project's settings on app.version.cam say.\n`,
+      `${refusal(error)}\nTo see whether the change was approved in the meantime, check the project's settings on app.version.cam.\n`,
     );
     return 1;
   }
   if (outcome === "applied") {
     c.io.out(
-      "Approved, and applied.\n" +
+      "Approved and applied.\n" +
         ("alertEmail" in request && request.alertEmail
-          ? "The address is sent a link first, and told nothing until its owner opens it and says yes.\n"
+          ? "version.cam first sends that address a link, and sends it nothing else until its owner opens the link and agrees.\n"
           : ""),
     );
     return 0;
   }
   c.io.err(
     outcome === "denied"
-      ? "Denied on the approval page: nothing changed.\n"
-      : "Nobody approved the change in time, and it has expired: nothing changed.\n",
+      ? "Someone denied the change on the approval page, so nothing changed.\n"
+      : "Nobody approved the change in time, so it expired and nothing changed.\n",
   );
   return 1;
 }
@@ -904,7 +906,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const VISIBILITY: Record<Visibility, string> = {
   public: "public (anyone, and search engines)",
   unlisted: "unlisted (anyone with the address, kept out of search)",
-  private: "private (whoever GitHub lets read the repository, signed in)",
+  private: "private (signed-in people who can read the repository on GitHub)",
 };
 
 function statusText(answer: ProjectStatus, io: CloudIo): string {
@@ -912,7 +914,7 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
   const broken = answer.clips.filter((clip) => clip.status === "broken");
   const lines = [
     answer.clips.length === 0
-      ? `${name} has no clips yet: they appear when it first publishes.`
+      ? `${name} has no clips yet. They appear when it publishes for the first time.`
       : `${name}: ${count(answer.clips.length, "clip")}, ${broken.length} broken.`,
   ];
   if (answer.clips.length > 0) lines.push("");
@@ -933,13 +935,13 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
     `Visibility: ${VISIBILITY[answer.visibility] ?? plainLine(answer.visibility)}`,
     ...(signed && answer.clips.length > 0
       ? [
-          "Private clips' addresses are signed for an hour, and open for anyone who has one, so none is shown here: watch the clips from the project's page.",
+          "Private clips have signed links that work for anyone who has them, for an hour, so they aren't shown here. Watch the clips from the project's page.",
         ]
       : []),
     `Plan: ${plainLine(answer.plan.title)} (${
       answer.plan.alerts
-        ? "version.cam tells the team when a clip breaks"
-        : "CI says when a clip breaks; version.cam tells nobody"
+        ? "version.cam sends alerts when a clip breaks"
+        : "CI reports a broken clip, and version.cam sends no alerts"
     })`,
     // The setting's own name on the dashboard, in `set viewers`'s words.
     `Tell viewers when a clip is broken: ${answer.showBroken ? "on" : "off"}`,
@@ -948,7 +950,7 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
   // nothing is known either way.
   if (answer.appInstalled === false) {
     lines.push(
-      `The Versioncam GitHub App is not installed on this repository. Install it at ${APP_URL}: it tells version.cam who may see a private repository's clips, and adds a check to each commit.`,
+      `The Versioncam GitHub App isn't installed on this repository. Install it at ${APP_URL}. It lets version.cam know who can see a private repository's clips, and it adds a check to each commit.`,
     );
   }
   if (answer.plan.alerts) lines.push(`Alerts: ${alertsText(answer.alerts)}`);
@@ -957,8 +959,8 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
       `${round(answer.usage.renderSeconds / 60)} render minutes, ` +
       `${size(answer.usage.storageBytes)} stored`,
     answer.permission === "admin"
-      ? "You may change its settings."
-      : "You may see it; its administrators change its settings.",
+      ? "You can change its settings."
+      : "You can see it, but only its administrators can change its settings.",
     `Manage it: ${plain(answer.manage)}`,
   );
   return `${lines.join("\n")}\n`;
@@ -985,11 +987,12 @@ function clipState(
 function playsText(plays: Plays | null, io: CloudIo): string {
   return plays
     ? `plays the version recorded ${when(plays.recordedAt, io)} (${commitOf(plays.commit)})`
-    : "plays nothing: no version of it has passed yet";
+    : "plays nothing, because no version of it has passed yet";
 }
 
 function alertsText(alerts: ProjectStatus["alerts"]): string {
-  if (!alerts) return "the repository's administrators see who is told";
+  if (!alerts)
+    return "only the repository's administrators can see who gets alerts";
   const told = [
     alerts.email
       ? `email to ${plainLine(alerts.email)}${alerts.emailConfirmed ? "" : " (waiting for its owner to confirm it)"}`
@@ -1002,7 +1005,7 @@ function alertsText(alerts: ProjectStatus["alerts"]): string {
 
 function meText(me: Me): string {
   const lines = [
-    `Signed in as ${plainLine(me.login)}. No project named, and this directory is not a clone of a GitHub repository, so here is every project you can see:`,
+    `Signed in as ${plainLine(me.login)}. You didn't name a project, and this directory isn't a clone of a GitHub repository, so here are all the projects you can see:`,
   ];
   for (const account of me.accounts) {
     // No plan is an account whose plan the dashboard would not show this
@@ -1022,7 +1025,10 @@ function meText(me: Me): string {
     if (account.projects.length === 0) lines.push("  no projects yet");
   }
   if (me.accounts.length === 0) lines.push("", "No projects yet.");
-  lines.push("", "versioncam cloud status owner/repo says more about one.");
+  lines.push(
+    "",
+    "Run versioncam cloud status owner/repo to see more about one of them.",
+  );
   return `${lines.join("\n")}\n`;
 }
 
@@ -1036,8 +1042,8 @@ function failureText(
   const id = plainLine(answer.clip);
   if (!failure) {
     return answer.status === "broken"
-      ? `${id} is broken, and version.cam has no failure for it.\n`
-      : `${id} is not broken: its last check on ${project}'s default branch passed.\n`;
+      ? `${id} is broken, but version.cam has no failure record for it.\n`
+      : `${id} isn't broken. Its last check on ${project}'s default branch passed.\n`;
   }
   const lines = [
     `${id} broke on ${when(failure.since, io)}, at ${commitOf(failure.commit)}.`,
@@ -1050,8 +1056,12 @@ function failureText(
   ];
   if (saved) lines.push(`The page when it stopped: ${saved}`);
   else if (!failure.picture)
-    lines.push("There is no picture: the run stopped before a page was there.");
-  lines.push(`To see it here: npx versioncam record --draft ${id}`);
+    lines.push(
+      "There is no picture, because the run stopped before a page loaded.",
+    );
+  lines.push(
+    `To see it on this machine, run: npx versioncam record --draft ${id}`,
+  );
   return `${lines.join("\n")}\n`;
 }
 
@@ -1066,7 +1076,7 @@ function embedText(
   if (!answer.embed) {
     const id = plainLine(answer.clip);
     return (
-      `${id} has no version to embed yet: none has passed on ${project}'s default branch.\n` +
+      `${id} has no version to embed yet, because none has passed on ${project}'s default branch.\n` +
       `Once one passes, versioncam cloud embed ${id} prints its snippets.\n`
     );
   }
@@ -1099,9 +1109,9 @@ function embedText(
   if (visibility === "private") {
     lines.push(
       "",
-      `${project}'s clips are private. These snippets play only for people signed in at app.version.cam who may read the repository, so never on a public page.`,
-      "The clip's address above and its files', the GIF's included, are signed: each opens for anyone who has it, for an hour. Use them to look, and never put one in a page, a pull request or an issue.",
-      "To show the clip on a public page, its clips have to be public or unlisted: versioncam cloud set visibility unlisted",
+      `${project}'s clips are private. These snippets play only for people who are signed in at app.version.cam and can read the repository, so they won't play on a public page.`,
+      "The clip's link above and the links to its files, the GIF included, are signed. Each one works for anyone who has it, for an hour. Use them to look at the clip, but never put one in a page, a pull request or an issue.",
+      "To show the clip on a public page, make the project's clips public or unlisted: versioncam cloud set visibility unlisted",
     );
   }
   return `${lines.join("\n")}\n`;

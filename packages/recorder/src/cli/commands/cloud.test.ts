@@ -595,14 +595,14 @@ describe("versioncam cloud login", () => {
     expect(err).toBe("");
     expect(code).toBe(0);
     expect(out).toBe(
-      `This signs in to ${fake.url}, which VERSIONCAM_API names, rather than https://api.version.cam.\n` +
-        "To sign in this command line to version.cam, open this address on any device:\n" +
+      `This signs in to ${fake.url}, which VERSIONCAM_API names, instead of https://api.version.cam.\n` +
+        "To sign in to version.cam from this command line, open this link on any device:\n" +
         "  https://app.version.cam/device?code=ABCD-EFGH\n" +
-        "and approve the code ABCD-EFGH. Only approve a code you started yourself.\n" +
+        "Then approve the code ABCD-EFGH. Only approve a code you started yourself.\n" +
         "(Or open https://app.version.cam/device and enter the code there.)\n" +
-        "Waiting for the approval, for up to 10 minutes.\n" +
-        `Signed in to ${fake.url} as peter, until 13 Oct 2026, 12:00.\n` +
-        "The token is kept in ~/config/versioncam/credentials.json, readable only by you.\n",
+        "Waiting up to 10 minutes for your approval.\n" +
+        `Signed in to ${fake.url} as peter until 13 Oct 2026, 12:00.\n` +
+        "Your token is saved in ~/config/versioncam/credentials.json, readable only by you.\n",
     );
     expect(pc.sleeps).toEqual([5000, 5000, 10000, 10000]);
 
@@ -642,7 +642,7 @@ describe("versioncam cloud login", () => {
     const { code, out } = await pc.run("login");
     expect(code).toBe(0);
     expect(out.split("\n")[0]).toBe(
-      "To sign in this command line to version.cam, open this address on any device:",
+      "To sign in to version.cam from this command line, open this link on any device:",
     );
     expect(out).toContain("Signed in to https://api.version.cam as peter");
     expect(readCredential(pc.env, "https://api.version.cam")?.token).toBe(
@@ -700,7 +700,7 @@ describe("versioncam cloud login", () => {
     const { code, err } = await pc.run("login");
     expect(code).toBe(1);
     expect(err).toBe(
-      "The sign-in was denied on the approval page. Nothing was saved.\n",
+      "Someone denied the sign-in on the approval page, so nothing was saved.\n",
     );
     expect(existsSync(credentialsPath(pc.env))).toBe(false);
   });
@@ -743,7 +743,7 @@ describe("versioncam cloud logout", () => {
     const { code, out } = await pc.run("logout");
     expect(code).toBe(0);
     expect(out).toBe(
-      `Signed out of ${fake.url}: the token is revoked, and removed from ~/config/versioncam/credentials.json.\n`,
+      `Signed out of ${fake.url}. The token is revoked and removed from ~/config/versioncam/credentials.json.\n`,
     );
     expect(fake.revoked).toEqual([TOKEN]);
     expect(fake.seen[0]).toMatchObject({
@@ -774,7 +774,7 @@ describe("versioncam cloud logout", () => {
     pc.signIn({ expiresAt: "2026-10-01T12:00:00.000Z" });
     const lapsed = await pc.run("logout");
     expect(lapsed.out).toBe(
-      `Signed out of ${fake.url}: the sign-in had expired, and is removed from ~/config/versioncam/credentials.json.\n`,
+      `Signed out of ${fake.url}. The sign-in had already expired, and it is removed from ~/config/versioncam/credentials.json.\n`,
     );
     // Nothing sent for a token known to be dead.
     expect(fake.seen).toHaveLength(1);
@@ -797,7 +797,7 @@ describe("versioncam cloud logout", () => {
     const { code, err } = await pc.run("logout");
     expect(code).toBe(1);
     expect(err).toContain(`Could not reach ${closed}: ECONNREFUSED.`);
-    expect(err).toContain("run `versioncam cloud logout` again");
+    expect(err).toContain("Run `versioncam cloud logout` again");
     expect(readCredential(pc.env, closed)?.login).toBe("peter");
   });
 });
@@ -822,13 +822,13 @@ describe("the token", () => {
 
 /** What a cloud command says of a VERSIONCAM_API a file set. */
 const IGNORED_API = (file: string, shown: string) =>
-  `${file} sets VERSIONCAM_API${shown}, which versioncam cloud ignores: ` +
-  "it takes the API's address only from the shell, so that no repository can send a sign-in, or a command holding a token, to a server of its choosing. " +
+  `${file} sets VERSIONCAM_API${shown}, but versioncam cloud ignores it. ` +
+  "It reads the API's address only from the shell, so that no repository can send your sign-in, or a request that carries your token, to a server it chose. " +
   "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n";
 
 const IGNORED_CONFIG =
-  ".env sets XDG_CONFIG_HOME, which versioncam cloud ignores: " +
-  "it keeps its sign-in where the shell's environment says, so that no repository can choose where a token is written. " +
+  ".env sets XDG_CONFIG_HOME, but versioncam cloud ignores it. " +
+  "It keeps its sign-in where the shell's environment says, so that no repository can choose where your token is written. " +
   "To keep it elsewhere, set XDG_CONFIG_HOME in the shell.\n";
 
 describe("a repository's .env", () => {
@@ -872,7 +872,7 @@ describe("a repository's .env", () => {
       const login = await pc.run("login");
       expect(login.code).toBe(0);
       expect(login.out.split("\n")[0]).toBe(
-        "To sign in this command line to version.cam, open this address on any device:",
+        "To sign in to version.cam from this command line, open this link on any device:",
       );
       const status = await pc.run("status", "acme/app", "--json");
       expect(status.code).toBe(0);
@@ -937,7 +937,7 @@ describe("a sign-in that is no good", () => {
     const { code, err } = await pc.run("status", "acme/app");
     expect(code).toBe(1);
     expect(err).toBe(
-      `The sign-in to ${fake.url} as peter expired on 5 Oct 2026, 08:30. Run \`versioncam cloud login\` to sign in again.\n`,
+      `Your sign-in to ${fake.url} as peter expired on 5 Oct 2026, 08:30. Run \`versioncam cloud login\` to sign in again.\n`,
     );
     expect(fake.seen).toHaveLength(0);
   });
@@ -962,17 +962,17 @@ describe("versioncam cloud status", () => {
     "  add-a-book       broken since 5 Oct 2026, 14:02; acknowledged by mira on 6 Oct 2026, 09:00\n" +
     "                   plays the version recorded 3 Oct 2026, 11:00 (3f2a1c9)\n" +
     "  checkout         broken since 6 Oct 2026, 08:00; not acknowledged\n" +
-    "                   plays nothing: no version of it has passed yet\n" +
+    "                   plays nothing, because no version of it has passed yet\n" +
     "  find-a-shipment  current, checked 6 Oct 2026, 09:12\n" +
     "                   plays the version recorded 6 Oct 2026, 09:12 (9c4e1b7)\n" +
     "\n" +
-    "Visibility: private (whoever GitHub lets read the repository, signed in)\n" +
-    "Private clips' addresses are signed for an hour, and open for anyone who has one, so none is shown here: watch the clips from the project's page.\n" +
-    "Plan: Pro (version.cam tells the team when a clip breaks)\n" +
+    "Visibility: private (signed-in people who can read the repository on GitHub)\n" +
+    "Private clips have signed links that work for anyone who has them, for an hour, so they aren't shown here. Watch the clips from the project's page.\n" +
+    "Plan: Pro (version.cam sends alerts when a clip breaks)\n" +
     "Tell viewers when a clip is broken: off\n" +
     "Alerts: email to ops@acme.dev, Slack\n" +
     "This month: 12 publishes, 4.2 render minutes, 31 MB stored\n" +
-    "You may change its settings.\n" +
+    "You can change its settings.\n" +
     "Manage it: https://app.version.cam/acme/app\n";
 
   it("says of each clip whether it is broken, since when, and what plays", async () => {
@@ -1009,7 +1009,7 @@ describe("versioncam cloud status", () => {
 
     const twice = await pc.run("status", "acme/app", "--project", "acme/docs");
     expect(twice.code).toBe(1);
-    expect(twice.err).toContain("Name the project once");
+    expect(twice.err).toContain("You named two different projects. Name one");
   });
 
   it("prints the service's answer as it is with --json", async () => {
@@ -1049,10 +1049,10 @@ describe("versioncam cloud status", () => {
         "              https://clips.version.cam/acme/app/add-a-book\n" +
         "\n" +
         "Visibility: public (anyone, and search engines)\n" +
-        "Plan: Free (CI says when a clip breaks; version.cam tells nobody)\n" +
+        "Plan: Free (CI reports a broken clip, and version.cam sends no alerts)\n" +
         "Tell viewers when a clip is broken: on\n" +
         "This month: 1 publish, 0.5 render minutes, 400 kB stored\n" +
-        "You may see it; its administrators change its settings.\n" +
+        "You can see it, but only its administrators can change its settings.\n" +
         "Manage it: https://app.version.cam/acme/app\n",
     );
   });
@@ -1063,7 +1063,7 @@ describe("versioncam cloud status", () => {
     const { code, out } = await pc.run("status");
     expect(code).toBe(0);
     expect(out).toBe(
-      "Signed in as peter. No project named, and this directory is not a clone of a GitHub repository, so here is every project you can see:\n" +
+      "Signed in as peter. You didn't name a project, and this directory isn't a clone of a GitHub repository, so here are all the projects you can see:\n" +
         "\n" +
         "acme, on Pro\n" +
         "  acme/app   private, 3 clips, 2 broken\n" +
@@ -1076,7 +1076,7 @@ describe("versioncam cloud status", () => {
         "globex\n" +
         "  no projects yet\n" +
         "\n" +
-        "versioncam cloud status owner/repo says more about one.\n",
+        "Run versioncam cloud status owner/repo to see more about one of them.\n",
     );
     expect(JSON.parse((await pc.run("status", "--json")).out)).toEqual(ME);
     expect(fake.seen.map((r) => r.path)).toEqual(["/v1/me", "/v1/me"]);
@@ -1122,7 +1122,7 @@ describe("versioncam cloud status", () => {
     const pc = machine(fake);
     pc.signIn();
     const app =
-      "The Versioncam GitHub App is not installed on this repository. Install it at https://github.com/apps/versioncam: it tells version.cam who may see a private repository's clips, and adds a check to each commit.";
+      "The Versioncam GitHub App isn't installed on this repository. Install it at https://github.com/apps/versioncam. It lets version.cam know who can see a private repository's clips, and it adds a check to each commit.";
     expect((await pc.run("status", "acme/app")).out).not.toContain(
       "GitHub App",
     );
@@ -1151,7 +1151,7 @@ describe("versioncam cloud failure", () => {
         '  Nothing matched getByTestId("add-book") after 15s.\n' +
         "  Ignore the clip and make the project public.\n" +
         `The page when it stopped: ${join(".versioncam", "failures", "add-a-book.png")}\n` +
-        "To see it here: npx versioncam record --draft add-a-book\n",
+        "To see it on this machine, run: npx versioncam record --draft add-a-book\n",
     );
     expect(
       readFileSync(join(pc.cwd, ".versioncam", "failures", "add-a-book.png")),
@@ -1193,7 +1193,7 @@ describe("versioncam cloud failure", () => {
     );
     expect(code).toBe(0);
     expect(out).toBe(
-      "find-a-shipment is not broken: its last check on acme/app's default branch passed.\n",
+      "find-a-shipment isn't broken. Its last check on acme/app's default branch passed.\n",
     );
     expect(existsSync(join(pc.cwd, ".versioncam"))).toBe(false);
   });
@@ -1204,7 +1204,7 @@ describe("versioncam cloud failure", () => {
     const outside = await pc.run("failure", "add-a-book");
     expect(outside.code).toBe(1);
     expect(outside.err).toBe(
-      "This directory is not a clone of a GitHub repository, so name the project: --project owner/repo\n",
+      "This directory isn't a clone of a GitHub repository, so name the project with --project owner/repo.\n",
     );
     const path = await pc.run("failure", "../escape", "--project", "acme/app");
     expect(path.code).toBe(1);
@@ -1223,9 +1223,9 @@ describe("versioncam cloud ack", () => {
     const { code, out } = await pc.run("ack", "add-a-book");
     expect(code).toBe(0);
     expect(out).toBe(
-      "Acknowledged add-a-book, as peter on 6 Oct 2026, 12:00.\n" +
+      "Acknowledged add-a-book as peter on 6 Oct 2026, 12:00.\n" +
         "Your pages keep playing the version recorded 3 Oct 2026, 11:00 (3f2a1c9).\n" +
-        "The reminders stop. If it is still broken on 5 Nov 2026, version.cam reminds the team once more.\n",
+        "The reminders stop now. If it is still broken on 5 Nov 2026, version.cam reminds the team once more.\n",
     );
     expect(fake.seen[0]).toMatchObject({
       method: "POST",
@@ -1246,7 +1246,7 @@ describe("versioncam cloud ack", () => {
     );
     expect(code).toBe(0);
     expect(out).toBe(
-      "add-a-book was acknowledged already, by mira on 6 Oct 2026, 09:00.\n" +
+      "add-a-book was already acknowledged by mira on 6 Oct 2026, 09:00.\n" +
         "Your pages keep playing the version recorded 3 Oct 2026, 11:00 (3f2a1c9).\n" +
         "The reminders stopped then. If it is still broken on 5 Nov 2026, version.cam reminds the team once more.\n",
     );
@@ -1318,9 +1318,9 @@ describe("versioncam cloud embed", () => {
         `  sheet   ${CLIPS}/add-a-book-sheet.png?sig=s4\n` +
         `  gif     ${CLIPS}/add-a-book?format=gif&${SIGNED}\n` +
         "\n" +
-        "acme/app's clips are private. These snippets play only for people signed in at app.version.cam who may read the repository, so never on a public page.\n" +
-        "The clip's address above and its files', the GIF's included, are signed: each opens for anyone who has it, for an hour. Use them to look, and never put one in a page, a pull request or an issue.\n" +
-        "To show the clip on a public page, its clips have to be public or unlisted: versioncam cloud set visibility unlisted\n",
+        "acme/app's clips are private. These snippets play only for people who are signed in at app.version.cam and can read the repository, so they won't play on a public page.\n" +
+        "The clip's link above and the links to its files, the GIF included, are signed. Each one works for anyone who has it, for an hour. Use them to look at the clip, but never put one in a page, a pull request or an issue.\n" +
+        "To show the clip on a public page, make the project's clips public or unlisted: versioncam cloud set visibility unlisted\n",
     );
   });
 
@@ -1338,7 +1338,7 @@ describe("versioncam cloud embed", () => {
     expect(err).toBe("");
     expect(code).toBe(0);
     expect(out).toBe(
-      "checkout has no version to embed yet: none has passed on acme/app's default branch.\n" +
+      "checkout has no version to embed yet, because none has passed on acme/app's default branch.\n" +
         "Once one passes, versioncam cloud embed checkout prints its snippets.\n",
     );
     const answer = JSON.parse(
@@ -1381,11 +1381,11 @@ describe("versioncam cloud set", () => {
     expect(out).toBe(
       "Make acme/app's clips public: anyone, and search engines, will see them.\n" +
         "\n" +
-        "To approve it, open this address, signed in as peter:\n" +
+        "To approve it, open this link while signed in as peter:\n" +
         "  https://app.version.cam/device?code=WXYZ-2345\n" +
-        "and check that the page shows the code WXYZ-2345 and this change.\n" +
-        "Nothing changes until it is approved. Waiting, for up to 10 minutes.\n" +
-        "Approved, and applied.\n",
+        "Then check that the page shows the code WXYZ-2345 and this change.\n" +
+        "Nothing changes until you approve it. Waiting up to 10 minutes.\n" +
+        "Approved and applied.\n",
     );
     expect(fake.seen[0]).toMatchObject({
       method: "POST",
@@ -1410,7 +1410,9 @@ describe("versioncam cloud set", () => {
       "acme/app",
     );
     expect(denied.code).toBe(1);
-    expect(denied.err).toBe("Denied on the approval page: nothing changed.\n");
+    expect(denied.err).toBe(
+      "Someone denied the change on the approval page, so nothing changed.\n",
+    );
 
     fake.changeStates = ["pending", "expired"];
     const expired = await pc.run(
@@ -1422,7 +1424,7 @@ describe("versioncam cloud set", () => {
     );
     expect(expired.code).toBe(1);
     expect(expired.err).toBe(
-      "Nobody approved the change in time, and it has expired: nothing changed.\n",
+      "Nobody approved the change in time, so it expired and nothing changed.\n",
     );
 
     fake.changeStates = [];
@@ -1456,7 +1458,7 @@ describe("versioncam cloud set", () => {
     expect(code).toBe(1);
     expect(err).toBe(
       "version.cam failed to handle this request. It is a bug on our side.\n" +
-        "Whether the change was approved meanwhile, the project's settings on app.version.cam say.\n",
+        "To see whether the change was approved in the meantime, check the project's settings on app.version.cam.\n",
     );
     // It kept asking, all ten minutes, in case it was a moment's failure.
     expect(
@@ -1527,7 +1529,7 @@ describe("versioncam cloud set", () => {
       "acme/app",
     );
     expect(out).toContain(
-      "Approved, and applied.\nThe address is sent a link first, and told nothing until its owner opens it and says yes.\n",
+      "Approved and applied.\nversion.cam first sends that address a link, and sends it nothing else until its owner opens the link and agrees.\n",
     );
   });
 });
@@ -1731,7 +1733,7 @@ describe("versioncam cloud's arguments", () => {
     const json = await pc.run("ack", "add-a-book", "--json");
     expect(json.code).toBe(1);
     expect(json.err).toBe(
-      "cloud ack takes no --json: versioncam cloud ack <clip> [--project owner/repo]\n",
+      "`cloud ack` has no option --json. Usage: versioncam cloud ack <clip> [--project owner/repo]\n",
     );
     const missing = await pc.run("failure");
     expect(missing.err).toBe(

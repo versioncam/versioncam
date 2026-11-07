@@ -85,7 +85,7 @@ export function cloudClient(options: CloudClientOptions) {
     if (signedIn) {
       if (!options.token) {
         throw new CloudError(
-          "Not signed in: run `versioncam cloud login` first.",
+          "Not signed in. Run `versioncam cloud login` first.",
           401,
           "unauthorized",
         );
@@ -115,7 +115,7 @@ export function cloudClient(options: CloudClientOptions) {
     const text = await response.text();
     if (response.status >= 300 && response.status < 400) {
       throw new CloudError(
-        `${base} answered ${method} ${path} with a redirect, which the API never does. Is VERSIONCAM_API the API's own address?`,
+        `${base} answered ${method} ${path} with a redirect, but the API never redirects. Check that VERSIONCAM_API is the API's own address.`,
         response.status,
         "http",
       );

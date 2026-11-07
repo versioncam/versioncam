@@ -496,10 +496,10 @@ of the failure would help nobody.
 ```
 versioncam record [id…]            drive the app and capture frames
     --draft                        15fps at CSS scale: cheap, for writing clips
-    --replay <mode>                auto, record, replay or live, over the config's replay
+    --replay <mode>                auto, record, replay or live, instead of the config's replay
 versioncam check [id…]             record every clip; exit 1 if any breaks
     --report <file>                and write each clip's result there, as JSON
-versioncam stability [id…]         record each clip twice the same way; stable or not
+versioncam stability [id…]         record each clip twice the same way, and say if they match
     --runs <n>                     how many times (default 2)
     --full                         at full quality rather than draft
     --replay <mode>                as for record
@@ -515,8 +515,8 @@ versioncam sheet <id>              an eight-frame contact sheet
 versioncam frame <id> <n>          one frame at output size, to a png
     --t <seconds>                  pick the frame by time instead
     --at <label>                   or by the beat it shows
-versioncam review <id>             the checks that need no eyes; PASS/FAIL, exit 0/1
-    --beats <file>                 [{ label, expect }] the clip promised
+versioncam review <id>             the checks that need nobody to look; PASS/FAIL, exit 0/1
+    --beats <file>                 the beats the clip should show, as [{ label, expect }]
     --min <s> --max <s>            duration bounds (default 9 and 11)
 versioncam preview <id>            open the scrubber in a real browser
     --scene <id>                   preview a scene instead
@@ -575,7 +575,7 @@ Outside GitHub Actions it reads the commit and branch from git.
 ```
 versioncam publish [id…]           send the recordings and their checks to version.cam
     --dry-run                      print what would be sent, and send nothing
-    --report <file>                and write the living URLs there, as JSON
+    --report <file>                and write the clips' permanent links there, as JSON
 versioncam ci                      write the GitHub Actions workflow that checks and publishes the clips
     --print                        print it instead, and write nothing
     --force                        replace the workflow file if there is one
@@ -596,7 +596,7 @@ versioncam cloud login             sign in to version.cam, with a code you appro
 versioncam cloud logout            sign out: revoke the token, and delete it
 versioncam cloud status [project]  each clip, current or broken, and what plays meanwhile
 versioncam cloud failure <clip>    why a clip broke, and its picture, into .versioncam/failures/
-versioncam cloud ack <clip>        "I know, keep the old one": the reminders stop
+versioncam cloud ack <clip>        acknowledge a broken clip, which stops the reminders
 versioncam cloud embed <clip>      the snippets that embed a clip, and its files
 versioncam cloud set <name> <val>  change a setting, once you approve it in a browser:
                                    visibility public|unlisted|private, retention <days>|off,

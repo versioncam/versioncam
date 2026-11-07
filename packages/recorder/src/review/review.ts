@@ -74,7 +74,7 @@ function checkSettles(settles: SettleReport[]): ReviewItem {
     return {
       check: "settles",
       pass: true,
-      detail: "no settles recorded; nothing to check",
+      detail: "no settles were recorded, so there is nothing to check",
     };
   }
   const late = settles.filter((s) => s.timedOut);
@@ -121,7 +121,7 @@ function checkProgress(timeline: Timeline): ReviewItem {
     return {
       check: "progress",
       pass: true,
-      detail: `${marks.length} beat(s): nothing to compare`,
+      detail: `only ${marks.length} beat(s), so there is nothing to compare`,
     };
   }
 
@@ -194,9 +194,9 @@ function checkRendered(timeline: Timeline): ReviewItem {
     pass: false,
     warning: true,
     detail:
-      `${unseen.join(", ")}: the clip ends at frame ${lastFrame} ` +
-      `(${seconds(timeline.durationFrames / timeline.fps)}), so nothing renders them. ` +
-      "A track write costs no time; give it a `hold` to be seen in.",
+      `${unseen.join(", ")} ${unseen.length === 1 ? "comes" : "come"} after the clip ends at frame ${lastFrame} ` +
+      `(${seconds(timeline.durationFrames / timeline.fps)}), so no frame shows ${unseen.length === 1 ? "it" : "them"}. ` +
+      "Writing to a track takes no clip time: add a `hold` after it so it has time on screen.",
   };
 }
 

@@ -87,7 +87,7 @@ export async function publish(argv: string[]): Promise<number> {
 
   if (unrecorded.length > 0) {
     process.stderr.write(
-      `Not recorded here, so not published: ${unrecorded.join(", ")}. ` +
+      `These clips have no recording here, so they were not published: ${unrecorded.join(", ")}. ` +
         "Run `versioncam check` or `versioncam record` first.\n",
     );
   }
@@ -114,9 +114,9 @@ export async function publish(argv: string[]): Promise<number> {
     process.env.VERSIONCAM_OIDC_TOKEN || process.env.VERSIONCAM_TOKEN;
   if (!credential) {
     process.stderr.write(
-      "publish needs a credential in the environment: VERSIONCAM_OIDC_TOKEN, " +
-        "which the versioncam Action requests from GitHub, or VERSIONCAM_TOKEN, " +
-        "a project token from version.cam, for a repository outside GitHub.\n",
+      "publish needs a credential in the environment, and there is none. " +
+        "In GitHub Actions, the versioncam Action requests VERSIONCAM_OIDC_TOKEN from GitHub. " +
+        "For a repository outside GitHub, set VERSIONCAM_TOKEN to a project token from version.cam.\n",
     );
     return 1;
   }
@@ -206,7 +206,7 @@ function provenance(
   const ref = env.GITHUB_REF || (branch ? `refs/heads/${branch}` : "");
   if (!commit || !branch) {
     throw new Error(
-      "publish could not tell which commit and branch these recordings are of. " +
+      "publish couldn't find which commit and branch these recordings come from. " +
         "Run it in a git checkout, or set VERSIONCAM_COMMIT and VERSIONCAM_BRANCH.",
     );
   }
@@ -219,17 +219,21 @@ function filesFor(files: Map<string, RecordingFiles>): PublishFiles {
       const path = recording.states.get(hash);
       if (path) return path;
     }
-    throw new Error(`the service asked for a state no recording has: ${hash}`);
+    throw new Error(
+      `version.cam asked for a state that no recording has: ${hash}`,
+    );
   };
   const of = (clip: string) => {
     const recording = files.get(clip);
     if (!recording)
-      throw new Error(`the service asked about an unknown clip: ${clip}`);
+      throw new Error(
+        `version.cam asked about a clip this publish doesn't include: ${clip}`,
+      );
     return recording;
   };
   const required = (bytes: Uint8Array | null, what: string) => {
     if (!bytes)
-      throw new Error(`the service asked for ${what}, which is not there`);
+      throw new Error(`version.cam asked for ${what}, which isn't there`);
     return bytes;
   };
   return {

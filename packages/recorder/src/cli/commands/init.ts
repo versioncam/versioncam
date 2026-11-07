@@ -82,7 +82,7 @@ export async function init(argv: string[]): Promise<number> {
 
   if (values.claude === true) {
     process.stderr.write(
-      "`--claude` is gone: `versioncam init` installs into .claude/ by default, and `--into <dir>` puts the skill somewhere else.\n",
+      "`--claude` no longer exists. `versioncam init` installs into .claude/ by default, and `--into <dir>` puts the skill somewhere else.\n",
     );
     return 1;
   }
@@ -115,9 +115,9 @@ export async function init(argv: string[]): Promise<number> {
   const existing = copies.filter((c) => existsSync(c.to));
   if (existing.length > 0 && values.force !== true) {
     process.stderr.write(
-      `Already there:\n` +
+      `These files already exist:\n` +
         existing.map((c) => `  ${relative(cwd, c.to)}\n`).join("") +
-        "Nothing was copied. Pass --force to overwrite.\n",
+        "Nothing was copied. Pass --force to overwrite them.\n",
     );
     return 1;
   }
@@ -130,7 +130,7 @@ export async function init(argv: string[]): Promise<number> {
 
   if (into) {
     process.stdout.write(
-      `\nThe reviewer is ${relative(cwd, reviewerTarget)}. A host that can register agents should register it as versioncam-reviewer; one that cannot, the skill reads it from there.\n`,
+      `\nThe reviewer agent is ${relative(cwd, reviewerTarget)}. If your host can register agents, register it as versioncam-reviewer. If it can't, the skill reads it from there.\n`,
     );
   }
 
@@ -138,7 +138,7 @@ export async function init(argv: string[]): Promise<number> {
   const old = OLD_INSTALL.filter((path) => existsSync(join(cwd, path)));
   if (old.length > 0) {
     process.stdout.write(
-      `\nAn older install is still here, and this one replaces it. Remove it:\n` +
+      `\nAn older install is still here, and this one replaces it. Remove the old files:\n` +
         old.map((path) => `  ${path}\n`).join(""),
     );
   }
@@ -160,7 +160,7 @@ export async function init(argv: string[]): Promise<number> {
 
   process.stdout.write(
     `\nInstalled. Ask your agent: /versioncam "<what the clip should show>"\n` +
-      "The first run sets this repository up. Documentation: https://version.cam\n",
+      "The first run sets up this repository. Documentation: https://version.cam\n",
   );
   return 0;
 }

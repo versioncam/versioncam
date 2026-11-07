@@ -125,14 +125,14 @@ export async function render(argv: string[]): Promise<number> {
       process.stderr.write(`No recording or scene has "${id}" in its id.\n`);
     }
     process.stderr.write(
-      `Recorded, in ${config.recordingsDir}: ` +
+      `Recordings in ${config.recordingsDir}: ` +
         (recorded.length > 0
           ? `${recorded.join(", ")}.\n`
           : "nothing yet. Run `versioncam record` first.\n"),
     );
     if (config.scenes) {
       process.stderr.write(
-        `Scenes, in ${config.scenes}: ${defined.join(", ") || "none"}.\n`,
+        `Scenes in ${config.scenes}: ${defined.join(", ") || "none"}.\n`,
       );
     }
     return 1;
@@ -140,7 +140,7 @@ export async function render(argv: string[]): Promise<number> {
 
   if (recordings.length === 0 && scenes.length === 0) {
     process.stderr.write(
-      `Nothing to render. Run \`versioncam record\` first; recordings live in ${config.recordingsDir}.\n`,
+      `Nothing to render: there are no recordings in ${config.recordingsDir}. Run \`versioncam record\` first.\n`,
     );
     return 1;
   }

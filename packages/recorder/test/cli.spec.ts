@@ -400,7 +400,7 @@ test.describe("the versioncam CLI", () => {
       `✗ scenes    ${file} has no default export. It exports SCENES.\n`,
     );
     expect(stdout).toContain(
-      "            SCENES is one: add `export default SCENES`.\n",
+      "            SCENES looks like that record. Add `export default SCENES`.\n",
     );
   });
 
@@ -418,7 +418,7 @@ test.describe("the versioncam CLI", () => {
     const { dir, port } = await startableDir();
     const { status, stdout } = await runAsync(["doctor"], dir);
     expect(stdout).toMatch(
-      /✓ app +started with ".*", HTTP 200 after .* \(stopped again\)/,
+      /✓ app +started with ".*", answered HTTP 200 after .*, and stopped again/,
     );
     expect(status).toBe(0);
     expect(await listening(port)).toBe(false);
@@ -520,7 +520,9 @@ test.describe("the versioncam CLI", () => {
     expect(passed.recording?.states.length).toBeGreaterThan(0);
     expect(passed.recording?.renderConfig).not.toHaveProperty("scenes");
 
-    expect(stderr).toContain("Not recorded here, so not published: unrecorded");
+    expect(stderr).toContain(
+      "These clips have no recording here, so they were not published: unrecorded",
+    );
     expect(stdout).not.toContain("deleted");
   });
 
@@ -537,7 +539,7 @@ test.describe("the versioncam CLI", () => {
     expect(stderr).toContain("VERSIONCAM_OIDC_TOKEN");
     expect(stderr).toContain("VERSIONCAM_TOKEN");
     // A project token speaks only for a project with no GitHub repository.
-    expect(stderr).toContain("for a repository outside GitHub");
+    expect(stderr).toContain("For a repository outside GitHub");
   });
 
   test("cloud needs no config, and asks for a sign-in before it sends anything", () => {
@@ -571,8 +573,8 @@ test.describe("the versioncam CLI", () => {
     const status = run(["cloud", "status", "acme/app"], dir, shell);
     expect(status.status).toBe(1);
     expect(status.stderr).toBe(
-      ".env sets VERSIONCAM_API to http://127.0.0.1:9, which versioncam cloud ignores: " +
-        "it takes the API's address only from the shell, so that no repository can send a sign-in, or a command holding a token, to a server of its choosing. " +
+      ".env sets VERSIONCAM_API to http://127.0.0.1:9, but versioncam cloud ignores it. " +
+        "It reads the API's address only from the shell, so that no repository can send your sign-in, or a request that carries your token, to a server it chose. " +
         "To use another address, set it in the shell: export VERSIONCAM_API=<address>\n" +
         "Not signed in to https://api.version.cam. Run `versioncam cloud login` first.\n",
     );
@@ -743,7 +745,9 @@ test.describe("the versioncam CLI", () => {
     expect(stderr).toContain(
       `${file} has no default export. It exports SCENES.\n`,
     );
-    expect(stderr).toContain("SCENES is one: add `export default SCENES`.");
+    expect(stderr).toContain(
+      "SCENES looks like that record. Add `export default SCENES`.",
+    );
     // Before anything rendered, not after the minutes that would take.
     expect(stdout).toBe("");
     expect(status).toBe(1);
@@ -899,8 +903,8 @@ test.describe("the versioncam CLI", () => {
     const typo = run(["render", "02-a", "07-b"], dir);
     expect(typo.stderr).toBe(
       'No recording or scene has "07-b" in its id.\n' +
-        `Recorded, in ${recordings}: 02-a.\n` +
-        `Scenes, in ${scenes}: 01-x.\n`,
+        `Recordings in ${recordings}: 02-a.\n` +
+        `Scenes in ${scenes}: 01-x.\n`,
     );
     expect(typo.stdout).toBe("");
     expect(typo.status).toBe(1);
@@ -941,7 +945,7 @@ test.describe("the versioncam CLI", () => {
       );
       expect(status).toBe(1);
       expect(stderr).toContain("no-such-control");
-      expect(stderr).toContain("the page when it gave up");
+      expect(stderr).toContain("the page when the clip failed");
       expect(stderr).toContain("failure.png");
       expect(
         existsSync(
@@ -1162,7 +1166,7 @@ test.describe("the versioncam CLI", () => {
 
     const missing = run(["doctor", "--cwd", "no-such-app"], elsewhere);
     expect(missing.status).toBe(1);
-    expect(missing.stderr).toContain("there is no directory");
+    expect(missing.stderr).toContain("names a directory that doesn't exist");
     expect(missing.stderr).toContain("no-such-app");
 
     const left = run(["doctor", "--cwd"], elsewhere);
@@ -1214,7 +1218,7 @@ test.describe("the versioncam CLI", () => {
     expect(first.stdout).toContain(
       'Installed. Ask your agent: /versioncam "<what the clip should show>"',
     );
-    expect(first.stdout).toContain("The first run sets this repository up.");
+    expect(first.stdout).toContain("The first run sets up this repository.");
     // Not in a repository, so not below one's root either.
     expect(first.stdout).not.toContain("Claude Code loads the skill");
     // No config stub: the first run writes the real one.
@@ -1299,7 +1303,7 @@ test.describe("the versioncam CLI", () => {
     const dir = mkdtempSync(join(tmpdir(), "versioncam-init-"));
     const { status, stderr } = run(["init", "--claude"], dir);
     expect(status).toBe(1);
-    expect(stderr).toContain("`--claude` is gone");
+    expect(stderr).toContain("`--claude` no longer exists");
     expect(stderr).toContain("--into");
     expect(existsSync(join(dir, ".claude"))).toBe(false);
   });

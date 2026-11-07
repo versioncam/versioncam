@@ -19,7 +19,7 @@ export function drivingApp<T>(
   return withApp(config, async (app) => {
     if (app.started) {
       process.stderr.write(
-        `app: ${app.detail}; it stops when this command does\n`,
+        `app: ${app.detail}. It will be stopped when this command finishes.\n`,
       );
     }
     return fn();

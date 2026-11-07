@@ -74,8 +74,8 @@ const CONFIG_NAMES = [
  * first; by hand is the way for anyone not using the skill.
  */
 export const NO_CONFIG =
-  "`npx versioncam init`, then `/versioncam`: its first run writes one from the repository.\n" +
-  "Or by hand: a default export from defineRecorder(), as in the README's Configure section.";
+  "Run `npx versioncam init`, then `/versioncam` in your agent. Its first run writes one from the repository.\n" +
+  "Or write one by hand: a default export from defineRecorder(), as in the README's Configure section.";
 
 export function findConfigFile(cwd: string): string | null {
   for (const name of CONFIG_NAMES) {
@@ -181,7 +181,7 @@ function scenesFile(config: ResolvedConfig): string | null {
   if (!config.scenes) return null;
   if (!existsSync(config.scenes)) {
     throw new Error(
-      `versioncam config: \`scenes\` points at a missing file: ${config.scenes}`,
+      `versioncam config: \`scenes\` points at a file that doesn't exist: ${config.scenes}`,
     );
   }
   return config.scenes;

@@ -113,7 +113,9 @@ describe("ensureApp", () => {
     const app = await ensureApp(configFor(port, { command: nodeServer(port) }));
 
     expect(app.started).toBe(true);
-    expect(app.detail).toMatch(/^started with ".*", HTTP 200 after \d+\.\d s$/);
+    expect(app.detail).toMatch(
+      /^started with ".*", answered HTTP 200 after \d+\.\d s$/,
+    );
     expect(await refuses(port)).toBe(false);
     // While it runs, Ctrl-C has somewhere to go.
     expect(process.listenerCount("SIGINT")).toBe(before + 1);

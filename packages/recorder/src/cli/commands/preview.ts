@@ -38,7 +38,9 @@ export async function preview(argv: string[]): Promise<number> {
 
   const dir = join(config.recordingsDir, id);
   if (!sceneId && !existsSync(join(dir, "timeline.json"))) {
-    process.stderr.write(`No recording for "${id}".\n`);
+    process.stderr.write(
+      `No recording for "${id}". Run \`versioncam record ${id}\` first.\n`,
+    );
     return 1;
   }
   // Said here rather than in a window that opens only to show an error.
@@ -79,7 +81,9 @@ export async function preview(argv: string[]): Promise<number> {
   const frame = values.frame ? `&frame=${values.frame}` : "";
   await page.goto(`${RENDER_ORIGIN}/?${query}${frame}`);
 
-  process.stdout.write("Scrubber open. Close the window to finish.\n");
+  process.stdout.write(
+    "The scrubber is open. Close the window when you are done.\n",
+  );
   await page.waitForEvent("close", { timeout: 0 });
   await browser.close();
   return 0;

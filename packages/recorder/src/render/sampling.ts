@@ -170,7 +170,7 @@ export function frameAtMark(
   if (marks.length === 0) {
     return {
       error:
-        "This recording has no beats to go by: it has no labelled settle(), or it " +
+        "This recording has no beats, because it has no labelled settle() or it " +
         "was made before marks existed. Ask for a frame number or --t instead.",
     };
   }
@@ -182,7 +182,7 @@ export function frameAtMark(
   const candidates = labels.filter((l) => l.toLowerCase().startsWith(prefix));
   if (!exact && candidates.length > 1) {
     return {
-      error: `${JSON.stringify(wanted)} starts more than one beat:\n${candidates
+      error: `${JSON.stringify(wanted)} matches the start of more than one beat:\n${candidates
         .map((l) => `  ${JSON.stringify(l)}`)
         .join("\n")}`,
     };
@@ -192,7 +192,7 @@ export function frameAtMark(
     marks.find((m) => candidates.length === 1 && m.label === candidates[0]);
   if (!mark) {
     return {
-      error: `No beat is labelled ${JSON.stringify(wanted)}. The beats:\n${list}`,
+      error: `No beat is labelled ${JSON.stringify(wanted)}. These are the beats:\n${list}`,
     };
   }
   return {

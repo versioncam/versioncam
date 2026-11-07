@@ -63,7 +63,7 @@ export function replayModeOf(
   if (value === undefined) return undefined;
   if (isReplayMode(value)) return value;
   return new Error(
-    `--replay is auto, record, replay or live, got ${JSON.stringify(value)}.`,
+    `--replay must be auto, record, replay or live, not ${JSON.stringify(value)}.`,
   );
 }
 
@@ -120,7 +120,7 @@ async function recordAll(
       const shot = join(config.recordingsDir, id, "failure.png");
       const tools = join(config.recordingsDir, id, FAILURE_TOOLS_PNG);
       const picture =
-        (existsSync(shot) ? `\n  the page when it gave up: ${shot}` : "") +
+        (existsSync(shot) ? `\n  the page when the clip failed: ${shot}` : "") +
         (existsSync(tools)
           ? `\n  a moment later, with the dev server's own tools showing: ${tools}`
           : "");

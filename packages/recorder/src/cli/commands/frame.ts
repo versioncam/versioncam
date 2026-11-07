@@ -62,7 +62,7 @@ export async function frame(argv: string[]): Promise<number> {
         : Number(nth);
   }
   if (!Number.isFinite(wanted)) {
-    process.stderr.write(`Not a frame: ${byTime ?? nth}\n`);
+    process.stderr.write(`"${byTime ?? nth}" is not a frame number.\n`);
     return 1;
   }
 

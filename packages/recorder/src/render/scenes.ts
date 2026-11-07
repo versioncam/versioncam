@@ -99,7 +99,9 @@ export function readScenes(
         Object.keys(module[name] as object).length > 0,
     );
     if (records.length === 1) {
-      lines.push(`${records[0]} is one: add \`export default ${records[0]}\`.`);
+      lines.push(
+        `${records[0]} looks like that record. Add \`export default ${records[0]}\`.`,
+      );
     }
     return { error: lines.join("\n") };
   }
@@ -119,6 +121,6 @@ export function missingScenes(
 ): string {
   const names = asked.map((id) => `"${id}"`).join(", ");
   const head = `No scene${asked.length === 1 ? "" : "s"} called ${names}.`;
-  if (file === null) return `${head} The config names no \`scenes\` module.`;
+  if (file === null) return `${head} The config has no \`scenes\` module.`;
   return `${head} ${file} defines ${defined.length > 0 ? defined.join(", ") : "none"}.`;
 }

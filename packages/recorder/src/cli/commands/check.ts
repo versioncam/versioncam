@@ -98,8 +98,8 @@ function staleReplays(
     const found = describeReplay(config.replay.dir, clip.id);
     if (!found.exists || !(found.ageDays > STALE_DAYS)) continue;
     lines.push(
-      `warn  ${clip.id}: its replay was recorded ${found.ageDays} days ago. ` +
-        "The clip shows the server's answers of that day; if they have changed, " +
+      `warn  ${clip.id}: its replay was recorded ${found.ageDays} days ago, ` +
+        "so the clip shows the server's answers from that day. If they have changed, " +
         `record it again with \`versioncam record ${clip.id} --replay record\`.\n`,
     );
   }
