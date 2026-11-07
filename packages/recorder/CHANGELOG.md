@@ -52,7 +52,7 @@ on the frame it should.
   the README says how to turn it off.
 - What the page throws is said: printed by `record` and `check` for a clip that goes
   on, and beside the failure of one that does not. Next's error dialog goes with its
-  badge, so this is how an error is told now. A failed clip on such a page leaves
+  badge, so this is how an error shows now. A failed clip on such a page leaves
   `failure-tools.png` beside `failure.png`, with the tools showing, and a Next build
   error is there.
 - `inspect` and `measure` take `--viewport <w>x<h>`, to look at the page at a

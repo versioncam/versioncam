@@ -98,6 +98,7 @@ const COPY = [
   "plugin/skills/versioncam/onboarding.md",
   "plugin/agents/versioncam-reviewer.md",
   "src/cli/commands/cloud.ts",
+  "src/cli/commands/ci.ts",
   ...readdirSync(join(PACKAGE, "src", "cloud"))
     .filter((file) => !file.endsWith(".test.ts"))
     .map((file) => `src/cloud/${file}`),
@@ -161,6 +162,53 @@ describe("what the commands print", () => {
           }
         });
     }
+    expect(found).toEqual([]);
+  });
+});
+
+/**
+ * The sentences Peter read on 2026-11-07 and asked us to stop writing:
+ * "Nothing is sold. Team is told. Can we speak more normally?" The rule
+ * is docs/voice.md at the repository's root, and a reader is the guard;
+ * this only stops these exact phrases coming back. Each hides who does
+ * what behind a passive, or, for "the door", names sign in by a metaphor.
+ */
+const TRIPWIRE = /\b(is told|is sold|is asked for|nothing is sold|the door)\b/i;
+
+/** The lines of `files` a reader sees: every line of a page, and the code lines of a source. */
+function readLines(files: string[]): { at: string; line: string }[] {
+  return files.flatMap((file) =>
+    readFileSync(join(PACKAGE, file), "utf8")
+      .split("\n")
+      .map((line, i) => ({ at: `${file}:${i + 1}`, line }))
+      .filter(
+        ({ line }) => !file.endsWith(".ts") || !/^\s*(\/\/|\*|\/\*)/.test(line),
+      )
+      .map(({ at, line }) => ({
+        at,
+        line: file.endsWith(".ts") ? line.split(" // ")[0] : line,
+      })),
+  );
+}
+
+describe("the words a reader sees", () => {
+  it("never say the phrases docs/voice.md was written to stop", () => {
+    const sources = (dir: string): string[] =>
+      readdirSync(join(PACKAGE, dir), { recursive: true, withFileTypes: true })
+        .filter(
+          (e) =>
+            e.isFile() &&
+            e.name.endsWith(".ts") &&
+            !e.name.endsWith(".test.ts"),
+        )
+        .map((e) => relative(PACKAGE, join(e.parentPath, e.name)));
+    const found = readLines([
+      ...PAGES,
+      ...COPY.filter((file) => file.endsWith(".md")),
+      ...sources("src"),
+    ])
+      .filter(({ line }) => TRIPWIRE.test(line))
+      .map(({ at }) => at);
     expect(found).toEqual([]);
   });
 });
