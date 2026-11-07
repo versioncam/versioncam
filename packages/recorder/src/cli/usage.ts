@@ -18,7 +18,7 @@ export const USAGE = `versioncam: record and render demo clips of a real app
 Set up
   versioncam install                 the headless Chromium this version of versioncam records with
       --with-deps                    and its system libraries (Linux CI)
-      --full                         also the full Chromium, which login and preview need for their window
+      --full                         also the full Chromium, which login and preview need to open a window
   versioncam init                    install the authoring skill into .claude/
       --into <dir>                   into <dir>/versioncam/ instead, for an agent that reads skills from elsewhere
       --force                        overwrite files that are already there
@@ -35,7 +35,7 @@ Write
 
 Record
   versioncam record [id…]            drive the app and capture frames
-      --draft                        a quick recording at 15fps and CSS scale, for writing clips
+      --draft                        a quick recording at 15fps in CSS pixels, for writing clips
       --replay <mode>                how to use recorded network answers, overriding the config: auto, record, replay or live
   versioncam check [id…]             record every clip; exit 1 if any breaks
       --report <file>                and write each clip's result there, as JSON
@@ -60,7 +60,7 @@ Review
 Output
   versioncam render [id…]            composite and encode recordings and scenes
                                      with no ids, it renders all of them, stale recordings too
-      --scene <id>                   also render this scene, even if no id names it (repeatable)
+      --scene <id>                   also render this scene, even when the ids leave it out (repeatable)
       --sequence                     stitch the results into one piece
       --report <file>                and write what it made there, as JSON
 
@@ -92,7 +92,7 @@ From another directory
   versioncam <command> --cwd <dir>   as if run in <dir>, which holds versioncam.config.ts
   versioncam --version               which versioncam this is
 
-Run from a directory containing versioncam.config.ts, or name it with --cwd.
+Run it in the directory that holds versioncam.config.ts, or name that directory with --cwd.
 `;
 
 /**

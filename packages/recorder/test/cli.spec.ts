@@ -1219,7 +1219,7 @@ test.describe("the versioncam CLI", () => {
       'The skill is installed. To make a clip, ask your agent: /versioncam "<what the clip should show>"',
     );
     expect(first.stdout).toContain(
-      "The first run writes versioncam.config.ts, then checks that the app starts and records the same way twice.",
+      "The first run writes versioncam.config.ts, then checks that the app starts and that versioncam records it the same way twice.",
     );
     // Not in a repository, so not below one's root either.
     expect(first.stdout).not.toContain("Claude Code loads the skill");

@@ -93,7 +93,11 @@ function checkSettles(settles: SettleReport[]): ReviewItem {
 function checkBeats(timeline: Timeline, beats: Beat[]): ReviewItem {
   const labels = new Set(timeline.marks.map((m) => m.label));
   if (beats.length === 0) {
-    return { check: "beats", pass: true, detail: "no beat sheet given" };
+    return {
+      check: "beats",
+      pass: true,
+      detail: "not checked, because no beat sheet was given (--beats)",
+    };
   }
   const missing = beats.filter((beat) => !labels.has(beat.label));
   return {
@@ -198,7 +202,7 @@ function checkRendered(timeline: Timeline): ReviewItem {
     detail:
       `${unseen.join(", ")} ${unseen.length === 1 ? "comes" : "come"} after the clip ends at frame ${lastFrame} ` +
       `(${seconds(timeline.durationFrames / timeline.fps)}), so no frame shows ${unseen.length === 1 ? "it" : "them"}. ` +
-      "Camera moves, highlights and captions take no clip time, so add a `hold` after the last one to give it time on screen.",
+      "Camera moves, highlights and captions take no clip time, so add a `hold` after the last of them to give it time on screen.",
   };
 }
 

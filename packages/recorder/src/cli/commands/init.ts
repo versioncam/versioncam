@@ -160,7 +160,7 @@ export async function init(argv: string[]): Promise<number> {
 
   process.stdout.write(
     `\nThe skill is installed. To make a clip, ask your agent: /versioncam "<what the clip should show>"\n` +
-      "The first run writes versioncam.config.ts, then checks that the app starts and records the same way twice. Documentation: https://version.cam\n",
+      "The first run writes versioncam.config.ts, then checks that the app starts and that versioncam records it the same way twice. Documentation: https://version.cam\n",
   );
   return 0;
 }
