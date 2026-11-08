@@ -164,11 +164,19 @@ jobs:
       - name: The launcher
         working-directory: examples/demo-app
         run: npx versioncam --version
+      # ffmpeg-static's install script downloads its binary, and on this runner
+      # that download has been failing silently (twice in a row on 2026-11-08),
+      # so `doctor` found no ffmpeg and the job failed on a download, not on the
+      # recorder. Chocolatey's ffmpeg makes the runner independent of it. A
+      # stranger's own machine still gets ffmpeg-static, or `winget install
+      # ffmpeg` from doctor's hint, which the desktop run on 2026-11-07 proved.
+      - name: ffmpeg from Chocolatey
+        run: choco install ffmpeg -y --no-progress
       - name: versioncam install
         working-directory: examples/demo-app
         run: npx versioncam install
-      # No ffmpeg on this runner but ffmpeg-static, and no ffprobe at all: what a
-      # stock machine has, and `doctor` has to pass on it, or the skill stops.
+      # ffmpeg comes from Chocolatey above, and there is no ffprobe at all:
+      # `doctor` has to pass without ffprobe, or the skill stops.
       - name: versioncam doctor
         working-directory: examples/demo-app
         run: npx versioncam doctor
