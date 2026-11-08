@@ -6,6 +6,32 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## 0.7.6 (2026-11-08)
+
+This patch changes only documentation. The READMEs and the authoring skill now
+state version.cam's plans as the service counts them. Nothing changes in the
+config, the clip DSL or any code.
+
+### Changed
+
+- The README's *Plans* section gives every limit of each plan. Free is for public
+  repositories only, with three projects, ten clips and five branches a project,
+  thirty days of history and clips up to sixty seconds; the account's projects
+  share 1 GB, thirty minutes of rendering and sixty renders on request a month; Free
+  has no alerts. Pro costs $35 per private project a month or $350 a year, and adds
+  private repositories, unlimited history, a hundred clips a project, clips up to
+  five minutes, 20 GB, ten hours of rendering and 600 renders on request a month for
+  each project, and alerts by email, Slack or GitHub issue. Max costs $145 a month or
+  $1,450 a year for up to ten private projects. An account made during the beta
+  pays 20% less for twelve months with the code FOUNDING.
+- A private repository needs Pro or Max, not only Pro, and the root README prices
+  Pro per private project and names Max.
+- The skill no longer says version.cam alerts the team on every plan. It says that
+  alerts need Pro or Max, that Free keeps thirty days whatever `retention` says, and
+  that acknowledging a broken clip stops reminders only on Pro and Max. Before it
+  tells someone that Pro is on, it offers `npx versioncam ci` when the repository
+  has no workflow that publishes the clips.
+
 ## 0.7.5 (2026-11-08)
 
 This patch adds the steps from a first clip to a permanent link. On 2026-11-07 the
