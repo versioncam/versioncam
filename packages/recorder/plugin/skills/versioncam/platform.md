@@ -1,8 +1,9 @@
 # version.cam, from here
 
 version.cam hosts the clips this repository publishes at permanent links that
-stay up to date, alerts the team when one breaks, and holds each project's
-settings. From this session, `npx versioncam cloud` reaches all of it. This brief says
+stay up to date, and holds each project's settings. On Pro and Max it also
+alerts the team when a clip breaks. Free is for public repositories only and
+has no alerts. From this session, `npx versioncam cloud` reaches all of it. This brief says
 which command answers what, how to fix a broken clip, and what you may and
 may not do for the user.
 
@@ -88,15 +89,20 @@ user so in its words, and stop.
 
 When `cloud plan` says the account is on Pro free during the private beta,
 and `cloud status` says the Versioncam GitHub App is not installed on the
-repository, say: "Pro is on for <account>. For a private repository,
-install the Versioncam GitHub App on it at
-https://github.com/apps/versioncam; the next push to main then publishes
+repository, first check for a workflow. If no file in `.github/workflows/` at
+the repository's root uses `versioncam/action`, nothing will publish the clips
+yet. Offer to run `npx versioncam ci`, as step 3 of *Where it can live* in
+`SKILL.md` says, and run it on the user's yes. Then say: "Pro is on for
+<account>. For a private repository, install the Versioncam GitHub App on it
+at https://github.com/apps/versioncam; the next push to main then publishes
 the clips, and only people who can read the repository will see them." When
 `cloud status` says nothing about the App, say nothing about it either.
 
 If a clip is broken, offer what comes next and wait for an answer:
-`/versioncam fix <clip>`, or acknowledging it with `cloud ack <clip>` ("I
-know, keep the old one"), which stops the reminders we send the team.
+`/versioncam fix <clip>`, or, on Pro and Max, acknowledging it with
+`cloud ack <clip>` ("I know, keep the old one"), which stops the reminders we
+send the team. On Free we send no reminders, so there is nothing to
+acknowledge.
 
 ## `/versioncam fix [clip]`
 
@@ -147,7 +153,7 @@ exists, and it ends in a pull request.
 
 If the fix will take a while and the user would rather the old version kept
 playing quietly meanwhile, `npx versioncam cloud ack <clip>` stops the
-reminders. Run it only when they ask.
+reminders on Pro and Max. Run it only when they ask.
 
 ## `/versioncam embed <clip>`
 
@@ -183,6 +189,11 @@ command per change, and each needs its own approval:
 | broken clips emailed to an address | `npx versioncam cloud set alerts email <address>` (or `off`) |
 | broken clips posted to Slack | `npx versioncam cloud set alerts slack <webhook>` (or `off`) |
 | a GitHub issue for each broken clip | `npx versioncam cloud set alerts issues on` (or `off`) |
+
+Two of these depend on the plan, so tell the user before they approve. Alerts
+need Pro or Max: on Free, version.cam keeps the setting but sends nothing.
+Retention can only shorten what the plan keeps: Free keeps thirty days, so
+`retention 90` on Free still keeps thirty.
 
 The command prints the change in a sentence, an address and a code, then waits (see
 *Commands that wait*). Show the user all three as printed. They open the

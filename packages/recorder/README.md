@@ -687,7 +687,8 @@ desktop layout, squeezed into the phone's width.
    version.cam yet, and what to do.
 
 A private repository needs the
-[Versioncam GitHub App](https://github.com/apps/versioncam), and the Pro plan.
+[Versioncam GitHub App](https://github.com/apps/versioncam), and Pro or Max,
+since Free is for public repositories only.
 Install the App on the repositories you choose. It is how version.cam knows
 who may see a repository's clips. Whoever can read a repository on GitHub sees
 its project, and whoever administers it changes the project's settings.
@@ -699,16 +700,28 @@ that failed.
 ### Plans
 
 Priced per project, not per seat. The prices are marked "planned" because we
-will confirm them after the first invoices. Free is for public repositories:
-three projects, ten clips a project, thirty days of history, clips up to sixty
-seconds, a gigabyte, the pull request check and the badge. Pro costs $35 a
-project a month or $350 a year. It adds private repositories, unlimited
-history and a hundred clips a project, and we email your team, post to Slack or
-open a GitHub issue when a clip breaks. Max costs $145 a month for ten projects
-with everything Pro has. The recorder and the Action are free whatever the
-plan. version.cam is in private beta, so you can't buy a plan yet and we don't
-ask for a card. Free works for anyone who signs in. The first ten people who
-ask at hello@version.cam get Pro for free until the beta ends.
+will confirm them after the first invoices.
+
+Free is for public repositories only, so it has no private projects. It
+covers three projects, ten clips a project, five branches a project, thirty
+days of history and clips up to sixty seconds, with the pull request check and
+the badge. The account's projects share 1 GB of storage, thirty minutes of
+rendering a month and sixty renders on request a month, such as a GIF or a
+crop. Free has no alerts.
+
+Pro costs $35 per private project a month, or $350 a year. It adds private
+repositories, unlimited history, a hundred clips a project, clips up to five
+minutes and 20 GB a project. Each project also gets ten hours of rendering and
+600 renders on request a month. And we email your team, post to Slack or open a
+GitHub issue when a clip breaks. Max costs $145 a month, or $1,450 a year, for
+up to ten private projects, each with everything Pro has.
+
+The recorder and the Action are free on every plan. version.cam is in private
+beta, so you can't buy a plan yet and we don't ask for a card. Free works for
+anyone who signs in, for public repositories. The first ten people who ask at
+hello@version.cam get Pro for free until the beta ends. An account made during
+the beta pays 20% less for Pro or Max for twelve months, with the code
+FOUNDING.
 
 ### When a clip breaks
 
