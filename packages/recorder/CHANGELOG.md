@@ -6,6 +6,27 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## 0.7.7 (2026-11-09)
+
+This patch changes only documentation. The READMEs now lead with the coding
+agent, because the agent is how a clip gets written. Nothing changes in the
+config, the clip DSL or any code.
+
+### Changed
+
+- *Install* starts with a setup prompt to paste into a coding agent. The agent
+  installs the package, follows the authoring skill to a first clip, and asks
+  before it puts the clip on version.cam. The three commands follow, for doing it
+  by hand. The README says that we test the skill with Claude Code and have not
+  run another agent end to end.
+- The README's opening says that your coding agent writes the clip from one
+  sentence of yours, and that recording needs no agent and no model: CI runs the
+  script as it is.
+- *Configure*, *Write a clip*, *Commands*, *Connect a repository* and *When a clip
+  breaks* each say what the authoring skill does there. It writes the config on
+  its first run, writes the clips, runs most of the commands, offers the steps
+  that connect a repository, and repairs a broken clip with `/versioncam fix`.
+
 ## 0.7.6 (2026-11-08)
 
 This patch changes only documentation. The READMEs and the authoring skill now
