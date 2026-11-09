@@ -697,8 +697,8 @@ desktop layout, squeezed into the phone's width.
 
 ### Connect a repository
 
-When a clip passes, the authoring skill offers these steps and runs each one
-only after you say yes. Here they are by hand.
+When a clip passes, the authoring skill offers to add the workflow and to sign
+you in, and does each only after you say yes. Here are the steps by hand.
 
 1. Install versioncam and record a first clip. *Install* and the authoring
    skill do that.
