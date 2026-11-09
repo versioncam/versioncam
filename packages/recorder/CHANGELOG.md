@@ -6,6 +6,22 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## 0.7.8 (2026-11-09)
+
+This patch changes only documentation: the setup prompt in the READMEs. Nothing
+changes in the config, the clip DSL or any code.
+
+### Changed
+
+- The setup prompt has nothing to fill in before you send it. Paste it as it is.
+  The agent installs versioncam in the app's directory and says whether each
+  command worked. Then it asks what the first clip should show, and suggests ideas
+  from what it finds in the app.
+- On your answer the agent runs the authoring skill: as a skill where the session
+  has it, and from the file `init` wrote where it does not.
+- The prompt no longer repeats the offer to put the clip on version.cam. The skill
+  has made that offer itself since 0.7.5, for a repository on GitHub.
+
 ## 0.7.7 (2026-11-09)
 
 This patch changes only documentation. The READMEs now lead with the coding
