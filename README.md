@@ -12,6 +12,29 @@ script sets, renders the video, and **fails the build when the app no longer
 matches the clip**. The failure names the control it could not find and the
 second it gave up.
 
+You don't have to write the script yourself. Your coding agent writes it from
+one sentence of yours, and a separate reviewer checks the frames. Recording
+needs no agent and no model: CI runs the script as it is.
+
+The quickest start is to paste this prompt into your coding agent, with one
+sentence of your own in place of `<what the clip should show>`:
+
+```text
+Set up versioncam in this repository and record a first demo clip. Run
+`npm i -D versioncam`, `npx versioncam install` and `npx versioncam init`.
+`init` installs a skill at `.claude/skills/versioncam/`; read its `SKILL.md`
+and follow it to write, record and review a first clip of:
+<what the clip should show>. When the clip passes, ask me whether to put it
+on version.cam, and if I say yes, run `npx versioncam ci` and follow what it
+prints.
+```
+
+We test this with Claude Code. The skill is plain Markdown, so another agent
+that can run commands in your repository can follow it, but we have not run
+one end to end yet.
+
+Or by hand:
+
 ```bash
 npm i -D versioncam
 npx versioncam install    # the Chromium this version records with

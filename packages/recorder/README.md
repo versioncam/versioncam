@@ -11,9 +11,32 @@ every push. When the app changes under a clip, the clip *fails*: it names the
 control it could not find and the second it gave up. It never turns into a
 video that is quietly wrong.
 
+You don't have to write the script yourself. Your coding agent writes it from
+one sentence of yours, with the skill that `versioncam init` installs, and a
+separate reviewer checks the frames before you see the result. Recording
+needs no agent and no model: CI runs the script as it is.
+
 ## Install
 
-Run three commands, then give your agent one sentence:
+The quickest way is to hand the setup to your coding agent. Paste this prompt
+into it, with one sentence of your own in place of
+`<what the clip should show>`:
+
+```text
+Set up versioncam in this repository and record a first demo clip. Run
+`npm i -D versioncam`, `npx versioncam install` and `npx versioncam init`.
+`init` installs a skill at `.claude/skills/versioncam/`; read its `SKILL.md`
+and follow it to write, record and review a first clip of:
+<what the clip should show>. When the clip passes, ask me whether to put it
+on version.cam, and if I say yes, run `npx versioncam ci` and follow what it
+prints.
+```
+
+We test this with Claude Code. The skill is plain Markdown, so another agent
+that can run commands in your repository can follow it, but we have not run
+one end to end yet.
+
+Or run the three commands yourself, then give your agent one sentence:
 
 ```bash
 npm i -D versioncam
@@ -132,7 +155,9 @@ optional and separate.
 ## Configure
 
 `versioncam.config.ts` sits beside your clips. It is the one place your app
-describes itself to the recorder.
+describes itself to the recorder. The authoring skill writes it on its first
+run, from what it finds in your repository (see *Authoring*). Read on when you
+want to change it.
 
 ```ts
 import { defineRecorder } from "versioncam";
@@ -279,6 +304,10 @@ is 30 of the page's. When versioncam loads the config, it refuses an inset of
 give a config with phone clips an inset that fits them too.
 
 ## Write a clip
+
+Your agent writes clips for you: `/versioncam "<what the clip should show>"`
+(see *Authoring*). This section describes what it writes, so that you can
+review a clip or change one by hand.
 
 A clip is a file that default-exports `clip(id, options, body)`. The body
 drives the app through `s`, its session.
@@ -463,6 +492,9 @@ status line it waits for instead of guessing at it.
 Every command works in the directory that holds `versioncam.config.ts`: run
 it from there, or name that directory with `--cwd`. `npx versioncam --help`
 prints the same list.
+
+The authoring skill runs most of these for you. `login` is the exception: it
+opens a browser window and waits for you to sign in.
 
 ### Set up
 
@@ -665,6 +697,9 @@ desktop layout, squeezed into the phone's width.
 
 ### Connect a repository
 
+When a clip passes, the authoring skill offers these steps and runs each one
+only after you say yes. Here they are by hand.
+
 1. Install versioncam and record a first clip. *Install* and the authoring
    skill do that.
 2. Run `npx versioncam ci`. It writes `.github/workflows/versioncam.yml` at the
@@ -729,6 +764,12 @@ A clip breaks when its check fails on the default branch: a control it uses
 was renamed or removed, a page moved, a step waited for something that never
 came, or the app would not start. A change in how the app looks never breaks
 a clip. It makes a new version.
+
+To repair one, ask your agent: `/versioncam fix`. It finds the broken clips,
+reads why each one failed, and reproduces the failure on your machine. If the
+app changed on purpose, it repairs the clip and, with your yes, opens a pull
+request. If the clip caught a bug in the app, it tells you and leaves the
+clip as it is.
 
 Your pages keep playing the last version that passed, and say nothing about
 the break. If you want viewers to know, for open source docs perhaps, turn on
