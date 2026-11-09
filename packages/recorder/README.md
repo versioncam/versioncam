@@ -19,17 +19,19 @@ needs no agent and no model: CI runs the script as it is.
 ## Install
 
 The quickest way is to hand the setup to your coding agent. Paste this prompt
-into it, with one sentence of your own in place of
-`<what the clip should show>`:
+into it as it is. The agent installs versioncam, then asks you what the first
+clip should show:
 
 ```text
-Set up versioncam in this repository and record a first demo clip. Run
-`npm i -D versioncam`, `npx versioncam install` and `npx versioncam init`.
-`init` installs a skill at `.claude/skills/versioncam/`; read its `SKILL.md`
-and follow it to write, record and review a first clip of:
-<what the clip should show>. When the clip passes, ask me whether to put it
-on version.cam, and if I say yes, run `npx versioncam ci` and follow what it
-prints.
+Set up versioncam in this repository. In the app's directory, the one that
+holds its `package.json` or that the app is started from, run
+`npm i -D versioncam`, `npx versioncam install` and `npx versioncam init`,
+and tell me whether each one worked. Then ask me what the first demo clip
+should show, and suggest two or three ideas from what you find in the app.
+When I have answered, use the skill that `init` installed to write, record
+and review that clip: run the versioncam skill if this session has it,
+otherwise read `.claude/skills/versioncam/SKILL.md`, which `init` wrote, and
+follow it from start to finish.
 ```
 
 We test this with Claude Code. The skill is plain Markdown, so another agent
