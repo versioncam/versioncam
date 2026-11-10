@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { askOf, runCi, workflow } from "./ci.js";
+import { askOf, runCi, secretsRead, workflow } from "./ci.js";
 
 /**
  * `versioncam ci` in a throwaway repository, with GitHub's API and
@@ -44,13 +44,14 @@ function repository({
   lock = "" as string | null,
   remote = "https://github.com/acme/app.git" as string | null,
   git = true,
+  config = "export default {};\n",
 } = {}) {
   const home = mkdtempSync(join(tmpdir(), "versioncam-ci-home-"));
   const root = mkdtempSync(join(tmpdir(), "versioncam-ci-"));
   const env = gitEnv(home);
   const cwd = join(root, app);
   mkdirSync(cwd, { recursive: true });
-  writeFileSync(join(cwd, "versioncam.config.ts"), "export default {};\n");
+  writeFileSync(join(cwd, "versioncam.config.ts"), config);
   if (lock !== null) writeFileSync(join(root, lock, "package-lock.json"), "{}");
   if (git) {
     execFileSync("git", ["init", "-q", root], { env });
@@ -298,6 +299,127 @@ describe("versioncam ci", () => {
       `No versioncam.config.ts in ${empty}.`,
     );
     expect(existsSync(join(empty, ".github"))).toBe(false);
+  });
+});
+
+/** A config for an app recorded where it is deployed, as the README shows it. */
+const DEPLOYED_CONFIG = `import { defineRecorder } from "versioncam";
+
+export default defineRecorder({
+  baseUrl: process.env.VERSIONCAM_BASE_URL ?? "http://localhost:3000",
+  headers: {
+    "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+  },
+  auth: {
+    login: async (page) => {
+      await page.getByLabel("Email").fill(process.env.RECORDING_USER ?? "");
+      await page.getByLabel("Password").fill(process.env["RECORDING_PASS"] ?? "");
+    },
+  },
+});
+`;
+
+describe("versioncam ci --deployed", () => {
+  it("writes the workflow that waits for each commit's deployment, with the config's secrets", async () => {
+    const repo = repository({ config: DEPLOYED_CONFIG });
+    const { code, out, err } = await repo.run(["--deployed"], { github: 200 });
+    expect(err).toBe("");
+    expect(code).toBe(0);
+    expect(readFileSync(join(repo.root, WRITTEN), "utf8")).toBe(
+      fixture("workflow-deployed.yml"),
+    );
+    expect(out).toBe(
+      "Wrote .github/workflows/versioncam.yml.\n" +
+        "On every pull request, the workflow records your clips against the pull request's Preview deployment and fails the build when one no longer matches the app. " +
+        "On every push to main, it records them against that commit's Production deployment and publishes them to version.cam, " +
+        "where this repository's clips get permanent links at clips.version.cam/acme/app/<clip>. " +
+        "It doesn't build or start the app: it installs your packages, versioncam among them, and waits for your host to deploy.\n" +
+        "Before you push:\n" +
+        "- Add these repository secrets, which your config reads and the workflow passes to it: RECORDING_PASS, RECORDING_USER, VERCEL_AUTOMATION_BYPASS_SECRET. " +
+        "They go in the repository's Settings, under Secrets and variables, then Actions.\n" +
+        "- Make sure your host creates a GitHub deployment for each commit. Vercel does by default. " +
+        "If yours names its environments something other than Preview and Production, run this again with `--preview <name>` and `--production <name>` and `--force`.\n" +
+        "Then commit the workflow and push.\n",
+    );
+  });
+
+  it("records against the environments --preview and --production name", async () => {
+    const repo = repository({ app: "apps/web", lock: "" });
+    const { code } = await repo.run(
+      [
+        "--deployed",
+        "--preview",
+        "Preview - web",
+        "--production",
+        "Production - web",
+      ],
+      { github: 200 },
+    );
+    expect(code).toBe(0);
+    const text = readFileSync(join(repo.root, WRITTEN), "utf8");
+    expect(text).toContain(
+      "        with:\n          deployment: Preview - web\n          working-directory: apps/web\n",
+    );
+    expect(text).toContain("          deployment: Production - web\n");
+    expect(text).toContain(
+      "          mode: publish\n          working-directory: apps/web\n",
+    );
+    // A config that reads no secret gets no env block.
+    expect(text).not.toContain("env:");
+  });
+
+  it("refuses an environment YAML would have to quote, and the names without --deployed", async () => {
+    const repo = repository();
+    const quoted = await repo.run(["--deployed", "--preview", "Preview: web"]);
+    expect(quoted.code).toBe(1);
+    expect(quoted.err).toContain("--preview must be a GitHub environment name");
+    const alone = await repo.run(["--preview", "Staging"]);
+    expect(alone.code).toBe(1);
+    expect(alone.err).toContain("Add `--deployed`.");
+    expect(existsSync(join(repo.root, WRITTEN))).toBe(false);
+  });
+
+  it("says a config's webServer must stay off where the workflow records", async () => {
+    const repo = repository({
+      config:
+        'export default { baseUrl: process.env.VERSIONCAM_BASE_URL ?? "http://localhost:3000", webServer: { command: "npm run dev" } };\n',
+    });
+    const { out } = await repo.run(["--deployed"], { github: 200 });
+    expect(out).toContain(
+      "- Your config has a `webServer`. In this workflow nothing should start the app",
+    );
+  });
+
+  it("is today's workflow without the flag", async () => {
+    const repo = repository({ config: DEPLOYED_CONFIG });
+    await repo.run([], { github: 200 });
+    expect(readFileSync(join(repo.root, WRITTEN), "utf8")).toBe(
+      fixture("workflow.yml"),
+    );
+  });
+});
+
+describe("the secrets a config reads", () => {
+  it("are its process.env names, but never the runner's or versioncam's own", () => {
+    expect(
+      secretsRead(
+        [
+          "process.env.VERSIONCAM_BASE_URL",
+          "process.env.VERSIONCAM_STORAGE_STATE",
+          "process.env.GITHUB_SHA",
+          "process.env.CI",
+          "process.env.NODE_ENV",
+          "process.env.STAGING_TOKEN",
+          "process.env['CF_ACCESS_CLIENT_ID']",
+          'process.env[ "CF_ACCESS_CLIENT_SECRET" ]',
+          "process.env.STAGING_TOKEN",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "CF_ACCESS_CLIENT_ID",
+      "CF_ACCESS_CLIENT_SECRET",
+      "STAGING_TOKEN",
+    ]);
   });
 });
 

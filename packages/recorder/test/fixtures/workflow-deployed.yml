@@ -1,0 +1,59 @@
+name: Versioncam
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # On a pull request: record every clip against its Preview deployment, and fail with a comment if one broke.
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      deployments: read # to find the pull request's deployment
+      pull-requests: write # to comment when a clip breaks
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # the commit your host deployed
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: versioncam/action@v1
+        with:
+          deployment: Preview
+        env:
+          RECORDING_PASS: ${{ secrets.RECORDING_PASS }}
+          RECORDING_USER: ${{ secrets.RECORDING_USER }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+  # On main: record every clip against the Production deployment, then publish the recordings to version.cam.
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      deployments: read # to find the commit's deployment
+      id-token: write # GitHub's token for version.cam, so no secret is stored
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: versioncam/action@v1
+        with:
+          deployment: Production
+        env:
+          RECORDING_PASS: ${{ secrets.RECORDING_PASS }}
+          RECORDING_USER: ${{ secrets.RECORDING_USER }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: versioncam/action@v1
+        if: ${{ !cancelled() }} # a clip that broke is published as broken
+        with:
+          mode: publish

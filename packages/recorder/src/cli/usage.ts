@@ -71,6 +71,9 @@ Publish
   versioncam ci                      write the GitHub Actions workflow that checks and publishes the clips
       --print                        print it instead, and write nothing
       --force                        replace the workflow file if there is one
+      --deployed                     record against each commit's deployment, for an app that doesn't start in CI
+      --preview <name>               the deployment a pull request records against (default Preview)
+      --production <name>            the one a push to the default branch records against (default Production)
 
 Manage
   versioncam cloud login             sign in to version.cam, with a code you approve in a browser
@@ -107,7 +110,7 @@ Run it in the directory that holds versioncam.config.ts, or name that directory 
  */
 export const FLAGS: Record<string, readonly string[]> = {
   check: ["report"],
-  ci: ["print", "force"],
+  ci: ["print", "force", "deployed", "preview", "production"],
   cloud: ["json", "project", "label"],
   doctor: [],
   dsl: [],

@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { cloudClient } from "../../cloud/client.js";
@@ -28,6 +34,12 @@ import { DEFAULT_API } from "../../publish/protocol.js";
  * and private ones on Pro. GitHub's public API says which without a token
  * (a 404 is a private repository, or one that is not on GitHub), and nothing
  * of the user's is sent anywhere to find out.
+ *
+ * `--deployed` writes the workflow for an app that doesn't start in a
+ * runner: each job waits for the commit's deployment (the pull request's
+ * Preview, the push's Production) through the Action's `deployment` input,
+ * and records against it. The secrets the config reads are passed to the
+ * Action by name, so a bypass secret and a sign-in reach the config in CI.
  */
 
 /** What `ci` needs from the world, so a test can hand it another one. */
@@ -69,6 +81,9 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
     options: {
       print: { type: "boolean" },
       force: { type: "boolean" },
+      deployed: { type: "boolean" },
+      preview: { type: "string" },
+      production: { type: "string" },
     },
     strict: false,
     allowPositionals: true,
@@ -76,9 +91,45 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
 
   // The workflow runs versioncam where the config is, so without a config
   // there is nothing for it to run.
-  if (findConfigFile(io.cwd) === null) {
+  const configFile = findConfigFile(io.cwd);
+  if (configFile === null) {
     io.err(`No versioncam.config.ts in ${io.cwd}.\n${NO_CONFIG}\n`);
     return 1;
+  }
+
+  const named = (flag: "preview" | "production"): string | null => {
+    const value = values[flag];
+    return typeof value === "string" ? value : null;
+  };
+  if (values.deployed !== true && (named("preview") ?? named("production"))) {
+    io.err(
+      "`--preview` and `--production` name the deployments that `--deployed` records against. Add `--deployed`.\n",
+    );
+    return 1;
+  }
+  let deployed: Deployed | null = null;
+  if (values.deployed === true) {
+    const preview = named("preview") ?? "Preview";
+    const production = named("production") ?? "Production";
+    for (const [flag, name] of [
+      ["--preview", preview],
+      ["--production", production],
+    ] as const) {
+      // It goes into YAML unquoted, as the branch does.
+      if (!ENVIRONMENT.test(name)) {
+        io.err(
+          `${flag} must be a GitHub environment name: letters, digits, spaces and . _ - only, got ${JSON.stringify(name)}.\n`,
+        );
+        return 1;
+      }
+    }
+    const config = readFileSync(configFile, "utf8");
+    deployed = {
+      preview,
+      production,
+      secrets: secretsRead(config),
+      startsApp: /\bwebServer\b/.test(config),
+    };
   }
 
   // Git answers with the real path, and a temporary directory on macOS is
@@ -92,6 +143,7 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
     branch,
     app: slashed(relative(root, here)),
     install: slashed(relative(root, lock ?? root)),
+    deployed,
   });
 
   if (values.print === true) {
@@ -127,13 +179,41 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
   const seen = repo === null ? "unknown" : await visibility(repo, io);
   const [owner, name] = repo?.split("/") ?? ["<owner>", "<repo>"];
 
-  lines.push(
-    `Commit it and push. On the first push to ${branch}, GitHub Actions records your ` +
-      `clips and publishes them to version.cam, and this repository's clips get ` +
-      `permanent links at clips.version.cam/${owner}/${name}/<clip>. On every pull ` +
-      "request, the workflow checks the clips and fails the build when one no " +
-      "longer matches the app.",
-  );
+  if (deployed) {
+    lines.push(
+      `On every pull request, the workflow records your clips against the pull request's ${deployed.preview} deployment and fails the build when one no longer matches the app. ` +
+        `On every push to ${branch}, it records them against that commit's ${deployed.production} deployment and publishes them to version.cam, ` +
+        `where this repository's clips get permanent links at clips.version.cam/${owner}/${name}/<clip>. ` +
+        "It doesn't build or start the app: it installs your packages, versioncam among them, and waits for your host to deploy.",
+    );
+    lines.push("Before you push:");
+    if (deployed.secrets.length > 0) {
+      lines.push(
+        `- Add these repository secrets, which your config reads and the workflow passes to it: ${deployed.secrets.join(", ")}. ` +
+          "They go in the repository's Settings, under Secrets and variables, then Actions.",
+      );
+    }
+    lines.push(
+      "- Make sure your host creates a GitHub deployment for each commit. Vercel does by default. " +
+        `If yours names its environments something other than ${deployed.preview} and ${deployed.production}, ` +
+        "run this again with `--preview <name>` and `--production <name>` and `--force`.",
+    );
+    if (deployed.startsApp) {
+      lines.push(
+        "- Your config has a `webServer`. In this workflow nothing should start the app: " +
+          "have the config leave `webServer` out when `VERSIONCAM_BASE_URL` is set, which the workflow sets to the deployment's address.",
+      );
+    }
+    lines.push("Then commit the workflow and push.");
+  } else {
+    lines.push(
+      `Commit it and push. On the first push to ${branch}, GitHub Actions records your ` +
+        `clips and publishes them to version.cam, and this repository's clips get ` +
+        `permanent links at clips.version.cam/${owner}/${name}/<clip>. On every pull ` +
+        "request, the workflow checks the clips and fails the build when one no " +
+        "longer matches the app.",
+    );
+  }
 
   if (seen === "private") {
     const beta = await privateBeta(io);
@@ -162,9 +242,11 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
     );
   }
 
-  lines.push(
-    "If your app needs more than `npm ci` to start, change the install step before you push.",
-  );
+  if (!deployed) {
+    lines.push(
+      "If your app needs more than `npm ci` to start, change the install step before you push.",
+    );
+  }
   if (lock === null) {
     lines.push(
       "There is no package-lock.json here or above it, and `npm ci` needs one. Change the install step to the one your package manager uses.",
@@ -185,11 +267,14 @@ export function workflow({
   branch,
   app,
   install,
+  deployed = null,
 }: {
   branch: string;
   app: string;
   install: string;
+  deployed?: Deployed | null;
 }): string {
+  if (deployed) return deployedWorkflow({ branch, app, install, deployed });
   const cache = install
     ? `\n          cache-dependency-path: ${install}/package-lock.json`
     : "";
@@ -236,6 +321,138 @@ export function workflow({
     "      id-token: write # GitHub's token for version.cam, so no secret is stored\n" +
     "    steps:\n" +
     setup +
+    "      - uses: versioncam/action@v1\n" +
+    "        if: ${{ !cancelled() }} # a clip that broke is published as broken\n" +
+    "        with:\n" +
+    `          mode: publish${at}\n`
+  );
+}
+
+/** What `--deployed` adds to the workflow. */
+export type Deployed = {
+  /** The GitHub deployment environment a pull request records against. */
+  preview: string;
+  /** The one a push to the default branch records against. */
+  production: string;
+  /** The secrets the config reads, by name, passed to the Action as env. */
+  secrets: string[];
+  /** Whether the config mentions `webServer`, which this workflow must not start. */
+  startsApp: boolean;
+};
+
+/** A GitHub environment name that YAML takes unquoted. */
+const ENVIRONMENT = /^[A-Za-z0-9][A-Za-z0-9 ._-]*$/;
+
+/**
+ * Variables the runner or the Action sets, which are never repository
+ * secrets: GitHub refuses a secret whose name starts with GITHUB_.
+ */
+const NOT_SECRETS =
+  /^(VERSIONCAM_|GITHUB_|RUNNER_|ACTIONS_)|^(CI|NODE_ENV|HOME|PATH|PWD|TMPDIR|USER)$/;
+
+/**
+ * The environment variables a config reads, by name: `process.env.NAME` and
+ * `process.env["NAME"]`. Read from the file's text, never by running it, so
+ * nothing is sent anywhere and nothing has to be set. A name only another
+ * module reads is not found, which the printed next steps leave room for.
+ */
+export function secretsRead(config: string): string[] {
+  const names = new Set<string>();
+  const patterns = [
+    /process\.env\.([A-Za-z_][A-Za-z0-9_]*)/g,
+    /process\.env\[\s*["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]\s*\]/g,
+  ];
+  for (const pattern of patterns) {
+    for (const [, name] of config.matchAll(pattern)) {
+      if (!NOT_SECRETS.test(name)) names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
+/**
+ * The workflow for an app recorded where it is deployed.
+ *
+ * As the plain one, with three differences in each job: `deployments: read`,
+ * so the Action can find the commit's deployment; the Action's
+ * `deployment` input; and the config's secrets as env. The pull request job
+ * checks out the branch's head, the commit the host built, rather than the
+ * merge commit GitHub makes, so the clips are the ones of the code the
+ * preview runs.
+ */
+function deployedWorkflow({
+  branch,
+  app,
+  install,
+  deployed,
+}: {
+  branch: string;
+  app: string;
+  install: string;
+  deployed: Deployed;
+}): string {
+  const cache = install
+    ? `\n          cache-dependency-path: ${install}/package-lock.json`
+    : "";
+  const npmCi = install
+    ? `      - run: npm ci\n        working-directory: ${install}\n`
+    : "      - run: npm ci\n";
+  const at = app ? `\n          working-directory: ${app}` : "";
+  const env =
+    deployed.secrets.length > 0
+      ? "        env:\n" +
+        deployed.secrets
+          .map((name) => `          ${name}: \${{ secrets.${name} }}\n`)
+          .join("")
+      : "";
+  const check = (environment: string) =>
+    "      - uses: versioncam/action@v1\n" +
+    "        with:\n" +
+    `          deployment: ${environment}${at}\n` +
+    env;
+  const setup = (checkout: string) =>
+    checkout +
+    "      - uses: actions/setup-node@v4\n" +
+    "        with:\n" +
+    "          node-version: 22\n" +
+    `          cache: npm${cache}\n` +
+    npmCi;
+  return (
+    "name: Versioncam\n" +
+    "\n" +
+    "on:\n" +
+    "  pull_request:\n" +
+    "  push:\n" +
+    `    branches: [${branch}]\n` +
+    "\n" +
+    "jobs:\n" +
+    `  # On a pull request: record every clip against its ${deployed.preview} deployment, and fail with a comment if one broke.\n` +
+    "  check:\n" +
+    "    if: github.event_name == 'pull_request'\n" +
+    "    runs-on: ubuntu-24.04\n" +
+    "    permissions:\n" +
+    "      contents: read\n" +
+    "      deployments: read # to find the pull request's deployment\n" +
+    "      pull-requests: write # to comment when a clip breaks\n" +
+    "    steps:\n" +
+    setup(
+      "      - uses: actions/checkout@v4\n" +
+        "        with:\n" +
+        "          ref: ${{ github.event.pull_request.head.sha }} # the commit your host deployed\n",
+    ) +
+    check(deployed.preview) +
+    "\n" +
+    `  # On ${branch}: record every clip against the ${deployed.production} deployment, then publish the recordings to version.cam.\n` +
+    "  publish:\n" +
+    "    if: github.event_name == 'push'\n" +
+    "    runs-on: ubuntu-24.04\n" +
+    "    permissions:\n" +
+    "      contents: read\n" +
+    "      deployments: read # to find the commit's deployment\n" +
+    "      id-token: write # GitHub's token for version.cam, so no secret is stored\n" +
+    "    steps:\n" +
+    setup("      - uses: actions/checkout@v4\n") +
+    check(deployed.production) +
     "      - uses: versioncam/action@v1\n" +
     "        if: ${{ !cancelled() }} # a clip that broke is published as broken\n" +
     "        with:\n" +

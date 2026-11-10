@@ -623,6 +623,9 @@ versioncam publish [id…]           send the recordings and their checks to ver
 versioncam ci                      write the GitHub Actions workflow that checks and publishes the clips
     --print                        print it instead, and write nothing
     --force                        replace the workflow file if there is one
+    --deployed                     record against each commit's deployment, for an app that doesn't start in CI
+    --preview <name>               the deployment a pull request records against (default Preview)
+    --production <name>            the one a push to the default branch records against (default Production)
 ```
 
 ### Manage
