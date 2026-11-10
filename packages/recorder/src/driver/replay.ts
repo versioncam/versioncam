@@ -62,6 +62,11 @@ export type ResolvedReplay = {
   pace: { url: RegExp; chunkMs: number }[];
   redact: string[];
   onMissing: "fail" | "live";
+  /**
+   * `baseUrl`'s origin, or null when it has none. Requests to it are matched
+   * by path and query, on any host: see `ReplayBook`.
+   */
+  origin: string | null;
 };
 
 /** Headers removed from every recorded request and response. */
@@ -186,7 +191,16 @@ export type Har = {
     version: "1.2";
     creator: { name: string; version: string };
     comment: string;
-    _versioncam: { clip: string; recorded: string; recorder: string };
+    _versioncam: {
+      clip: string;
+      recorded: string;
+      recorder: string;
+      /**
+       * The app's origin the replay was recorded against. Absent from a
+       * replay written before 0.8.0, which then matches whole URLs.
+       */
+      origin?: string;
+    };
     entries: HarEntry[];
   };
 };
@@ -294,16 +308,32 @@ export function entryOf(
  * the last gets the last. Among answers to one URL, one recorded for the
  * same request body is taken first, for an app that posts several queries
  * to one endpoint in an order that can vary.
+ *
+ * A request to the app itself is known by its path and query, not its
+ * host, when the replay says which origin it was recorded against
+ * (`origins`). A deployed preview has a new host for every commit, and a
+ * replay recorded against `localhost` or yesterday's preview has to answer
+ * today's: keyed by the whole URL, it never matched again (WP20, A1).
+ * Every other host, an API or a tile server, is still matched whole.
  */
 export class ReplayBook {
   private readonly byKey = new Map<string, HarEntry[]>();
   private readonly used = new Map<string, Set<number>>();
   private readonly redact: readonly string[];
+  private readonly origins: { recorded: string; current: string } | null;
 
-  constructor(entries: readonly HarEntry[], redact: readonly string[]) {
+  constructor(
+    entries: readonly HarEntry[],
+    redact: readonly string[],
+    origins: { recorded?: string | null; current?: string | null } = {},
+  ) {
     this.redact = redact;
+    this.origins =
+      origins.recorded && origins.current
+        ? { recorded: origins.recorded, current: origins.current }
+        : null;
     for (const entry of entries) {
-      const key = `${entry.request.method} ${entry.request.url}`;
+      const key = `${entry.request.method} ${this.appRelative(entry.request.url, "recorded")}`;
       const list = this.byKey.get(key) ?? [];
       list.push(entry);
       this.byKey.set(key, list);
@@ -315,7 +345,7 @@ export class ReplayBook {
     url: string,
     postData: string | null,
   ): HarEntry | null {
-    const key = `${method} ${urlKey(url, this.redact)}`;
+    const key = `${method} ${this.appRelative(urlKey(url, this.redact), "current")}`;
     const list = this.byKey.get(key);
     if (!list || list.length === 0) return null;
     const used = this.used.get(key) ?? new Set<number>();
@@ -330,6 +360,14 @@ export class ReplayBook {
     if (!pick) return list[list.length - 1];
     used.add(pick.index);
     return pick.entry;
+  }
+
+  /** A URL on the app's origin as the app's own, `app:` and its path; any other as it is. */
+  private appRelative(url: string, side: "recorded" | "current"): string {
+    if (!this.origins) return url;
+    const parsed = new URL(url);
+    if (parsed.origin !== this.origins[side]) return url;
+    return `app:${parsed.pathname}${parsed.search}`;
   }
 }
 
@@ -427,9 +465,14 @@ export class ClipReplay {
       );
     }
     this.book =
-      this.mode === "replay"
-        ? new ReplayBook(readReplay(this.file).log.entries, config.redact)
-        : null;
+      this.mode === "replay" ? this.bookOf(readReplay(this.file)) : null;
+  }
+
+  private bookOf(har: Har): ReplayBook {
+    return new ReplayBook(har.log.entries, this.config.redact, {
+      recorded: har.log._versioncam?.origin,
+      current: this.config.origin,
+    });
   }
 
   /** The page-side script that paces streamed bodies, or null when nothing is paced. */
@@ -623,6 +666,7 @@ export class ClipReplay {
           clip: this.clipId,
           recorded: this.when,
           recorder: this.recorder,
+          ...(this.config.origin ? { origin: this.config.origin } : {}),
         },
         entries: this.recorded,
       },

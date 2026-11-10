@@ -122,6 +122,57 @@ describe("a recorded exchange", () => {
 });
 
 describe("serving from a replay", () => {
+  it("answers the app's own requests on any host, and every other host's whole", () => {
+    // Recorded against the developer's localhost, served to a preview whose
+    // host is new on every commit.
+    const book = new ReplayBook(
+      [
+        entry("http://localhost:3000/api/greeting?name=Mira", "app"),
+        entry("https://api.example.test/v1/rates", "rates"),
+      ],
+      [],
+      {
+        recorded: "http://localhost:3000",
+        current: "https://my-app-k3j2h1-team.vercel.app",
+      },
+    );
+    const preview = "https://my-app-k3j2h1-team.vercel.app";
+    expect(
+      book.answer("GET", `${preview}/api/greeting?name=Mira`, null)?.response
+        .content.text,
+    ).toBe("app");
+    expect(book.answer("GET", `${preview}/api/greeting?name=Ada`, null)).toBe(
+      null,
+    );
+    expect(
+      book.answer("GET", "https://api.example.test/v1/rates", null)?.response
+        .content.text,
+    ).toBe("rates");
+    expect(
+      book.answer("GET", "https://api.other.test/v1/rates", null),
+    ).toBeNull();
+    // A host that is not the app now, though it was then, is another host.
+    expect(
+      book.answer("GET", "http://localhost:3000/api/greeting?name=Mira", null),
+    ).toBeNull();
+  });
+
+  it("matches whole URLs in a replay that does not say its origin", () => {
+    // Every replay written before 0.8.0.
+    const book = new ReplayBook(
+      [entry("http://localhost:3000/api/greeting", "app")],
+      [],
+      { current: "https://my-app.vercel.app" },
+    );
+    expect(
+      book.answer("GET", "https://my-app.vercel.app/api/greeting", null),
+    ).toBeNull();
+    expect(
+      book.answer("GET", "http://localhost:3000/api/greeting", null)?.response
+        .content.text,
+    ).toBe("app");
+  });
+
   it("answers a URL's requests in the order they were recorded, then the last again", () => {
     const status = "https://api.example.test/jobs/7";
     const book = new ReplayBook(

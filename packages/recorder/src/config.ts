@@ -342,6 +342,7 @@ export function isReplayMode(value: unknown): value is ReplayMode {
 function replayOf(
   given: ReplayConfig | undefined,
   root: string,
+  baseUrl: string,
 ): ResolvedReplay | null {
   if (given === undefined) return null;
   const patterns = (field: string, list: unknown): RegExp[] => {
@@ -401,6 +402,12 @@ function replayOf(
     pace,
     redact,
     onMissing,
+    // A URL with no origin of its own (`file:`) says "null": then nothing is
+    // the app's, and every request is matched whole, as before 0.8.0.
+    origin:
+      URL.canParse(baseUrl) && new URL(baseUrl).origin !== "null"
+        ? new URL(baseUrl).origin
+        : null,
   };
 }
 
@@ -652,7 +659,7 @@ export function resolveConfig(
     output: outputSize(viewport, outputWidth),
     encoderThreads,
     motion,
-    replay: replayOf(config.replay, root),
+    replay: replayOf(config.replay, root, baseUrl),
     scenes: config.scenes ? abs(config.scenes) : null,
     sequence: config.sequence ?? null,
   };
