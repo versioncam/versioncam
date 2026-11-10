@@ -60,9 +60,13 @@ export type SessionOptions = {
   arriveWithinMs?: number;
   /**
    * The clip's replay, when the config has one: the frame loop waits for its
-   * answers, so a request made in a frame is answered in that frame.
+   * answers, so a request made in a frame is answered in that frame, and the
+   * login hook runs beside it (`aside`), so a sign-in is never written down.
    */
-  replay?: { idle(): Promise<void> } | null;
+  replay?: {
+    idle(): Promise<void>;
+    aside<T>(fn: () => Promise<T>): Promise<T>;
+  } | null;
 };
 
 type ScheduledAction = { t: number; run: () => Promise<void> };
@@ -571,7 +575,12 @@ export class RecordingSession {
     // settle below has had its say.
     const auth = this.options.config.auth;
     const login = auth?.login;
-    if (login) await this.whileTicking(() => login(this.page));
+    const replay = this.options.replay;
+    if (login) {
+      await this.whileTicking(() =>
+        replay ? replay.aside(() => login(this.page)) : login(this.page),
+      );
+    }
     this.timing.openMs += performance.now() - startedAt;
 
     await this.settle({

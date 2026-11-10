@@ -401,6 +401,8 @@ export class ClipReplay {
   private readonly when = new Date().toISOString();
   private inFlight = 0;
   private waiters: (() => void)[] = [];
+  /** How many `aside` calls are running: while any is, nothing is replayed. */
+  private asideDepth = 0;
   private readonly config: ResolvedReplay;
   private readonly clipId: string;
   private readonly recorder: string;
@@ -461,6 +463,27 @@ export class ClipReplay {
     });
   }
 
+  /**
+   * Run `fn` with every request going to the network, neither recorded nor
+   * served. For the login hook.
+   *
+   * A sign-in's request carries the password in its body, and a replay
+   * writes request bodies down: on 2026-11-10 a replay of everything under
+   * `/api/` wrote a test account's password into the HAR beside a clip, a
+   * file that is committed. And a replayed sign-in could not work anyway:
+   * the replay keeps no `set-cookie`, so the browser would never be signed
+   * in. So the hook talks to the real app, every run, and whatever the clip
+   * does after it is recorded and replayed as before.
+   */
+  async aside<T>(fn: () => Promise<T>): Promise<T> {
+    this.asideDepth += 1;
+    try {
+      return await fn();
+    } finally {
+      this.asideDepth -= 1;
+    }
+  }
+
   private settled(): void {
     this.inFlight -= 1;
     if (this.inFlight > 0) return;
@@ -470,6 +493,10 @@ export class ClipReplay {
   }
 
   private async handle(route: Route): Promise<void> {
+    if (this.asideDepth > 0) {
+      await route.fallback();
+      return;
+    }
     this.inFlight += 1;
     const request = route.request();
     try {
