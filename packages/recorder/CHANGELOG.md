@@ -6,6 +6,25 @@ and versions follow [semantic versioning](https://semver.org/). While the
 major version is 0, a minor version may change the config or the clip DSL,
 and its entry here says how.
 
+## Unreleased
+
+### Added
+
+- `versioncam cloud embed` prints a fifth snippet when version.cam gives it:
+  the iframe as JSX, for MDX on Docusaurus, Nextra or Fumadocs. Docusaurus
+  fails its build on the HTML iframe, because React won't take a `style`
+  written as a string.
+- The README has a new section, *Embed a clip*. It says which snippet plays on
+  which docs platform, and the date we tested each one.
+
+### Changed
+
+- The README's *Phone and desktop in one link* says how version.cam now picks
+  the phone clip: the element measures the window, not the column it sits in,
+  and the plain iframe always shows the desktop clip. Before, a docs site's
+  column, which is under 768 pixels wide on a desktop too, showed the phone
+  clip.
+
 ## 0.7.8 (2026-11-09)
 
 This patch changes only documentation: the setup prompt in the READMEs. Nothing

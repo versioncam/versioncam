@@ -793,20 +793,84 @@ editing. You manage projects on [app.version.cam](https://app.version.cam).
 
 A clip whose id is another clip's id with `-mobile` on the end is that
 clip's phone version: `01-checkout-mobile` beside `01-checkout`, recorded at
-a phone's viewport. The clip's page, its embed page and the `<version-cam>`
-element of its script snippet show the phone clip on a screen under 768 CSS
-pixels wide and the desktop clip on a wider one, so one link serves both. The
-element measures its own width, not the window's, and takes the shape of the
-clip it will show. The plain snippets cannot do that. The video snippet is the
-desktop clip's file. The iframe snippet keeps the desktop clip's shape. Without
-a script, an iframe cannot change the size of the box the page gave it, so on a
-phone the phone clip plays inside that desktop-shaped box. Use the element where a page should fit both. Until the phone clip has a video, the desktop clip shows everywhere.
-The phone clip has its own page and snippets as well, to place it by hand.
+a phone's viewport. The clip's page and the `<version-cam>` element of its
+script snippet show the phone clip on a screen under 768 CSS pixels wide and
+the desktop clip on a wider one, so one link serves both. The element measures
+the window, not the column it sits in, so a docs site's narrow column on a
+desktop still shows the desktop clip. It takes the shape of the clip it shows.
+The plain snippets cannot do that. The video snippet is the desktop clip's
+file, and the iframe snippets keep the desktop clip's shape and show the
+desktop clip at every width. Use the element where a page should fit both.
+Until the phone clip has a video, the desktop clip shows everywhere. The phone
+clip has its own page and snippets as well, to place it by hand.
 
 The recorder sets the viewport and nothing else: no touch events and no
 phone user agent. An app that picks its phone layout by the window's width
 records its phone layout. An app that picks it by the user agent records its
 desktop layout, squeezed into the phone's width.
+
+### Embed a clip
+
+A clip's page on version.cam, `versioncam cloud embed <clip>` and the
+dashboard give the same snippets: the `<version-cam>` element with its script,
+an iframe of the clip's embed page, the same iframe as JSX for MDX, the video
+file, and a GIF in Markdown that links to the clip's page. Each one plays the
+newest version that passed. They play only where the clip is public or
+unlisted. A private repository's clips start private, and
+`npx versioncam cloud set visibility unlisted` makes them play anywhere the
+link goes (*Who can see the clips*).
+
+Docs platforms accept different snippets. We tested each one below with a
+real page on the date given.
+
+| Platform | Use | What plays | Tested |
+|---|---|---|---|
+| Mintlify | the iframe | The iframe, as HTML or JSX, the video and the GIF. Mintlify removes the `<version-cam>` tag from a page, so the element can't work there. | 2026-11-10, `mint dev` |
+| Docusaurus 3 | the JSX iframe, or the element with the script in the config | All of them, with two catches. The plain iframe fails the site's build, because React won't take a `style` written as a string. The script snippet inside a page runs only when someone opens that page directly, not when they reach it by a link in the site, so load the script from the config instead. | 2026-11-10, a built site |
+| MkDocs Material | the iframe, or the element with the script in `mkdocs.yml` | All four, as version.cam gives them. | 2026-11-10, a built site |
+| Starlight | the iframe, or the element with the script in the config | All four, as version.cam gives them. | 2026-11-10, a built site |
+| Nextra, Fumadocs | the JSX iframe | They compile MDX with React, as Docusaurus does. | untested |
+| GitHub README | the GIF | Only the GIF. GitHub shows the iframe and the script as text and blocks the video's file. GitHub also keeps its own copy of each image, so a README may keep showing an older version of the GIF. | 2026-11-10, GitHub's Markdown renderer and github.com's content policy |
+| Zendesk Guide | the video | | untested |
+| Confluence Cloud | the iFrame macro, with the clip's `/embed` address | | untested |
+| Notion | the clip's link, as an embed | | untested |
+| GitBook | the clip's link | GitBook's docs say it takes no iframe and no video from another site. | untested |
+| Intercom | the GIF as an image that links to the clip's page | Intercom's docs say its articles take videos only from YouTube, Wistia, Vimeo, Loom, Vidyard and StreamIO. | untested |
+
+The element needs its script on the page. Where a site renders pages in the
+browser as you click through it, load the script once for the whole site:
+
+```js
+// docusaurus.config.js
+scripts: [{ src: "https://clips.version.cam/embed.js", type: "module" }],
+```
+
+```yaml
+# mkdocs.yml
+extra_javascript:
+  - path: https://clips.version.cam/embed.js
+    type: module
+```
+
+```js
+// astro.config.mjs, for Starlight
+starlight({
+  head: [{ tag: "script", attrs: { type: "module", src: "https://clips.version.cam/embed.js" } }],
+}),
+```
+
+Then put the element on any page:
+
+```html
+<version-cam src="https://clips.version.cam/<owner>/<repo>/<clip>"></version-cam>
+```
+
+In MDX, use the JSX iframe that version.cam gives you. It differs from the
+HTML one only in its `style`:
+
+```jsx
+<iframe src="https://clips.version.cam/<owner>/<repo>/<clip>/embed" style={{ width: "100%", aspectRatio: "1280 / 800", border: 0 }} allow="fullscreen" loading="lazy" title="Create a shipment"></iframe>
+```
 
 ### Connect a repository
 
