@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { askOf, runCi, secretsRead, workflow } from "./ci.js";
+import { askOf, runCi, secretsRead, withoutComments, workflow } from "./ci.js";
 
 /**
  * `versioncam ci` in a throwaway repository, with GitHub's API and
@@ -396,6 +396,46 @@ describe("versioncam ci --deployed", () => {
     await repo.run([], { github: 200 });
     expect(readFileSync(join(repo.root, WRITTEN), "utf8")).toBe(
       fixture("workflow.yml"),
+    );
+  });
+});
+
+describe("a config read without its comments", () => {
+  it("drops line and block comments and keeps strings whole", () => {
+    expect(
+      withoutComments(
+        [
+          "// There is no webServer: the app is opened where it runs.",
+          'const base = process.env.VERSIONCAM_BASE_URL ?? "http://localhost:3000"; // not a comment start',
+          "/* process.env.OLD_TOKEN, before the move */ const quote = 'it\\'s // still a string';",
+        ].join("\n"),
+      ),
+    ).toBe(
+      [
+        "",
+        'const base = process.env.VERSIONCAM_BASE_URL ?? "http://localhost:3000"; ',
+        "  const quote = 'it\\'s // still a string';",
+      ].join("\n"),
+    );
+  });
+
+  it("finds no webServer or secret that only a comment names", async () => {
+    const repo = repository({
+      config: [
+        'import { defineRecorder } from "versioncam";',
+        "export default defineRecorder({",
+        "  // CI sets the address; there is no webServer, nothing starts the app.",
+        '  baseUrl: process.env.VERSIONCAM_BASE_URL ?? "http://localhost:3000",',
+        "  // headers: { authorization: process.env.OLD_TOKEN },",
+        '  headers: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET },',
+        "});",
+      ].join("\n"),
+    });
+    const { code, out } = await repo.run(["--deployed"], { github: 200 });
+    expect(code).toBe(0);
+    expect(out).not.toContain("webServer");
+    expect(out).toContain(
+      "which your config reads and the workflow passes to it: VERCEL_AUTOMATION_BYPASS_SECRET. ",
     );
   });
 });

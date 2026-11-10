@@ -128,7 +128,7 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
       preview,
       production,
       secrets: secretsRead(config),
-      startsApp: /\bwebServer\b/.test(config),
+      startsApp: /\bwebServer\b/.test(withoutComments(config)),
     };
   }
 
@@ -337,7 +337,7 @@ export type Deployed = {
   production: string;
   /** The secrets the config reads, by name, passed to the Action as env. */
   secrets: string[];
-  /** Whether the config mentions `webServer`, which this workflow must not start. */
+  /** Whether the config's code mentions `webServer`, which this workflow must not start. */
   startsApp: boolean;
 };
 
@@ -352,19 +352,58 @@ const NOT_SECRETS =
   /^(VERSIONCAM_|GITHUB_|RUNNER_|ACTIONS_)|^(CI|NODE_ENV|HOME|PATH|PWD|TMPDIR|USER)$/;
 
 /**
+ * A config's source with its comments taken out, so that a comment is never
+ * read as code: one that explains why there is no `webServer`, as the test
+ * repository's did, or a `process.env.NAME` left commented out. Strings are
+ * copied whole, so the `//` in "http://localhost:3000" isn't taken for a
+ * comment. It reads the text and no more: a regular expression that holds a
+ * quote can confuse it, which costs a wrong next step, never a wrong
+ * workflow.
+ */
+export function withoutComments(source: string): string {
+  let out = "";
+  let i = 0;
+  while (i < source.length) {
+    const c = source[i];
+    const next = source[i + 1];
+    if (c === "/" && next === "/") {
+      const end = source.indexOf("\n", i);
+      i = end === -1 ? source.length : end;
+    } else if (c === "/" && next === "*") {
+      const end = source.indexOf("*/", i + 2);
+      i = end === -1 ? source.length : end + 2;
+      out += " ";
+    } else if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      while (j < source.length && source[j] !== c) {
+        j += source[j] === "\\" ? 2 : 1;
+      }
+      out += source.slice(i, j + 1);
+      i = j + 1;
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/**
  * The environment variables a config reads, by name: `process.env.NAME` and
- * `process.env["NAME"]`. Read from the file's text, never by running it, so
- * nothing is sent anywhere and nothing has to be set. A name only another
- * module reads is not found, which the printed next steps leave room for.
+ * `process.env["NAME"]`, outside comments. Read from the file's text, never
+ * by running it, so nothing is sent anywhere and nothing has to be set. A
+ * name only another module reads is not found, which the printed next steps
+ * leave room for.
  */
 export function secretsRead(config: string): string[] {
   const names = new Set<string>();
+  const code = withoutComments(config);
   const patterns = [
     /process\.env\.([A-Za-z_][A-Za-z0-9_]*)/g,
     /process\.env\[\s*["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]\s*\]/g,
   ];
   for (const pattern of patterns) {
-    for (const [, name] of config.matchAll(pattern)) {
+    for (const [, name] of code.matchAll(pattern)) {
       if (!NOT_SECRETS.test(name)) names.add(name);
     }
   }
