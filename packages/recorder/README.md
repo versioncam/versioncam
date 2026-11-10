@@ -814,8 +814,8 @@ desktop layout, squeezed into the phone's width.
 A clip's page on version.cam, `versioncam cloud embed <clip>` and the
 dashboard give the same snippets: the `<version-cam>` element with its script,
 an iframe of the clip's embed page, the same iframe as JSX for MDX, the video
-file, and a GIF in Markdown that links to the clip's page. Each one plays the
-newest version that passed. They play only where the clip is public or
+file, a GIF in Markdown that links to the clip's page, and the block of our
+GitBook integration. Each one plays the newest version that passed. They play only where the clip is public or
 unlisted. A private repository's clips start private, and
 `npx versioncam cloud set visibility unlisted` makes them play anywhere the
 link goes (*Who can see the clips*).

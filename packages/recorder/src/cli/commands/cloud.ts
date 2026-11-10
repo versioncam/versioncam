@@ -1096,6 +1096,12 @@ function embedText(
     ],
     ["The video alone", answer.embed.video],
     ["Markdown, for a README", answer.embed.markdown],
+    // GitBook takes no iframe, so its block comes from our integration,
+    // which plays a pasted link; Git Sync writes the block as this tag.
+    [
+      "For GitBook, install https://app.gitbook.com/integrations/versioncam and paste the clip's link, or write this in a repository synced with Git Sync",
+      answer.embed.gitbook ?? null,
+    ],
   ];
   const lines = [`${plainLine(answer.clip)}, at ${plainLine(answer.url)}`];
   for (const [what, snippet] of snippets) {

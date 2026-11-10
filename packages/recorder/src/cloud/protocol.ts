@@ -137,8 +137,9 @@ export type ClipDetail = {
    * What the clip's page offers to paste, or null while nothing of the clip
    * has passed on the default branch, when there is nothing to embed.
    * `video` is null when the version has no MP4. `jsx` is the iframe as
-   * JSX, for an MDX page; version.cam gives it since 2026-11 and an older
-   * answer has none.
+   * JSX, for an MDX page, and `gitbook` the block of version.cam's GitBook
+   * integration as Git Sync writes it; version.cam gives them since
+   * 2026-11, and an older answer has neither.
    */
   embed: {
     script: string;
@@ -146,6 +147,7 @@ export type ClipDetail = {
     jsx?: string;
     video: string | null;
     markdown: string;
+    gitbook?: string;
   } | null;
   /** Signed for an hour on a private project, the GIF's too; null as `embed` is. */
   files: {

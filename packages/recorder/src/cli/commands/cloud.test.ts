@@ -128,6 +128,7 @@ function clip(api: string): ClipDetail {
       jsx: `<iframe src="${CLIPS}/add-a-book/embed" style={{ width: "100%" }} title="Add a book"></iframe>`,
       video: `<video src="${CLIPS}/add-a-book.mp4" controls muted playsinline></video>`,
       markdown: `[![Add a book](${CLIPS}/add-a-book.png)](${CLIPS}/add-a-book)`,
+      gitbook: `{% @versioncam/clip url="${CLIPS}/add-a-book" %}`,
     },
     files: {
       mp4: `${CLIPS}/add-a-book.mp4?sig=s1`,
@@ -1290,7 +1291,7 @@ describe("versioncam cloud ack", () => {
 });
 
 describe("versioncam cloud embed", () => {
-  it("prints the five snippets and the files, and what private means for them", async () => {
+  it("prints the six snippets and the files, and what private means for them", async () => {
     const pc = machine(fake);
     pc.signIn();
     pc.clone("git@github.com:acme/app.git");
@@ -1314,6 +1315,9 @@ describe("versioncam cloud embed", () => {
         "\n" +
         "Markdown, for a README:\n" +
         `${embed.markdown}\n` +
+        "\n" +
+        "For GitBook, install https://app.gitbook.com/integrations/versioncam and paste the clip's link, or write this in a repository synced with Git Sync:\n" +
+        `${embed.gitbook}\n` +
         "\n" +
         "Files:\n" +
         `  mp4     ${CLIPS}/add-a-book.mp4?sig=s1\n` +
@@ -1356,17 +1360,19 @@ describe("versioncam cloud embed", () => {
     });
   });
 
-  it("prints no JSX line when version.cam's answer has none, as one from before 2026-11 does", async () => {
+  it("prints no JSX or GitBook line when version.cam's answer has neither, as one from before 2026-11 does", async () => {
     const pc = machine(fake);
     pc.signIn();
     pc.clone("git@github.com:acme/app.git");
-    const { jsx, ...older } = fake.clip.embed!;
+    const { jsx, gitbook, ...older } = fake.clip.embed!;
     expect(jsx).toBeDefined();
+    expect(gitbook).toBeDefined();
     fake.clip = { ...fake.clip, embed: older };
     const { code, out } = await pc.run("embed", "add-a-book");
     expect(code).toBe(0);
     expect(out).toContain("An iframe, for a page that does not:\n");
     expect(out).not.toContain("JSX");
+    expect(out).not.toContain("GitBook");
   });
 
   it("says nothing of privacy for a public project, and gives the answer with --json", async () => {

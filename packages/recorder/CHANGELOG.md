@@ -14,6 +14,9 @@ and its entry here says how.
   the iframe as JSX, for MDX on Docusaurus, Nextra or Fumadocs. Docusaurus
   fails its build on the HTML iframe, because React won't take a `style`
   written as a string.
+- `versioncam cloud embed` prints a GitBook snippet when version.cam gives it:
+  the block of our GitBook integration, as a repository synced with Git Sync
+  writes it, after the line that says where to install the integration.
 - The README has a new section, *Embed a clip*. It says which snippet plays on
   which docs platform, and the date we tested each one.
 
