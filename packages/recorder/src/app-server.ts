@@ -82,9 +82,14 @@ function isReady(status: number): boolean {
  * app's own and not wherever a redirect happens to land. Whether what is there
  * is ready is `isReady`'s to say.
  */
-export async function probe(url: string, timeoutMs = 5_000): Promise<Probe> {
+export async function probe(
+  url: string,
+  timeoutMs = 5_000,
+  headers: Record<string, string> = {},
+): Promise<Probe> {
   try {
     const response = await fetch(url, {
+      headers,
       redirect: "manual",
       signal: AbortSignal.timeout(timeoutMs),
     });

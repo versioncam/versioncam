@@ -6,6 +6,7 @@ import { isTransitions } from "../config.js";
 import type { CaptureConfig, ResolvedConfig } from "../config.js";
 import type { Timeline } from "../core/timeline.js";
 import type { RecordingTiming } from "../core/timing.js";
+import { sendHeaders } from "./headers.js";
 import {
   INSTANT_SCROLL_SCRIPT,
   MUTATION_COUNTER_SCRIPT,
@@ -165,6 +166,9 @@ export async function runClip(
   // as Playwright tries a page's routes before its context's: what a clip
   // answers itself never reaches the replay.
   await replay?.install(context);
+  // After the replay's routes, so it runs before them and a recorded
+  // response is fetched with the headers too.
+  await sendHeaders(context, config.headers);
   const page = await context.newPage();
 
   // A clip's own `capture` is merged over the config's unchecked, so its

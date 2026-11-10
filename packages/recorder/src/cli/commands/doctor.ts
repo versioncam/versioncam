@@ -56,7 +56,10 @@ async function appCheck(cwd: string): Promise<Check> {
   }
 
   if (!config.webServer) {
-    const answer = await probe(config.baseUrl);
+    // With the config's headers, so a protected preview answers here as it
+    // will to a clip: a 401 that turns into a 200 says the bypass works.
+    // `probe` follows no redirect, so they go to `baseUrl` and nowhere else.
+    const answer = await probe(config.baseUrl, 5_000, config.headers?.send);
     return answer.up
       ? {
           name: "app",
@@ -170,6 +173,43 @@ async function replayCheck(cwd: string): Promise<Check | null> {
 }
 
 /**
+ * The config's `headers`, by name and never by value: which are sent, to
+ * where, and which are empty and so not sent. Null without any.
+ *
+ * Never a failure: an empty value is how one config runs both on a laptop
+ * without the secret and in CI with it. But a name with nothing in it is
+ * the first thing to look at when a preview answers 401, so it is said.
+ */
+async function headersCheck(cwd: string): Promise<Check | null> {
+  let config: ResolvedConfig;
+  try {
+    config = await loadConfig(cwd);
+  } catch {
+    return null;
+  }
+  const headers = config.headers;
+  if (!headers) return null;
+  const sent = Object.keys(headers.send);
+  const empty = headers.names.filter(
+    (name) => !sent.some((s) => s.toLowerCase() === name),
+  );
+  const parts = [
+    sent.length > 0
+      ? `${sent.join(", ")}, sent to ${headers.origin} only`
+      : `${headers.names.join(", ")} empty, so none is sent`,
+  ];
+  if (empty.length > 0 && sent.length > 0) {
+    parts.push(`${empty.join(", ")} empty, so not sent`);
+  }
+  return {
+    name: "headers",
+    ok: true,
+    note: sent.length === 0,
+    detail: parts.join("; "),
+  };
+}
+
+/**
  * Can this machine record and encode?
  *
  * Reports every check rather than stopping at the first failure, because the
@@ -243,6 +283,8 @@ export async function doctor(): Promise<number> {
     if (scenes) checks.push(scenes);
     const replay = await replayCheck(process.cwd());
     if (replay) checks.push(replay);
+    const headers = await headersCheck(process.cwd());
+    if (headers) checks.push(headers);
     checks.push(await appCheck(process.cwd()));
   }
 

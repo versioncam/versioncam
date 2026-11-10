@@ -67,6 +67,13 @@ export type ResolvedReplay = {
    * by path and query, on any host: see `ReplayBook`.
    */
   origin: string | null;
+  /**
+   * The config's `headers`, by name, lower case: never written, like the
+   * secrets below. A header the recorder adds to a request is one
+   * `request.allHeaders()` answers with afterwards, so without this a
+   * preview's bypass secret would be written into a file that is committed.
+   */
+  headers: string[];
 };
 
 /** Headers removed from every recorded request and response. */
@@ -205,9 +212,15 @@ export type Har = {
   };
 };
 
-function withoutSecrets(headers: Record<string, string>): Header[] {
+function withoutSecrets(
+  headers: Record<string, string>,
+  also: readonly string[],
+): Header[] {
   return Object.entries(headers)
-    .filter(([name]) => !SECRET_HEADERS.has(name.toLowerCase()))
+    .filter(([name]) => {
+      const lower = name.toLowerCase();
+      return !SECRET_HEADERS.has(lower) && !also.includes(lower);
+    })
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -243,8 +256,11 @@ export function entryOf(
     redact: readonly string[];
     recorded: string;
     store: (hash: string, bytes: Uint8Array) => void;
+    /** The config's `headers`, lower case: left out like the secrets. */
+    headers?: readonly string[];
   },
 ): HarEntry {
+  const dropped = options.headers ?? [];
   const url = urlKey(exchange.url, options.redact);
   const mimeType =
     Object.entries(exchange.responseHeaders).find(
@@ -273,7 +289,7 @@ export function entryOf(
       method: exchange.method,
       url,
       httpVersion: "HTTP/1.1",
-      headers: withoutSecrets(exchange.requestHeaders),
+      headers: withoutSecrets(exchange.requestHeaders, dropped),
       queryString: [...new URL(url).searchParams].map(([name, value]) => ({
         name,
         value,
@@ -289,7 +305,7 @@ export function entryOf(
       status: exchange.status,
       statusText: exchange.statusText,
       httpVersion: "HTTP/1.1",
-      headers: withoutSecrets(exchange.responseHeaders),
+      headers: withoutSecrets(exchange.responseHeaders, dropped),
       cookies: [],
       content,
       redirectURL: "",
@@ -584,6 +600,7 @@ export class ClipReplay {
           redact: this.config.redact,
           recorded: this.when,
           store: (hash, bytes) => this.bodies.set(hash, bytes),
+          headers: this.config.headers,
         },
       ),
     );
@@ -660,7 +677,11 @@ export class ClipReplay {
         creator: { name: "versioncam", version: this.recorder },
         comment:
           `Recorded for the clip "${this.clipId}" on ${this.when.slice(0, 10)}. ` +
-          "Authorization, cookies and API key headers were removed, and the query " +
+          // The config's headers are named only when there are some, so a
+          // replay recorded without them reads as it always has.
+          (this.config.headers.length > 0
+            ? `Authorization, cookies, API key headers and the config's headers (${this.config.headers.join(", ")}) were removed, and the query `
+            : "Authorization, cookies and API key headers were removed, and the query ") +
           `parameters ${this.config.redact.length > 0 ? this.config.redact.join(", ") : "none named"} left out.`,
         _versioncam: {
           clip: this.clipId,

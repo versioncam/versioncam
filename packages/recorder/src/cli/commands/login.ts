@@ -1,3 +1,4 @@
+import { sendHeaders } from "../../driver/headers.js";
 import { launchBrowser } from "../../driver/launch.js";
 import { ensureFullBrowser } from "./install.js";
 import { mkdir } from "node:fs/promises";
@@ -37,6 +38,8 @@ export async function login(): Promise<number> {
         baseURL: config.baseUrl,
         viewport: config.viewport,
       });
+      // A protected preview lets the person in to sign in only with them.
+      await sendHeaders(context, config.headers);
       const page = await context.newPage();
       await page.goto(config.baseUrl);
 

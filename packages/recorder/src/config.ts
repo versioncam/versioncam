@@ -3,6 +3,8 @@ import type { Page } from "playwright";
 import { DEFAULT_CURSOR } from "./core/cursor.js";
 import type { CursorLook, CursorStyle } from "./core/cursor.js";
 import { MOTION } from "./core/motion-defaults.js";
+import { headersOf } from "./driver/headers.js";
+import type { HeadersConfig, ResolvedHeaders } from "./driver/headers.js";
 import { patternOf } from "./driver/replay.js";
 import type {
   ReplayConfig,
@@ -183,6 +185,14 @@ export type RecorderConfig = {
   baseUrl: string;
   /** How to start it when it is not being served. Absent: it must already be. */
   webServer?: WebServerConfig;
+  /**
+   * Request headers sent to `baseUrl`'s origin and to nowhere else: a
+   * hosting provider's bypass for a protected preview, or a service token.
+   * An empty or unset value sends nothing, so a config can read a secret
+   * that only CI has. The values never reach a replay file. See
+   * `src/driver/headers.ts` and the README's *Record a deployed preview*.
+   */
+  headers?: HeadersConfig;
   viewport?: { width: number; height: number };
   /**
    * Device pixel ratio to capture at. 2 means a zoom reads real pixels rather
@@ -257,6 +267,7 @@ export type ResolvedConfig = {
   root: string;
   baseUrl: string;
   webServer: ResolvedWebServer | null;
+  headers: ResolvedHeaders | null;
   viewport: { width: number; height: number };
   dpr: number;
   fps: number;
@@ -343,6 +354,7 @@ function replayOf(
   given: ReplayConfig | undefined,
   root: string,
   baseUrl: string,
+  headers: readonly string[],
 ): ResolvedReplay | null {
   if (given === undefined) return null;
   const patterns = (field: string, list: unknown): RegExp[] => {
@@ -408,6 +420,7 @@ function replayOf(
       URL.canParse(baseUrl) && new URL(baseUrl).origin !== "null"
         ? new URL(baseUrl).origin
         : null,
+    headers: [...headers],
   };
 }
 
@@ -581,6 +594,7 @@ export function resolveConfig(
   positiveInt(outputWidth, "output.width");
   const encoderThreads = threadsOf(config.output?.threads);
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
+  const headers = headersOf(config.headers, baseUrl);
 
   if (presentation?.captionInset !== undefined) {
     checkCaptionInset(presentation.captionInset, outputWidth);
@@ -608,6 +622,7 @@ export function resolveConfig(
     webServer: config.webServer
       ? resolveWebServer(config.webServer, baseUrl, root)
       : null,
+    headers,
     viewport,
     dpr,
     fps,
@@ -659,7 +674,7 @@ export function resolveConfig(
     output: outputSize(viewport, outputWidth),
     encoderThreads,
     motion,
-    replay: replayOf(config.replay, root, baseUrl),
+    replay: replayOf(config.replay, root, baseUrl, headers?.names ?? []),
     scenes: config.scenes ? abs(config.scenes) : null,
     sequence: config.sequence ?? null,
   };

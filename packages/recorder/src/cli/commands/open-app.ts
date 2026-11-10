@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import type { Browser, BrowserContext, Page } from "playwright";
 import type { ResolvedConfig } from "../../config.js";
+import { sendHeaders } from "../../driver/headers.js";
 import { MUTATION_COUNTER_SCRIPT } from "../../driver/page-hooks.js";
 import { settlePage } from "../../driver/settle.js";
 
@@ -88,6 +89,7 @@ export async function openAppPage(
     locale: config.clock.locale,
     storageState: config.auth?.storageState,
   });
+  await sendHeaders(context, config.headers);
   const page = await context.newPage();
   await page.addInitScript(MUTATION_COUNTER_SCRIPT);
 

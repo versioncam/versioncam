@@ -64,6 +64,33 @@ describe("a replay's URL patterns", () => {
 });
 
 describe("a recorded exchange", () => {
+  it("leaves out the config's headers, in any case, on both sides", () => {
+    // What `sendHeaders` adds is what `request.allHeaders()` answers with
+    // afterwards, so a preview's bypass secret would land in a committed file.
+    const recorded = entryOf(
+      exchange({
+        requestHeaders: {
+          "X-Vercel-Protection-Bypass": "the-secret",
+          Accept: "application/json",
+        },
+        responseHeaders: {
+          "content-type": "application/json",
+          "x-vercel-protection-bypass": "the-secret",
+        },
+      }),
+      {
+        redact: [],
+        recorded: RECORDED,
+        store: () => undefined,
+        headers: ["x-vercel-protection-bypass"],
+      },
+    );
+    expect(JSON.stringify(recorded)).not.toContain("the-secret");
+    expect(recorded.request.headers).toEqual([
+      { name: "Accept", value: "application/json" },
+    ]);
+  });
+
   it("leaves out the secrets and the redacted parameters", () => {
     const recorded = entryOf(
       exchange({
