@@ -216,6 +216,7 @@ auth: {
 |---|---|---|
 | `baseUrl` | required | Where the app is served. |
 | `webServer` | none | How to start the app when nothing is serving it. See *Starting the app*. |
+| `headers` | none | Request headers sent to `baseUrl`'s origin and no other host: a host's bypass for a protected preview, or a service token. An empty or unset value sends nothing. See *Record a deployed preview*. |
 | `clips` | `"demos/**/*.clip.ts"` | Where the clips are: a glob, or a list of them, relative to the config. |
 | `viewport` | `{ width: 1440, height: 900 }` | The page's size. The video has the same shape. |
 | `dpr` | `2` | Device pixel ratio, from 1 to 3. At 2, a zoom shows real pixels. |
@@ -275,6 +276,113 @@ For a stack of several services, point `url` at the one that is ready last,
 not at the page. A dev server answers seconds before the API behind it. A clip
 that opens too early finds the sign-in form, but the API that signs you in is not
 up yet.
+
+### Record a deployed preview
+
+If your app doesn't start in a GitHub runner because it needs a database,
+queues or another team's API, record it where it already runs: the preview
+your host deploys for each pull request, and the production deployment of
+each push to your default branch. Leave `webServer` out, and the recorder
+opens `baseUrl` as it is.
+
+```ts
+import { defineRecorder } from "versioncam";
+
+export default defineRecorder({
+  // CI sets this to the commit's own deployment.
+  baseUrl: process.env.VERSIONCAM_BASE_URL ?? "https://staging.example.com",
+  headers: {
+    // Vercel's Deployment Protection lets this through.
+    "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+  },
+  auth: {
+    login: async (page) => {
+      if (!new URL(page.url()).pathname.startsWith("/sign-in")) return;
+      await page.getByLabel("Email").fill(process.env.RECORDING_USER ?? "");
+      await page.getByLabel("Password").fill(process.env.RECORDING_PASS ?? "");
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+    },
+  },
+});
+```
+
+`npx versioncam ci --deployed` writes the workflow. On a pull request, it
+waits for the pull request's `Preview` deployment, checks the clips against
+it, and comments when one breaks. On a push to your default branch, it waits
+for that commit's `Production` deployment, records the clips against it and
+publishes them to version.cam. It installs your packages but doesn't build
+or start the app. It passes the secrets your config reads (it looks for
+`process.env.NAME` in the config) and prints their names, so you know which
+repository secrets to add. `--preview <name>` and `--production <name>`
+change the two environment names. The workflow uses the Action's
+`deployment` input, which is in version 1.2.0 and later.
+
+On Vercel, turn on **deployment_status Events** in the project's Settings,
+under Git, before the first run. New projects start with it off, and
+without it Vercel makes no GitHub deployment for the workflow to wait for.
+Vercel adds the project's name to each environment, which `Preview` still
+matches. In a repository with several Vercel projects, pick one with
+`--preview "Preview - web" --production "Production - web"`.
+
+**Protected previews.** `headers` adds request headers to every request to
+`baseUrl`'s origin and to no other host, so a font, an analytics script or
+a map's tiles never receive them. An empty or unset value sends nothing, so
+the same config runs on your machine without the secret. `doctor` lists the
+names it sends, never the values, and replay files never contain them.
+
+| Host | What to send |
+|---|---|
+| Vercel, with Deployment Protection | `x-vercel-protection-bypass`, with the secret from the project's Settings, Deployment Protection, Protection Bypass for Automation. Store it as the repository secret `VERCEL_AUTOMATION_BYPASS_SECRET`. |
+| Cloudflare Access | `CF-Access-Client-Id` and `CF-Access-Client-Secret`, a service token's pair. |
+| Netlify, with password protection | Netlify documents no bypass for automation. Record a preview without the password, or a staging site. |
+
+There is one thing the recorder can't control. The browser keeps a
+request's headers through its redirects, so if your app redirects a request
+to another host, such as an identity provider or a file store, that host
+receives the headers on that request. When it happens, the recorder prints a
+warning that names the host. If that host shouldn't see your secret, change
+the secret, and sign in some other way while recording.
+
+The recorder hides Vercel's toolbar and Netlify's drawer in every frame, as
+it hides a dev server's tools (see *A dev server's own tools*).
+
+**Signing in.** Use a `login` hook that reads `RECORDING_USER` and
+`RECORDING_PASS`, as above, and add both as repository secrets. Use a test
+account on the preview's or the staging site's database, never a person's.
+A saved `storageState` works too, but it expires, and then the clip fails
+weeks later for a reason the clip doesn't show.
+
+**Data that changes.** A shared preview or staging database changes under
+the clip: other people's records, counts, dates. Use `replay` for every API
+response the clip shows (see *Live data*), record it once and commit it. A
+replay answers your app's own requests by path and query on whatever host
+the app is on, so one recorded against `http://localhost:3000` or one
+preview serves every later preview and production. Requests to other hosts
+still have to match the whole URL. A replay never records or serves what
+the `login` hook asks for, because a sign-in's request holds the password.
+Replays recorded before 0.8.0 match whole URLs, so record them again once.
+
+**Other hosts.**
+
+- **Netlify** doesn't create GitHub deployments. It reports a commit status
+  on each pull request instead, so give the Action
+  `status-context: netlify/<site>/deploy-preview` in place of `deployment`,
+  and the job `statuses: read`. Netlify reports nothing on a push to your
+  default branch, so give that job `url:` with your site's address.
+- **Cloudflare Pages:** if your workflow deploys with
+  `cloudflare/wrangler-action`, pass its `deployment-url` output to the
+  Action's `url`.
+- **A fixed staging site:** give the Action `url:` with its address. The
+  clips then record whatever is deployed there, which on a pull request may
+  not be the pull request's code. That's fine for the default branch and
+  weaker for pull requests.
+
+**What we have tested.** Vercel, with Standard Protection and an app that
+has its own sign-in, in November 2026: pull requests checked against their
+own previews, a comment on the one that broke a clip, and pushes published
+from production. What this section says about Netlify and Cloudflare comes
+from their documentation; we haven't tried them yet.
 
 ### Presentation
 
