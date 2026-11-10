@@ -80,3 +80,48 @@ test("a recording writes down every wait, and where its beats landed", async () 
     await browser.close();
   }
 });
+
+test("a wait that gives up names what held it", async () => {
+  // The name is how a person finds out why a clip is slow, so it has to be
+  // what held the page. The last look at the page used to begin with no time
+  // left, be cut off before the page could answer, and be taken for a
+  // navigation: nearly every wait that gave up said "navigation", whatever
+  // held it, and two requests a sign-in page left open were found only by
+  // recording the clip again with more logging.
+  const browser = await launchBrowser();
+  const warned: string[] = [];
+  const warn = console.warn;
+  console.warn = (...args: unknown[]) => void warned.push(args.join(" "));
+  try {
+    const { settles } = await runClip(
+      browser,
+      testConfig(),
+      clip("held", { title: "Held" }, async (s) => {
+        await s.offCamera(async (page) => {
+          await installFixtureRoutes(page);
+          await page.route("**/never", () => undefined);
+        });
+        await s.open("/buttons.html");
+        await s.offCamera(async (page) => {
+          const asked = page.waitForRequest("**/never");
+          await page.evaluate(
+            () => void fetch("/never").catch(() => undefined),
+          );
+          await asked;
+        });
+        await s.settle({ label: "held", timeoutMs: 1_000 });
+        await s.hold(100);
+      }),
+    );
+    const report = settles.find((r) => r.label === "held");
+    expect(report?.timedOut).toBe(true);
+    expect(report?.lastBlocker).toBe("requests(1)");
+    // And the line a person reads says the same.
+    expect(warned.join("\n")).toContain(
+      "held gave up waiting after 1000ms (still requests(1))",
+    );
+  } finally {
+    console.warn = warn;
+    await browser.close();
+  }
+});

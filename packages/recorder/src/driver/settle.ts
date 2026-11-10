@@ -68,6 +68,18 @@ export const TICK_MS = 16;
 const DEFAULT_YIELD_MS = 20;
 
 /**
+ * The least time a settle's probe is given to answer, even at the deadline.
+ *
+ * A page answers in a few milliseconds, and the pass that ends a settle begins
+ * when the time is up or nearly so. Cut off at the deadline, that probe would
+ * be taken for one held by a navigation, so nearly every settle that gave up
+ * said it was waiting on a navigation, whatever held it. With this much time,
+ * a probe that does not answer really was held, and one that does says what
+ * the page is still doing.
+ */
+const PROBE_GRACE_MS = 250;
+
+/**
  * Did this call fail because the page's document went away under it?
  *
  * A plain link or a form post destroys the context a probe was running in, and
@@ -129,7 +141,10 @@ export async function settlePage(
     // during that time, so what the new page reads from it does not depend on
     // the server. It is also why the call needs a limit of its own: without one
     // a server that never answers hangs the recorder, and the timeout below is
-    // never reached.
+    // never reached. The limit is the time left, but never less than the
+    // grace, so the last pass gets its answer too: a settle that gives up
+    // overruns its timeout by a few milliseconds, or by up to the grace when
+    // a navigation holds the page as the time runs out.
     let probe: SettleProbe;
     let hookOk: boolean;
     try {
@@ -145,10 +160,11 @@ export async function settlePage(
             replays: window.__recorderReplay?.pending ?? 0,
           };
         }),
-        Math.max(0, started + timeoutMs - Date.now()),
+        Math.max(PROBE_GRACE_MS, started + timeoutMs - Date.now()),
       );
       if (answer === null) {
-        // Timed out while held: the check below gives up on this very pass.
+        // Held until the time ran out, by a document on its way: the check
+        // below gives up on this very pass.
         probe = GONE;
         hookOk = false;
         lastBlocker = "navigation";
