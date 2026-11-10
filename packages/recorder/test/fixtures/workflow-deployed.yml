@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: read
       deployments: read # to find the pull request's deployment
+      statuses: read # to tell you when Vercel deployed but made no GitHub deployment
       pull-requests: write # to comment when a clip breaks
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +39,7 @@ jobs:
     permissions:
       contents: read
       deployments: read # to find the commit's deployment
+      statuses: read # to tell you when Vercel deployed but made no GitHub deployment
       id-token: write # GitHub's token for version.cam, so no secret is stored
     steps:
       - uses: actions/checkout@v4

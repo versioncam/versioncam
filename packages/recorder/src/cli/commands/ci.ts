@@ -194,7 +194,8 @@ export async function runCi(argv: string[], io: CiIo): Promise<number> {
       );
     }
     lines.push(
-      "- Make sure your host creates a GitHub deployment for each commit. Vercel does by default. " +
+      "- Make sure your host creates a GitHub deployment for each commit. " +
+        "On Vercel, turn on deployment_status Events in the project's Settings, under Git: new projects start with it off. " +
         `If yours names its environments something other than ${deployed.preview} and ${deployed.production}, ` +
         "run this again with `--preview <name>` and `--production <name>` and `--force`.",
     );
@@ -374,7 +375,8 @@ export function secretsRead(config: string): string[] {
  * The workflow for an app recorded where it is deployed.
  *
  * As the plain one, with three differences in each job: `deployments: read`,
- * so the Action can find the commit's deployment; the Action's
+ * so the Action can find the commit's deployment (and `statuses: read`, so
+ * it can tell a Vercel project that makes none); the Action's
  * `deployment` input; and the config's secrets as env. The pull request job
  * checks out the branch's head, the commit the host built, rather than the
  * merge commit GitHub makes, so the clips are the ones of the code the
@@ -433,6 +435,7 @@ function deployedWorkflow({
     "    permissions:\n" +
     "      contents: read\n" +
     "      deployments: read # to find the pull request's deployment\n" +
+    "      statuses: read # to tell you when Vercel deployed but made no GitHub deployment\n" +
     "      pull-requests: write # to comment when a clip breaks\n" +
     "    steps:\n" +
     setup(
@@ -449,6 +452,7 @@ function deployedWorkflow({
     "    permissions:\n" +
     "      contents: read\n" +
     "      deployments: read # to find the commit's deployment\n" +
+    "      statuses: read # to tell you when Vercel deployed but made no GitHub deployment\n" +
     "      id-token: write # GitHub's token for version.cam, so no secret is stored\n" +
     "    steps:\n" +
     setup("      - uses: actions/checkout@v4\n") +

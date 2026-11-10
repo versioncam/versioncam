@@ -337,7 +337,8 @@ describe("versioncam ci --deployed", () => {
         "Before you push:\n" +
         "- Add these repository secrets, which your config reads and the workflow passes to it: RECORDING_PASS, RECORDING_USER, VERCEL_AUTOMATION_BYPASS_SECRET. " +
         "They go in the repository's Settings, under Secrets and variables, then Actions.\n" +
-        "- Make sure your host creates a GitHub deployment for each commit. Vercel does by default. " +
+        "- Make sure your host creates a GitHub deployment for each commit. " +
+        "On Vercel, turn on deployment_status Events in the project's Settings, under Git: new projects start with it off. " +
         "If yours names its environments something other than Preview and Production, run this again with `--preview <name>` and `--production <name>` and `--force`.\n" +
         "Then commit the workflow and push.\n",
     );
