@@ -834,7 +834,7 @@ real page on the date given.
 | Zendesk Guide | the video | | untested |
 | Confluence Cloud | the iFrame macro, with the clip's `/embed` address | | untested |
 | Notion | the clip's link, as an embed | | untested |
-| GitBook | the clip's link | GitBook's docs say it takes no iframe and no video from another site. | untested |
+| GitBook | the clip's link, as an embed | GitBook plays the clip through Iframely, a service that reads the link once and keeps what it found, so the page may keep showing an older version. GitBook takes no iframe and no video file of its own. | 2026-11-10, a published GitBook site |
 | Intercom | the GIF as an image that links to the clip's page | Intercom's docs say its articles take videos only from YouTube, Wistia, Vimeo, Loom, Vidyard and StreamIO. | untested |
 
 The element needs its script on the page. Where a site renders pages in the
