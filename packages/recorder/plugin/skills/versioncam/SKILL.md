@@ -276,10 +276,13 @@ that changes something waits for the user's yes.
    clips.version.cam/<owner>/<repo>/<id>, and keep it up to date every time
    you push to main. That needs GitHub Actions to record the clips on each
    push. Shall I add the workflow file?"
-3. On yes: `npx versioncam ci`. Read what it printed, and pass it on in
-   full. When `npm ci` is not enough to install the app, change the install
-   step in the workflow to a command that is (the config's
-   `webServer.command` and the app's package files tell you which). With the
+3. On yes: `npx versioncam ci`, or `npx versioncam ci --deployed` when the
+   config has no `webServer` and the user said the app is deployed for each
+   pull request. Read what it printed, and pass it on in full, the secrets
+   it names included (by name; you never see their values). When `npm ci` is
+   not enough to install the app, change the install step in the workflow to
+   a command that is (the config's `webServer.command` and the app's package
+   files tell you which). With the
    user's yes, commit the workflow together with the clip, the config and the
    skill files, as your host asks.
 4. Then say: "If you sign in, I can show the project's status from here once

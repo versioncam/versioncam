@@ -39,6 +39,30 @@ Look in this order, and stop when the answer is clear:
 - `Makefile`, `Procfile`, `docker-compose.yml`, and the README's
   getting-started section, for anything that needs more than one process.
 
+**If the app needs more than one command to start, or services the runner
+won't have** (a database, a queue, another team's API, keys for third-party
+services), ask before you try to start the stack, with `AskUserQuestion`:
+does the app have a deployed preview for each pull request (Vercel, Netlify,
+Cloudflare Pages), or a staging site? If it does, the clips can record
+against that instead of starting anything. Ask for the staging address, or
+the production one if there is no staging site, and whether the previews are
+protected (Vercel's Deployment Protection, Cloudflare Access). Then write the
+config with no `webServer`:
+
+```ts
+// CI sets VERSIONCAM_BASE_URL to each commit's own deployment.
+baseUrl: process.env.VERSIONCAM_BASE_URL ?? "<the address the person gave>",
+// Only if the previews are behind Vercel's Deployment Protection:
+headers: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET },
+```
+
+Tell the person that CI will record each pull request against its own
+preview, and that the bypass secret, if there is one, goes into
+`.env.recording` for runs on their machine and into the repository's secrets
+for CI. You never read it or write it. Skip the rest of this step, and use a
+`login` hook in step 2. The README's *Record a deployed preview* has the
+details, and `versioncam ci --deployed` writes the workflow later.
+
 From that, write the config's `baseUrl` and `webServer`:
 
 ```ts
@@ -81,6 +105,11 @@ If it does sign in, the person chooses how. Ask once:
   the right one for CI. You write the hook with the variable *names*
   (`process.env.RECORDING_USER`, say); they put the values in
   `.env.recording`, which is gitignored.
+
+For an app recorded where it is deployed (step 1), offer only the hook, and
+say the account should be a test account on the preview's or staging site's
+database, never a person's: a saved session expires, and the clip would fail
+in CI weeks later for a reason nobody can see.
 
 Never write a secret anywhere (not into the config, not into a clip, not into
 your report), and never go looking for one. With no one to ask, stop here and
