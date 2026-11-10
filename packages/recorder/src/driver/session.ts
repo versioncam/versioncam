@@ -306,7 +306,34 @@ export class RecordingSession {
   /** Index of the last captured frame; -1 before frame 0 exists. */
   private frame = -1;
   private cursor: Vec2;
-  private inFlight = 0;
+  /**
+   * The requests Playwright has not yet reported finished or failed, each with
+   * the document of the main frame it belongs to, counted in commits.
+   *
+   * Not a plain count, because Playwright does not report every request's end.
+   * When the main frame goes to a page on another site, the requests the old
+   * page left open are never reported again, finished or failed: Vercel's
+   * sign-in page leaves two on its way back to a preview. A count kept from the
+   * reports would hold them for the rest of the clip, and every settle after
+   * would wait out its whole time. So they go when the next document commits,
+   * as Playwright's own network-idle check drops them.
+   */
+  private readonly inFlight = new Map<Request, number>();
+  /** Documents the main frame has committed, so a request knows which is its. */
+  private commits = 0;
+  /**
+   * The main frame's navigation request still on its way, and whether the
+   * server has answered it.
+   *
+   * Playwright's `framenavigated` does not say whether a new document arrived
+   * or the History API changed the address of the old one, and only the first
+   * leaves the old page's requests behind. A new document is committed only
+   * after its server answers, so a `framenavigated` that follows an answer is
+   * the commit, and one with no navigation answered is the same document. The
+   * order is measured, not assumed: response, then commit, then the new
+   * page's first request, on the same site, across sites and after a redirect.
+   */
+  private arriving: { request: Request; answered: boolean } | null = null;
   /**
    * A navigation of the main frame has started and its document has not loaded.
    *
@@ -386,30 +413,48 @@ export class RecordingSession {
       }
     };
     page.on("request", (request) => {
-      this.inFlight += 1;
       if (isNavigation(request)) {
+        // It belongs to the document it brings, not to the one it leaves.
+        this.inFlight.set(request, this.commits + 1);
+        this.arriving = { request, answered: false };
         this.navigating = true;
         this.navigatingTo = request.url();
+      } else {
+        this.inFlight.set(request, this.commits);
       }
     });
-    page.on("requestfinished", () => {
-      this.inFlight = Math.max(0, this.inFlight - 1);
+    page.on("requestfinished", (request) => {
+      this.inFlight.delete(request);
     });
     page.on("requestfailed", (request) => {
-      this.inFlight = Math.max(0, this.inFlight - 1);
+      this.inFlight.delete(request);
+      if (this.arriving?.request === request) this.arriving = null;
       // A download, or one navigation replaced by another: no document is
       // coming from this one, and the next one says so for itself.
       if (isNavigation(request)) this.navigating = false;
     });
     page.on("response", (response) => {
+      const request = response.request();
       // "No content": the browser stays on the page it is on, as it does for a
       // form whose handler has nothing to show.
       const status = response.status();
-      if (
-        (status === 204 || status === 205) &&
-        isNavigation(response.request())
-      ) {
+      if ((status === 204 || status === 205) && isNavigation(request)) {
         this.navigating = false;
+        if (this.arriving?.request === request) this.arriving = null;
+        return;
+      }
+      // A redirect is answered too, but the request that follows it takes
+      // its place before anything can commit.
+      if (this.arriving?.request === request) this.arriving.answered = true;
+    });
+    page.on("framenavigated", (frame) => {
+      if (frame !== page.mainFrame() || !this.arriving?.answered) return;
+      this.arriving = null;
+      this.commits += 1;
+      // The old page and its frames are gone, and so is any answer to what
+      // they asked. What the new one asks from here on is counted as before.
+      for (const [request, document] of this.inFlight) {
+        if (document < this.commits) this.inFlight.delete(request);
       }
     });
     page.on("load", () => {
@@ -479,14 +524,18 @@ export class RecordingSession {
     const defaults = this.options.config.settle;
     const startedAt = performance.now();
     const wait = (timeoutMs: number | undefined): Promise<SettleReport> =>
-      settlePage(this.page, () => this.inFlight + (this.navigating ? 1 : 0), {
-        quietMs: defaults.quietMs,
-        timeoutMs: defaults.timeoutMs,
-        yieldMs: defaults.yieldMs,
-        ...options,
-        ...(timeoutMs === undefined ? {} : { timeoutMs }),
-        hook: options.hook ?? this.defaultHook(),
-      });
+      settlePage(
+        this.page,
+        () => this.inFlight.size + (this.navigating ? 1 : 0),
+        {
+          quietMs: defaults.quietMs,
+          timeoutMs: defaults.timeoutMs,
+          yieldMs: defaults.yieldMs,
+          ...options,
+          ...(timeoutMs === undefined ? {} : { timeoutMs }),
+          hook: options.hook ?? this.defaultHook(),
+        },
+      );
     // A page that was on its way somewhere when the wait began is a cold open
     // of its own, and gets a cold open's budget: a dev server may have a route
     // to compile.

@@ -1,10 +1,15 @@
 import { expect, test } from "@playwright/test";
+import type { Request } from "playwright";
 import { compareRecordings, readRecording } from "../src/driver/compare.js";
 import { clip, runClip } from "../src/driver/clip.js";
 import type { ClipBody } from "../src/driver/clip.js";
 import { launchBrowser } from "../src/driver/launch.js";
 import type { RecordingSession } from "../src/driver/session.js";
-import { installFixtureRoutes, testConfig } from "./support.js";
+import {
+  ELSEWHERE_ORIGIN,
+  installFixtureRoutes,
+  testConfig,
+} from "./support.js";
 
 /**
  * A clip can go from one document to another.
@@ -287,6 +292,137 @@ test("a request the old page left waiting does not hold up the new one", async (
     const report = result.settles.find((r) => r.label === "page b");
     expect(report?.timedOut).toBe(false);
     expect(report?.elapsedMs).toBeLessThan(10_000);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a request the old page left waiting does not hold up a page on another site", async () => {
+  // The test above passes on its own: on the same site Chromium cancels the
+  // request as the page goes, and Playwright reports it failed. When the new
+  // page is on another site, Playwright never reports it at all, finished or
+  // failed, and a count kept from those reports kept it for the rest of the
+  // clip. Vercel's sign-in page left two that way on its way back to the
+  // preview, and every settle after it waited out its whole time.
+  const browser = await launchBrowser();
+  try {
+    const never = { asked: 0, ended: 0 };
+    const result = await runClip(
+      browser,
+      testConfig(),
+      clip("nav-pending-elsewhere", { title: "Pending" }, async (s) => {
+        await s.offCamera(async (page) => {
+          await installFixtureRoutes(page);
+          await installFixtureRoutes(page, ELSEWHERE_ORIGIN);
+          await page.route("**/never", () => undefined);
+          const isNever = (request: Request): boolean =>
+            request.url().endsWith("/never");
+          page.on("request", (request) => {
+            if (isNever(request)) never.asked += 1;
+          });
+          for (const event of ["requestfinished", "requestfailed"] as const) {
+            page.on(event, (request) => {
+              if (isNever(request)) never.ended += 1;
+            });
+          }
+        });
+        await s.open("/navigation-a.html");
+        await s.offCamera(async (page) => {
+          const asked = page.waitForRequest("**/never");
+          await page.evaluate(
+            () => void fetch("/never").catch(() => undefined),
+          );
+          await asked;
+        });
+        await s.click(s.byTestId("elsewhere"));
+        await s.settle({ label: "page b" });
+        await s.click(s.byTestId("count"));
+        await s.settle({ label: "clicked" });
+        await s.hold(100);
+      }),
+      // So the test fails in seconds, not minutes, if the count comes back.
+      { arriveWithinMs: 10_000 },
+    );
+    // The case this test is for: asked once, and never heard of again. If
+    // Playwright starts reporting it, the test above covers it, and this one
+    // no longer tests anything.
+    expect(never).toEqual({ asked: 1, ended: 0 });
+    expect(
+      result.settles.filter((r) => r.timedOut).map((r) => r.label),
+    ).toEqual([]);
+    for (const label of ["page b", "clicked"]) {
+      const report = result.settles.find((r) => r.label === label);
+      expect(report?.elapsedMs).toBeLessThan(10_000);
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a request still open when the address changes in place still holds a settle", async () => {
+  // The History API changes the address and keeps the document, and whatever
+  // the page asked for is still on its way to it. Only a new document leaves
+  // the old one's requests behind.
+  const browser = await launchBrowser();
+  try {
+    const result = await runClip(
+      browser,
+      testConfig(),
+      clip("nav-pending-pushed", { title: "Pending" }, async (s) => {
+        await s.offCamera(async (page) => {
+          await installFixtureRoutes(page);
+          await page.route("**/never", () => undefined);
+        });
+        await s.open("/navigation-a.html");
+        await s.offCamera(async (page) => {
+          // Reported before the address changes, or the test would not be
+          // asking about a request the old address made.
+          const asked = page.waitForRequest("**/never");
+          await page.evaluate(
+            () => void fetch("/never").catch(() => undefined),
+          );
+          await asked;
+          await page.evaluate(() =>
+            history.pushState({}, "", "/navigation-a.html?pushed"),
+          );
+        });
+        await s.settle({ label: "pushed", timeoutMs: 1_500 });
+      }),
+    );
+    const report = result.settles.find((r) => r.label === "pushed");
+    expect(report?.timedOut).toBe(true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a request the new page makes as it loads still holds a settle", async () => {
+  // Its request comes after the commit that drops the old page's, so it is
+  // counted, however early the page makes it.
+  const browser = await launchBrowser();
+  try {
+    const result = await runClip(
+      browser,
+      testConfig(),
+      clip("nav-pending-arrived", { title: "Pending" }, async (s) => {
+        await s.offCamera(async (page) => {
+          await installFixtureRoutes(page);
+          await page.route(`${ELSEWHERE_ORIGIN}/navigation-b.html`, (route) =>
+            route.fulfill({
+              contentType: "text/html",
+              body: `<h1>Page B</h1><script>fetch("/never")</script>`,
+            }),
+          );
+          await page.route("**/never", () => undefined);
+        });
+        await s.open("/navigation-a.html");
+        await s.click(s.byTestId("elsewhere"));
+        await s.settle({ label: "page b", timeoutMs: 1_500 });
+      }),
+      { arriveWithinMs: 1_500 },
+    );
+    const report = result.settles.find((r) => r.label === "page b");
+    expect(report?.timedOut).toBe(true);
   } finally {
     await browser.close();
   }

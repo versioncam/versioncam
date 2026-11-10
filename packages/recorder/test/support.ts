@@ -14,6 +14,13 @@ export const FIXTURES = join(TEST_DIR, "fixtures");
 export const FIXTURE_ORIGIN = "http://fixture.local";
 
 /**
+ * Another site serving the same fixtures, for a clip that leaves the first
+ * one. Chromium treats a document on another site differently from one on the
+ * same site, and a test of that needs somewhere to go.
+ */
+export const ELSEWHERE_ORIGIN = "http://elsewhere.local";
+
+/**
  * A config rooted in a throwaway directory, so a test never writes into the
  * repository and two tests never share an output path.
  */
@@ -47,8 +54,11 @@ const TYPES: Record<string, string> = {
  * an app uses to mock its own API — so the test exercises the mechanism a
  * consumer will actually use rather than a private one.
  */
-export async function installFixtureRoutes(page: Page): Promise<void> {
-  await page.route(`${FIXTURE_ORIGIN}/**`, async (route) => {
+export async function installFixtureRoutes(
+  page: Page,
+  origin: string = FIXTURE_ORIGIN,
+): Promise<void> {
+  await page.route(`${origin}/**`, async (route) => {
     const path = new URL(route.request().url()).pathname;
     const file = join(FIXTURES, path === "/" ? "buttons.html" : path.slice(1));
     try {
