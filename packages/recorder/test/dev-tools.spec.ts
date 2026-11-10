@@ -23,6 +23,8 @@ const TOOLS = [
   "#ffff00",
   "#ff00ff",
   "#00ffff",
+  "#ff8000",
+  "#8000ff",
 ];
 
 /** Which of the fixture's tools, each 60 px square along the bottom, are drawn. */
@@ -39,7 +41,7 @@ function drawn(file: string, dpr: number): string[] {
   });
 }
 
-test("the tools of Next, Nuxt and Astro are in no frame", async () => {
+test("the tools of Next, Nuxt, Astro, Vercel and Netlify are in no frame", async () => {
   const browser = await launchBrowser();
   try {
     const result = await runClip(

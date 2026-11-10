@@ -221,7 +221,7 @@ ${transitions}  animation-play-state: paused !important;
 }
 
 /**
- * A dev server's own tools, which are not the product.
+ * A dev server's own tools, and a host's, which are not the product.
  *
  * `next dev`, `nuxt dev` and `astro dev` draw a badge or a toolbar over the app.
  * Each is in the video, usually under the caption, and each runs on a clock of
@@ -239,7 +239,13 @@ ${transitions}  animation-play-state: paused !important;
 const DEV_TOOLS =
   "[data-nextjs-dev-overlay], nextjs-portal, " +
   "#nuxt-devtools-container, nuxt-devtools-inspect-panel, #vue-tracer-overlay, " +
-  "astro-dev-toolbar";
+  "astro-dev-toolbar, " +
+  // A deployed preview's host draws its own, for comments on the preview:
+  // Vercel's toolbar and Netlify's drawer, as each was on a real preview on
+  // 2026-11-10. Vercel leaves its script out for a headless browser, which
+  // records, but not for the window `login` opens; Netlify's is a bar along
+  // the bottom, its iframe in a div that carries the deploy's id.
+  "vercel-live-feedback, [data-netlify-deploy-id]";
 
 export const DEV_TOOLS_CSS = `${DEV_TOOLS} {
   display: none !important;
