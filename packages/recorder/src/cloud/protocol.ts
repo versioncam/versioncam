@@ -136,11 +136,14 @@ export type ClipDetail = {
   /**
    * What the clip's page offers to paste, or null while nothing of the clip
    * has passed on the default branch, when there is nothing to embed.
-   * `video` is null when the version has no MP4.
+   * `video` is null when the version has no MP4. `jsx` is the iframe as
+   * JSX, for an MDX page; version.cam gives it since 2026-11 and an older
+   * answer has none.
    */
   embed: {
     script: string;
     iframe: string;
+    jsx?: string;
     video: string | null;
     markdown: string;
   } | null;

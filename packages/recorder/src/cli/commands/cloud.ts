@@ -1088,6 +1088,12 @@ function embedText(
       answer.embed.script,
     ],
     ["An iframe, for a page that does not", answer.embed.iframe],
+    // React compiles MDX and refuses the iframe's style as a string, so
+    // Docusaurus fails its build on the line above.
+    [
+      "The iframe as JSX, for MDX on Docusaurus, Nextra or Fumadocs",
+      answer.embed.jsx ?? null,
+    ],
     ["The video alone", answer.embed.video],
     ["Markdown, for a README", answer.embed.markdown],
   ];

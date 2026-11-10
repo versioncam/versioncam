@@ -125,6 +125,7 @@ function clip(api: string): ClipDetail {
     embed: {
       script: `<script type="module" src="https://clips.version.cam/embed.js"></script>\n<versioncam-clip src="${CLIPS}/add-a-book"></versioncam-clip>`,
       iframe: `<iframe src="${CLIPS}/add-a-book/embed" title="Add a book" allowfullscreen></iframe>`,
+      jsx: `<iframe src="${CLIPS}/add-a-book/embed" style={{ width: "100%" }} title="Add a book"></iframe>`,
       video: `<video src="${CLIPS}/add-a-book.mp4" controls muted playsinline></video>`,
       markdown: `[![Add a book](${CLIPS}/add-a-book.png)](${CLIPS}/add-a-book)`,
     },
@@ -1289,7 +1290,7 @@ describe("versioncam cloud ack", () => {
 });
 
 describe("versioncam cloud embed", () => {
-  it("prints the four snippets and the files, and what private means for them", async () => {
+  it("prints the five snippets and the files, and what private means for them", async () => {
     const pc = machine(fake);
     pc.signIn();
     pc.clone("git@github.com:acme/app.git");
@@ -1304,6 +1305,9 @@ describe("versioncam cloud embed", () => {
         "\n" +
         "An iframe, for a page that does not:\n" +
         `${embed.iframe}\n` +
+        "\n" +
+        "The iframe as JSX, for MDX on Docusaurus, Nextra or Fumadocs:\n" +
+        `${embed.jsx}\n` +
         "\n" +
         "The video alone:\n" +
         `${embed.video}\n` +
@@ -1350,6 +1354,19 @@ describe("versioncam cloud embed", () => {
       embed: null,
       files: null,
     });
+  });
+
+  it("prints no JSX line when version.cam's answer has none, as one from before 2026-11 does", async () => {
+    const pc = machine(fake);
+    pc.signIn();
+    pc.clone("git@github.com:acme/app.git");
+    const { jsx, ...older } = fake.clip.embed!;
+    expect(jsx).toBeDefined();
+    fake.clip = { ...fake.clip, embed: older };
+    const { code, out } = await pc.run("embed", "add-a-book");
+    expect(code).toBe(0);
+    expect(out).toContain("An iframe, for a page that does not:\n");
+    expect(out).not.toContain("JSX");
   });
 
   it("says nothing of privacy for a public project, and gives the answer with --json", async () => {
