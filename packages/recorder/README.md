@@ -931,7 +931,7 @@ up to ten private projects, each with everything Pro has.
 The recorder and the Action are free on every plan. version.cam is in private
 beta, so you can't buy a plan yet and we don't ask for a card. Free works for
 anyone who signs in, for public repositories. The first ten people who ask at
-hello@version.cam get Pro for free until the beta ends. An account made during
+hello@version.cam get Pro for free for a year. An account made during
 the beta pays 20% less for Pro or Max for twelve months, with the code
 FOUNDING.
 

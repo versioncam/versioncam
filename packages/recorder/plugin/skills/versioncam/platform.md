@@ -87,7 +87,7 @@ anyone either.
 When `cloud status` says the repository isn't on version.cam yet, tell the
 user so in its words, and stop.
 
-When `cloud plan` says the account is on Pro free during the private beta,
+When `cloud plan` says the account is on Pro free for a year,
 and `cloud status` says the Versioncam GitHub App is not installed on the
 repository, first check for a workflow. If no file in `.github/workflows/` at
 the repository's root uses `versioncam/action`, nothing will publish the clips

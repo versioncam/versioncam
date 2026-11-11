@@ -28,6 +28,69 @@ and its entry here says how.
   column, which is under 768 pixels wide on a desktop too, showed the phone
   clip.
 
+## 0.8.0 (2026-11-11)
+
+This version records an app where it is deployed, for an app that does not
+start in a runner, and says which embed snippet plays on which docs platform.
+One thing changes in how a replay matches requests, under *Changed*. Nothing
+changes in the clip DSL.
+
+### Added
+
+- `headers` in the config: request headers the recorder sends to the app's
+  origin and nowhere else, for a deployed preview behind its host's protection,
+  such as Vercel's `x-vercel-protection-bypass`. An empty value sends nothing,
+  so one config runs on a laptop without the secret and in CI with it. `doctor`
+  lists the names, never a value, and probes the app with them. A redirect to
+  another host takes the headers along, which the recorder cannot stop, so it
+  warns and names the host.
+- `versioncam ci --deployed` writes the workflow for an app that is recorded
+  where its host deployed it: the pull request job waits for the branch head's
+  Preview deployment and the push job for the commit's Production deployment,
+  through the Action's `deployment` input (Action 1.2.0). `--preview` and
+  `--production` rename the environments. The secrets the config reads are
+  passed to the Action by name, never with a value. On Vercel, the next steps
+  name the project setting that makes GitHub deployments, deployment_status
+  Events, which new projects start with off.
+- The authoring skill asks about a deployed preview or a staging site before
+  it starts a whole stack, and writes the config for it: `baseUrl` from
+  `VERSIONCAM_BASE_URL`, no `webServer`, `headers` for a protected preview,
+  and a `login` hook with a test account.
+- Vercel's toolbar and Netlify's drawer are hidden in every frame, as the dev
+  tools of Next, Nuxt and Astro are.
+- `versioncam cloud embed` prints two more snippets when version.cam gives
+  them: the iframe as JSX, for Docusaurus, Nextra and Fumadocs, whose MDX
+  refuses a style written as a string, and the GitBook tag,
+  `{% @versioncam/clip url="<clip>" %}`, with the install link of version.cam's
+  GitBook integration.
+- The README gains *Record a deployed preview* and *Embed a clip*: one row per
+  docs platform with the snippet to use, what plays, and the date it was tested
+  on a real page.
+
+### Changed
+
+- A replay matches a request to the app by its path and query, on whatever
+  host the app is on now, so a replay recorded on localhost answers on a
+  preview whose host changes with every commit. Requests to any other host are
+  matched whole, as before. A replay recorded before 0.8.0 has no origin
+  written down and is matched as before; record it again once.
+- While a `login` hook runs, its requests go to the app and are neither
+  recorded nor served by a replay, so a sign-in's password never reaches the
+  replay file beside the clip.
+- The first ten people who ask get Pro for a year. The READMEs, the skill and
+  `cloud plan` say so where they said "until the beta ends".
+
+### Fixed
+
+- A settle no longer waits out its whole time after the page went to another
+  site and came back, as it does through Vercel's sign-in. Requests the old
+  document left open were counted as in flight for the rest of the clip; they
+  are dropped when the main frame commits a new document, as Playwright's own
+  network-idle check does.
+- A settle that gives up names what held it, `requests(1)` for example, in the
+  log line and in `settles.json`. Before, nearly every one said `navigation`,
+  because the last probe was cut off before the page could answer.
+
 ## 0.7.8 (2026-11-09)
 
 This patch changes only documentation: the setup prompt in the READMEs. Nothing

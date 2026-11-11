@@ -1181,7 +1181,7 @@ function planText(
         ? ", paid by subscription"
         : plan.source === "override"
           ? ask && plan.name === "pro"
-            ? ", free during the private beta"
+            ? ", free for a year"
             : ", set by version.cam"
           : "";
   const lines = [
@@ -1194,7 +1194,7 @@ function planText(
   if (plan.name === "free" && ask) {
     lines.push(
       "",
-      "Pro is free during the private beta for the first ten people who ask. " +
+      "Pro is free for a year for the first ten people who ask. " +
         `To ask, send this to ${ask} from the address GitHub has for you:`,
       `  Subject: Pro for ${account} during the beta`,
       `  Please switch on Pro for my account ${account}.`,

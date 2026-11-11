@@ -1703,7 +1703,7 @@ describe("versioncam cloud plan", () => {
       },
     };
     expect((await pc.run("plan", "acme")).out.split("\n")[0]).toBe(
-      "acme is on Pro for 10 private projects until 5 December 2027, free during the private beta.",
+      "acme is on Pro for 10 private projects until 5 December 2027, free for a year.",
     );
 
     fake.plans.peter = {
@@ -1722,7 +1722,7 @@ describe("versioncam cloud plan", () => {
       "peter is on Free.\n" +
         FREE +
         "\n" +
-        "Pro is free during the private beta for the first ten people who ask. To ask, send this to hello@version.cam from the address GitHub has for you:\n" +
+        "Pro is free for a year for the first ten people who ask. To ask, send this to hello@version.cam from the address GitHub has for you:\n" +
         "  Subject: Pro for peter during the beta\n" +
         "  Please switch on Pro for my account peter.\n" +
         "\n" +

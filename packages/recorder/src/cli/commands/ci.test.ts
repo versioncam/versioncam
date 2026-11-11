@@ -208,7 +208,7 @@ describe("versioncam ci", () => {
     expect(beta.out).toBe(
       PUBLIC +
         "This repository is private. The workflow will still check your clips on every pull request. " +
-        "version.cam hosts clips from private repositories on the Pro plan, which is free during the private beta for the first ten people who ask. " +
+        "version.cam hosts clips from private repositories on the Pro plan, which is free for a year for the first ten people who ask. " +
         "In this order: run `npx versioncam cloud login` to create your account; " +
         "email hello@version.cam with the account name it prints; " +
         "once Pro is on, install the Versioncam GitHub App on this repository at https://github.com/apps/versioncam, so version.cam knows who may see the clips; " +
