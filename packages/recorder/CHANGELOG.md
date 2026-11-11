@@ -28,6 +28,21 @@ and its entry here says how.
   column, which is under 768 pixels wide on a desktop too, showed the phone
   clip.
 
+## 0.8.1 (2026-11-11)
+
+This patch changes only documentation: the README's *Embed a clip* table.
+Nothing changes in the config, the clip DSL or any code.
+
+### Changed
+
+- The embed table has four more platforms tested on real pages on
+  2026-11-11: Notion, where a pasted link with *Create embed* plays the clip;
+  Confluence Cloud, where the Embed block plays it for any reader and the
+  iFrame macro for readers signed in to the site; Zendesk Guide, where the
+  iframe plays with *Display unsafe content* on and the GIF without it, and
+  the video tag did not play in the editor's preview; and Mintlify's hosted
+  build, which plays what `mint dev` played. Intercom stays untested.
+
 ## 0.8.0 (2026-11-11)
 
 This version records an app where it is deployed, for an app that does not
