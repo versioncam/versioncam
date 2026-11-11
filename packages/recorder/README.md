@@ -825,15 +825,15 @@ real page on the date given.
 
 | Platform | Use | What plays | Tested |
 |---|---|---|---|
-| Mintlify | the iframe | The iframe, as HTML or JSX, the video and the GIF. Mintlify removes the `<version-cam>` tag from a page, so the element can't work there. | 2026-11-10, `mint dev` |
+| Mintlify | the iframe | The iframe, as HTML or JSX, the video and the GIF. Mintlify removes the `<version-cam>` tag from a page, so the element can't work there. | 2026-11-11, a hosted site, and `mint dev` the day before |
 | Docusaurus 3 | the JSX iframe, or the element with the script in the config | All of them, with two catches. The plain iframe fails the site's build, because React won't take a `style` written as a string. The script snippet inside a page runs only when someone opens that page directly, not when they reach it by a link in the site, so load the script from the config instead. | 2026-11-10, a built site |
 | MkDocs Material | the iframe, or the element with the script in `mkdocs.yml` | All four, as version.cam gives them. | 2026-11-10, a built site |
 | Starlight | the iframe, or the element with the script in the config | All four, as version.cam gives them. | 2026-11-10, a built site |
 | Nextra, Fumadocs | the JSX iframe | They compile MDX with React, as Docusaurus does. | untested |
 | GitHub README | the GIF | Only the GIF. GitHub shows the iframe and the script as text and blocks the video's file. GitHub also keeps its own copy of each image, so a README may keep showing an older version of the GIF. | 2026-11-10, GitHub's Markdown renderer and github.com's content policy |
-| Zendesk Guide | the video | | untested |
-| Confluence Cloud | the iFrame macro, with the clip's `/embed` address | | untested |
-| Notion | the clip's link, as an embed | | untested |
+| Zendesk Guide | the iframe, with *Display unsafe content* on, or the GIF | Zendesk keeps the iframe inside its block for untrusted HTML, which the help center shows only with *Display unsafe content* on, under Guide settings, Security. It keeps the video tag too, but in the editor's preview the video did not play. The GIF plays. | 2026-11-11, the article editor |
+| Confluence Cloud | the clip's link in an Embed block (`/embed`), or the iFrame macro with the clip's `/embed` address | The Embed block plays the clip's page at the clip's shape and follows the newest version; a pasted link on its own becomes an inline card. The iFrame macro plays our player for readers signed in to the site, but a page shared by public link hides every macro. | 2026-11-11, a Confluence Cloud site |
+| Notion | the clip's link, with *Create embed* | Notion makes a video block of the clip's page at the column's width, and it follows the newest version. `/embed` with the `/embed` address and `/video` with the video file's address play too. Notion's HTML block takes a file, not pasted markup. | 2026-11-11, a published Notion page |
 | GitBook | the clip's link, with [our integration](https://app.gitbook.com/integrations/versioncam) installed | With the integration installed on the space, a pasted link plays the newest version at the clip's shape. In a Git Sync repository, write `{% @versioncam/clip url="<the clip's link>" %}`. Without the integration, GitBook plays the link through Iframely, a service that reads the link once and keeps what it found, so the page may keep showing an older version. GitBook takes no iframe and no video file of its own. | 2026-11-10, a published GitBook site |
 | Intercom | the GIF as an image that links to the clip's page | Intercom's docs say its articles take videos only from YouTube, Wistia, Vimeo, Loom, Vidyard and StreamIO. | untested |
 
