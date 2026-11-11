@@ -96,6 +96,13 @@ export type ProjectStatus = {
   visibility: Visibility;
   /** "Tell viewers when a clip is broken". */
   showBroken: boolean;
+  /**
+   * "Show the badge in the player": whether the clip's player shows the
+   * badge, the small mark in its corner that names the branch and the
+   * commit. Off only on a plan that allows it. Absent from a service older
+   * than the badge.
+   */
+  badge?: boolean;
   permission: "admin" | "read";
   plan: { name: string; title: string; alerts: boolean };
   /** Who is told when a clip breaks: for someone who may change the project, else null. */
@@ -198,6 +205,7 @@ export type ChangeRequest =
   | { visibility: Visibility }
   | { retentionDays: number | null }
   | { showBroken: boolean }
+  | { badge: boolean }
   | { alertEmail: string | null }
   | { slackWebhook: string | null }
   | { staleIssues: boolean };

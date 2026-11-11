@@ -755,8 +755,8 @@ versioncam cloud ack <clip>        acknowledge a broken clip, which stops the re
 versioncam cloud embed <clip>      the snippets that embed a clip, and its files
 versioncam cloud set <name> <val>  change a setting, once you approve it in a browser:
                                    visibility public|unlisted|private, retention <days>|off,
-                                   viewers on|off, alerts email|slack <address>|off,
-                                   alerts issues on|off
+                                   viewers on|off, badge on|off,
+                                   alerts email|slack <address>|off, alerts issues on|off
 versioncam cloud plan [account]    the plan, and the links to upgrade and to billing
     --project <owner/repo>         which project, when not this repository's
     --json                         machine-readable, for status, failure, embed and plan
@@ -917,7 +917,7 @@ will confirm them after the first invoices.
 Free is for public repositories only, so it has no private projects. It
 covers three projects, ten clips a project, five branches a project, thirty
 days of history and clips up to sixty seconds, with the pull request check and
-the badge. The account's projects share 1 GB of storage, thirty minutes of
+the README badge. The account's projects share 1 GB of storage, thirty minutes of
 rendering a month and sixty renders on request a month, such as a GIF or a
 crop. Free has no alerts.
 
@@ -925,7 +925,8 @@ Pro costs $35 per private project a month, or $350 a year. It adds private
 repositories, unlimited history, a hundred clips a project, clips up to five
 minutes and 20 GB a project. Each project also gets ten hours of rendering and
 600 renders on request a month. And we email your team, post to Slack or open a
-GitHub issue when a clip breaks. Max costs $145 a month, or $1,450 a year, for
+GitHub issue when a clip breaks. On Pro you can turn off the badge in the
+player. Max costs $145 a month, or $1,450 a year, for
 up to ten private projects, each with everything Pro has.
 
 The recorder and the Action are free on every plan. version.cam is in private
@@ -1018,7 +1019,8 @@ a time. `cloud set visibility public` prints the change in a sentence, an
 address and a code, and waits up to ten minutes. The page shows exactly that
 change, so an agent running the commands for you cannot change a project
 without you seeing what it asked for. The settings are `visibility`,
-`retention`, `viewers` ("Tell viewers when a clip is broken") and `alerts`,
+`retention`, `viewers` ("Tell viewers when a clip is broken"), `badge` ("Show
+the badge in the player", which only Pro and Max can turn off) and `alerts`,
 by email, in Slack or with a GitHub issue.
 
 You still do three things on app.version.cam: pay (`cloud plan` prints the

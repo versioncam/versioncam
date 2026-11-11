@@ -10,6 +10,12 @@ and its entry here says how.
 
 ### Added
 
+- `versioncam cloud set badge on|off`: whether a clip's player shows the
+  badge, the small mark in its corner that names the branch and the commit,
+  and when the clip last passed its check. Only Pro and Max can turn it off;
+  on Free, version.cam refuses and says why. `cloud status` says whether it
+  is on, and `cloud plan` says Pro and Max can turn it off. It needs a
+  version.cam that knows the badge; an older one refuses the setting.
 - `versioncam cloud embed` prints a fifth snippet when version.cam gives it:
   the iframe as JSX, for MDX on Docusaurus, Nextra or Fumadocs. Docusaurus
   fails its build on the HTML iframe, because React won't take a `style`

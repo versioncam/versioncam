@@ -186,6 +186,7 @@ command per change, and each needs its own approval:
 | the clips public, unlisted or private | `npx versioncam cloud set visibility public` (or `unlisted`, `private`) |
 | versions kept for so many days | `npx versioncam cloud set retention 90`, or `off` for what the plan keeps |
 | viewers can see when a clip is broken | `npx versioncam cloud set viewers on` (or `off`) |
+| no badge in the clip's player (Pro and Max only) | `npx versioncam cloud set badge off` (or `on`) |
 | broken clips emailed to an address | `npx versioncam cloud set alerts email <address>` (or `off`) |
 | broken clips posted to Slack | `npx versioncam cloud set alerts slack <webhook>` (or `off`) |
 | a GitHub issue for each broken clip | `npx versioncam cloud set alerts issues on` (or `off`) |

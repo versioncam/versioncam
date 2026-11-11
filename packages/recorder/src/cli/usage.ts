@@ -85,8 +85,8 @@ Manage
   versioncam cloud embed <clip>      the snippets that embed a clip, and its files
   versioncam cloud set <name> <val>  change a setting, once you approve it in a browser:
                                      visibility public|unlisted|private, retention <days>|off,
-                                     viewers on|off, alerts email|slack <address>|off,
-                                     alerts issues on|off
+                                     viewers on|off, badge on|off,
+                                     alerts email|slack <address>|off, alerts issues on|off
   versioncam cloud plan [account]    the plan, and the links to upgrade and to billing
       --project <owner/repo>         which project, when not this repository's
       --json                         machine-readable, for status, failure, embed and plan

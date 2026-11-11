@@ -795,7 +795,7 @@ async function plan(c: Context): Promise<number> {
 // --- Changing a setting -------------------------------------------------------
 
 const SETTINGS =
-  "visibility <public|unlisted|private>, retention <days|off>, viewers <on|off>, " +
+  "visibility <public|unlisted|private>, retention <days|off>, viewers <on|off>, badge <on|off>, " +
   "alerts email <address|off>, alerts slack <address|off>, alerts issues <on|off>";
 
 /** The setting and value as the API takes them, or why not. */
@@ -847,6 +847,12 @@ export function changeRequest(args: string[]): ChangeRequest | string {
   if (setting === "viewers") {
     const viewers = onOff(value);
     return viewers === null ? wrong : { showBroken: viewers };
+  }
+  if (setting === "badge") {
+    // Off is a paid plan's: the service refuses it on Free, in its own
+    // words, before any approval is asked for.
+    const badge = onOff(value);
+    return badge === null ? wrong : { badge };
   }
   return wrong;
 }
@@ -947,6 +953,11 @@ function statusText(answer: ProjectStatus, io: CloudIo): string {
     })`,
     // The setting's own name on the dashboard, in `set viewers`'s words.
     `Tell viewers when a clip is broken: ${answer.showBroken ? "on" : "off"}`,
+    // And the badge's, when the service knows it: an older one sends no
+    // field, and then nothing is known either way.
+    ...(answer.badge === undefined
+      ? []
+      : [`Show the badge in the player: ${answer.badge ? "on" : "off"}`]),
   );
   // Only when the service says so: an older one sends no field, and then
   // nothing is known either way.
@@ -1143,13 +1154,15 @@ const APP_URL = "https://github.com/apps/versioncam";
 const INCLUDES: Record<string, string> = {
   free:
     "Free covers public repositories: up to three projects, ten clips each, thirty days of history, clips up to sixty seconds, 1 GB. " +
-    "Checks on pull requests and the badge are included.",
+    "Checks on pull requests and the README badge are included.",
   pro:
     `Pro includes private repositories (install the Versioncam GitHub App on each one: ${APP_URL}), unlimited history, up to a hundred clips per project, ` +
-    "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.",
+    "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page. " +
+    "You can also turn off the badge in the player with `npx versioncam cloud set badge off`.",
   max:
     `Max includes private repositories, for up to ten private projects (install the Versioncam GitHub App on each one: ${APP_URL}), unlimited history, up to a hundred clips per project, ` +
-    "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.",
+    "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page. " +
+    "You can also turn off the badge in the player with `npx versioncam cloud set badge off`.",
 };
 
 function planText(

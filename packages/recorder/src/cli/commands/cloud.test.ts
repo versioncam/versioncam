@@ -235,6 +235,8 @@ function settingRefused(key: string, value: unknown): string | null {
         : "retentionDays is a whole number of days from 1 to 9999, or null to keep every version the plan allows.";
     case "showBroken":
       return typeof value === "boolean" ? null : "showBroken is true or false.";
+    case "badge":
+      return typeof value === "boolean" ? null : "badge is true or false.";
     case "alertEmail":
       return value === null ||
         (typeof value === "string" && value.includes("@"))
@@ -1059,6 +1061,22 @@ describe("versioncam cloud status", () => {
     );
   });
 
+  it("says whether the player shows the badge, when the service knows", async () => {
+    const pc = machine(fake);
+    pc.signIn();
+    fake.project = { ...project(), badge: false };
+    expect((await pc.run("status", "acme/app")).out).toContain(
+      "Tell viewers when a clip is broken: off\nShow the badge in the player: off\n",
+    );
+    fake.project = { ...project(), badge: true };
+    expect((await pc.run("status", "acme/app")).out).toContain(
+      "Show the badge in the player: on\n",
+    );
+    // A service older than the badge sends no field: nothing is said.
+    fake.project = project();
+    expect((await pc.run("status", "acme/app")).out).not.toContain("badge");
+  });
+
   it("lists every project the person may see, outside a clone", async () => {
     const pc = machine(fake);
     pc.signIn();
@@ -1517,6 +1535,8 @@ describe("versioncam cloud set", () => {
       [["retention", "30"], { retentionDays: 30 }],
       [["retention", "off"], { retentionDays: null }],
       [["viewers", "off"], { showBroken: false }],
+      [["badge", "off"], { badge: false }],
+      [["badge", "on"], { badge: true }],
       [["alerts", "email", "ops@acme.dev"], { alertEmail: "ops@acme.dev" }],
       [["alerts", "email", "off"], { alertEmail: null }],
       [["alerts", "slack", webhook], { slackWebhook: webhook }],
@@ -1568,6 +1588,8 @@ describe("what cloud set takes", () => {
       ["retention", "12345"],
       ["retention", "a week"],
       ["viewers", "yes"],
+      ["badge", "hidden"],
+      ["badge"],
       ["alerts", "email"],
       ["alerts", "email", "not-an-address"],
       ["alerts", "slack", "http://hooks.slack.com/x"],
@@ -1582,10 +1604,11 @@ describe("what cloud set takes", () => {
 
 const PRO =
   "Pro includes private repositories (install the Versioncam GitHub App on each one: https://github.com/apps/versioncam), unlimited history, up to a hundred clips per project, " +
-  "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.\n";
+  "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page. " +
+  "You can also turn off the badge in the player with `npx versioncam cloud set badge off`.\n";
 const FREE =
   "Free covers public repositories: up to three projects, ten clips each, thirty days of history, clips up to sixty seconds, 1 GB. " +
-  "Checks on pull requests and the badge are included.\n";
+  "Checks on pull requests and the README badge are included.\n";
 
 describe("versioncam cloud plan", () => {
   it("says the plan, why and until when, and where to upgrade and pay", async () => {
@@ -1678,7 +1701,8 @@ describe("versioncam cloud plan", () => {
     expect(max[0]).toBe("globex is on Max, set by version.cam.");
     expect(max[1]).toBe(
       "Max includes private repositories, for up to ten private projects (install the Versioncam GitHub App on each one: https://github.com/apps/versioncam), unlimited history, up to a hundred clips per project, " +
-        "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page.",
+        "and alerts by email, Slack or GitHub issue, which you turn on with `npx versioncam cloud set alerts` or on the project's page. " +
+        "You can also turn off the badge in the player with `npx versioncam cloud set badge off`.",
     );
     // A plan with no sentence of its own gets none, rather than a wrong one.
     expect((await pc.run("plan", "initech")).out).toBe(
